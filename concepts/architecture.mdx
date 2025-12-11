@@ -28,60 +28,51 @@ At its core, Mythic Framework is built on four architectural pillars:
 ## Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         FiveM Server                             │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                    Server-Side (Lua)                        │ │
-│  │  ┌──────────────────────────────────────────────────────┐  │ │
-│  │  │              mythic-base (Core)                       │  │
-│  │  │  • Component Proxy System                             │  │
-│  │  │  • Event Middleware                                   │  │
-│  │  │  • Database Wrapper (Node.js)                         │  │
-│  │  │  • Logger & Error Handling                            │  │
-│  │  └──────────────────────────────────────────────────────┘  │ │
-│  │              ↓ Depends On ↓                                │ │
-│  │  ┌──────────────────────────────────────────────────────┐  │ │
-│  │  │         Feature Resources (60+ modules)               │  │
-│  │  │  mythic-characters | mythic-inventory | mythic-jobs   │  │
-│  │  │  mythic-police | mythic-vehicles | mythic-phone       │  │
-│  │  │  ... and 50+ more resources                           │  │
-│  │  └──────────────────────────────────────────────────────┘  │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                            ↕                                     │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                   Client-Side (Lua)                         │ │
-│  │  • Game Logic                                               │ │
-│  │  • Event Handlers                                           │ │
-│  │  • NUI Communication                                        │ │
-│  │  • Native Function Calls                                    │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                            ↕                                     │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                    NUI Layer (Browser)                      │ │
-│  │  ┌──────────────────────────────────────────────────────┐  │ │
-│  │  │         React UIs (10+ interfaces)                    │  │
-│  │  │  • HUD (health, status, vehicle info)                 │  │
-│  │  │  • Inventory (items, crafting, looting)               │  │
-│  │  │  • Phone (apps, calls, messages)                      │  │
-│  │  │  • MDT (police terminal)                              │  │
-│  │  │  • Character Creator                                  │  │
-│  │  │  • Admin Panel                                        │  │
-│  │  │  ... and more                                         │  │
-│  │  └──────────────────────────────────────────────────────┘  │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                            ↕
-        ┌───────────────────────────────────────┐
-        │         Database Layer                 │
-        │  ┌─────────────┐    ┌──────────────┐  │
-        │  │   MongoDB   │    │    MySQL     │  │
-        │  │             │    │              │  │
-        │  │ • Auth DB   │    │ • Persistent │  │
-        │  │ • Game DB   │    │   Data       │  │
-        │  │ • Flexible  │    │ • Relational │  │
-        │  │   Schema    │    │   Data       │  │
-        │  └─────────────┘    └──────────────┘  │
-        └───────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│              FiveM Server               │
+│                                         │
+│      ───────────────────────────────    │
+│             Server-Side (Lua)           │
+│    ┌────────────────────────────────┐   │
+│    │mythic-base (Core)              │   │
+│    │ • Component Proxy System       │   │
+│    │ • Event Middleware             │   │
+│    │ • Database Wrapper (Node.js)   │   │
+│    │ • Logger & Error Handling      │   │
+│    └────────────────────────────────┘   │
+│             ↓ Depends On ↓              │
+│    ┌────────────────────────────────┐   │
+│    │Feature Resources (60+)         │   │
+│    │• mythic-characters | inventory │   │
+│    │• mythic-jobs | police | phone  │   │
+│    └────────────────────────────────┘   │
+│                   ↕                     │
+│  ┌────────────────────────────────────┐ │
+│  │      Client-Side (Lua)             │ │
+│  │  • Game Logic                      │ │
+│  │  • Event Handlers                  │ │
+│  │  • NUI Communication               │ │
+│  └────────────────────────────────────┘ │
+│                   ↕                     │
+│  ┌────────────────────────────────────┐ │
+│  │      NUI Layer (Browser)           │ │
+│  │  • React UIs                       │ │
+│  │  • HUD, Inventory, Phone           │ │
+│  │  • MDT, Character Creator          │ │
+│  └────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+                   ↕
+┌─────────────────────────────────────────┐
+│           Database Layer                │
+│                                         │
+│  ┌──────────────┐     ┌──────────────┐  │
+│  │   MongoDB    │     │    MySQL     │  │
+│  ├──────────────┤     ├──────────────┤  │
+│  │ • Auth DB    │     │ • Persistent │  │
+│  │ • Game DB    │     │ • Relational │  │
+│  │ • Flexible   │     │ • Legacy     │  │
+│  └──────────────┘     └──────────────┘  │
+└─────────────────────────────────────────┘
 ```
 
 ## Core Layer: mythic-base
