@@ -4,11 +4,25 @@ export const ColorGenerator = () => {
   const [lightness, setLightness] = useState(50)
   const [colors, setColors] = useState([])
 
+  // Convert HSL to Hex
+  const hslToHex = (h, s, l) => {
+    s = s / 100
+    l = l / 100
+    const a = s * Math.min(l, 1 - l)
+    const f = (n) => {
+      const k = (n + h / 30) % 12
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)
+      return Math.round(255 * color).toString(16).padStart(2, '0')
+    }
+    return `#${f(0)}${f(8)}${f(4)}`
+  }
+
   useEffect(() => {
     const newColors = []
     for (let i = 0; i < 5; i++) {
       const l = Math.max(10, Math.min(90, lightness - 20 + i * 10))
-      newColors.push(`hsl(${hue}, ${saturation}%, ${l}%)`)
+      const hex = hslToHex(hue, saturation, l)
+      newColors.push(hex)
     }
     setColors(newColors)
   }, [hue, saturation, lightness])
@@ -23,6 +37,8 @@ export const ColorGenerator = () => {
         console.error("Failed to copy: ", err)
       })
   }
+
+  const baseColor = hslToHex(hue, saturation, lightness)
 
   return (
     <div className="p-4 border dark:border-zinc-950/80 rounded-xl not-prose">
@@ -101,8 +117,15 @@ export const ColorGenerator = () => {
 
         <div className="text-sm font-mono text-zinc-950/70 dark:text-white/70">
           <p>
-            Base color: hsl({hue}, {saturation}%, {lightness}%)
+            Base color: {baseColor}
           </p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {colors.map((color, idx) => (
+              <span key={idx} className="text-xs px-2 py-1 bg-zinc-200 dark:bg-zinc-800 rounded">
+                {color}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>
