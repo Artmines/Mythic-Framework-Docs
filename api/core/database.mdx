@@ -8,7 +8,14 @@ The Database component provides a unified interface for both MongoDB (primary) a
 
 ## Overview
 
-Access the Database component via `COMPONENTS.Database` after the `Core:Shared:Ready` event.
+Access the Database component via `Database.Game` (for game data) or `Database.Auth` (for authentication data) after the `Core:Shared:Ready` event.
+
+### Dual Database Architecture
+
+```lua
+Database.Game    -- Primary database for game data (characters, inventory, vehicles, etc.)
+Database.Auth    -- Separate database for authentication (users, roles, permissions)
+```
 
 <CardGroup cols={2}>
   <Card title="MongoDB Primary" icon="leaf">
@@ -40,28 +47,32 @@ MongoDB is the primary database for Mythic Framework, storing characters, invent
 Find a single document matching the query.
 
 ```lua
-COMPONENTS.Database:findOne(collection, query, callback)
+Database.Game:findOne(params, callback)
 ```
 
-<ParamField path="collection" type="string" required>
-  MongoDB collection name (e.g., 'characters', 'inventory', 'vehicles')
+<ParamField path="params" type="table" required>
+  Parameter table with the following fields:
+  - `collection` (string) - Collection name
+  - `query` (table) - Query filter
+  - `options` (table, optional) - Query options (projection, etc.)
 </ParamField>
 
-<ParamField path="query" type="table" required>
-  Query filter as key-value pairs
-</ParamField>
-
-<ParamField path="callback" type="function" optional>
+<ParamField path="callback" type="function" required>
   Callback function receiving `(success, result)`
-
-  If no callback provided, returns a promise
+  - `success` (boolean) - Whether query succeeded
+  - `result` (table|nil) - Document found, or nil if not found
 </ParamField>
 
 **Examples:**
 
 ```lua
--- With callback
-COMPONENTS.Database:findOne('characters', { SID = 1 }, function(success, character)
+-- Basic findOne
+Database.Game:findOne({
+    collection = 'characters',
+    query = {
+        SID = 1
+    }
+}, function(success, character)
     if success and character then
         print('Found character:', character.First, character.Last)
     else
@@ -69,22 +80,33 @@ COMPONENTS.Database:findOne('characters', { SID = 1 }, function(success, charact
     end
 end)
 
--- Without callback (synchronous)
-local character = COMPONENTS.Database:findOne('characters', { SID = 1 })
-if character then
-    print('Found:', character.First)
-end
-
 -- Query by multiple fields
-local inventory = COMPONENTS.Database:findOne('inventory', {
-    owner = characterId,
-    type = 'main'
-})
+Database.Game:findOne({
+    collection = 'inventory',
+    query = {
+        owner = characterId,
+        type = 'main'
+    }
+}, function(success, inventory)
+    if success and inventory then
+        -- Process inventory
+    end
+end)
 
--- Query with object ID
-local item = COMPONENTS.Database:findOne('items', {
-    _id = itemId
-})
+-- With projection (only specific fields)
+Database.Game:findOne({
+    collection = 'characters',
+    query = { SID = 1 },
+    options = {
+        projection = {
+            First = 1,
+            Last = 1,
+            Cash = 1
+        }
+    }
+}, function(success, character)
+    -- character only contains First, Last, Cash fields
+end)
 ```
 
 ---
@@ -94,60 +116,87 @@ local item = COMPONENTS.Database:findOne('items', {
 Find multiple documents matching the query.
 
 ```lua
-COMPONENTS.Database:find(collection, query, options, callback)
+Database.Game:find(params, callback)
 ```
 
-<ParamField path="collection" type="string" required>
-  MongoDB collection name
+<ParamField path="params" type="table" required>
+  Parameter table with the following fields:
+  - `collection` (string) - Collection name
+  - `query` (table) - Query filter
+  - `options` (table, optional) - Query options:
+    - `limit` (number) - Maximum documents to return
+    - `skip` (number) - Skip first N documents
+    - `sort` (table) - Sort order `{ field = 1 }` (asc) or `{ field = -1 }` (desc)
+    - `projection` (table) - Fields to include/exclude
 </ParamField>
 
-<ParamField path="query" type="table" required>
-  Query filter as key-value pairs
-</ParamField>
-
-<ParamField path="options" type="table" optional>
-  Query options:
-  - `limit` (number) - Maximum documents to return
-  - `skip` (number) - Skip first N documents
-  - `sort` (table) - Sort order `{ field = 1 }` (asc) or `{ field = -1 }` (desc)
-  - `projection` (table) - Fields to include/exclude
-</ParamField>
-
-<ParamField path="callback" type="function" optional>
+<ParamField path="callback" type="function" required>
   Callback function receiving `(success, results)`
+  - `success` (boolean) - Whether query succeeded
+  - `results` (table) - Array of documents (empty array if none found)
 </ParamField>
 
 **Examples:**
 
 ```lua
 -- Find all documents
-local allCharacters = COMPONENTS.Database:find('characters', {})
+Database.Game:find({
+    collection = 'characters',
+    query = {}
+}, function(success, allCharacters)
+    if success then
+        print('Found', #allCharacters, 'characters')
+    end
+end)
 
 -- Find with filter
-local policeOfficers = COMPONENTS.Database:find('characters', {
-    job = 'police'
-})
+Database.Game:find({
+    collection = 'characters',
+    query = {
+        ['Jobs.Id'] = 'police'  -- Query array fields
+    }
+}, function(success, policeOfficers)
+    -- Process results
+end)
 
--- Find with limit
-local recentCharacters = COMPONENTS.Database:find('characters', {}, {
-    limit = 10,
-    sort = { createdAt = -1 }  -- Sort by newest first
-})
+-- Find with limit and sort
+Database.Game:find({
+    collection = 'characters',
+    query = {},
+    options = {
+        limit = 10,
+        sort = { createdAt = -1 }  -- Newest first
+    }
+}, function(success, recentCharacters)
+    -- Process results
+end)
 
 -- Find with pagination
-local page2 = COMPONENTS.Database:find('characters', {}, {
-    skip = 20,
-    limit = 20
-})
-
--- Find with projection (only specific fields)
-local characterNames = COMPONENTS.Database:find('characters', {}, {
-    projection = {
-        First = 1,
-        Last = 1,
-        _id = 0  -- Exclude _id
+Database.Game:find({
+    collection = 'characters',
+    query = {},
+    options = {
+        skip = 20,
+        limit = 20  -- Page 2 (20 per page)
     }
-})
+}, function(success, page2)
+    -- Process results
+end)
+
+-- Find with projection
+Database.Game:find({
+    collection = 'characters',
+    query = {},
+    options = {
+        projection = {
+            First = 1,
+            Last = 1,
+            _id = 0  -- Exclude _id
+        }
+    }
+}, function(success, characterNames)
+    -- Results only contain First and Last fields
+end)
 
 -- Complex query
 local activePolice = COMPONENTS.Database:find('characters', {

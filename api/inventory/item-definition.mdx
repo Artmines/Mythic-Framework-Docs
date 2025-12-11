@@ -16,37 +16,30 @@ Items are defined in `shared/items.lua` files across resources:
     label = "Water Bottle",              -- Display name
     description = "A refreshing bottle of water",
     weight = 0.5,                        -- Weight in kg
-    type = "consumable",                 -- Item type
-    image = "water.png",                 -- Image filename (in ui/assets/items/)
+    price = 10,                          -- Base price
+
+    -- Type classification (numeric)
+    type = 1,                            -- Item type (see type codes below)
+    rarity = 1,                          -- Rarity level (0-5)
 
     -- Usage properties
-    usable = true,                       -- Can be used from inventory
-    unique = false,                      -- Each instance is unique
-    stackable = true,                    -- Can stack in slots
+    isUsable = true,                     -- Can be used from inventory
+    isRemoved = true,                    -- Removed from inventory when used
+    isStackable = 10,                    -- Stack size (false if not stackable, number for max stack)
+    isDestroyed = false,                 -- Completely removed when durability reaches 0
 
-    -- Quantity limits
-    maxStack = 10,                       -- Max stack size (if stackable)
+    -- Durability/decay
+    durability = 0,                      -- Time in seconds for full degradation (0 = no decay)
 
-    -- Metadata requirements
-    metadata = {},                       -- Default metadata
+    -- UI properties
+    closeUi = true,                      -- Close inventory UI after use
+    metalic = false,                     -- Item is metallic (affects detection)
 
-    -- Decay/durability
-    decay = false,                       -- Item decays over time
-    decayRate = 0,                       -- Decay per minute
+    -- State system (optional)
+    state = nil,                         -- State key added to character on use (e.g., "WEAPON_EQUIPPED")
 
-    -- Special properties
-    illegal = false,                     -- Illegal item (police can search)
-    sellable = true,                     -- Can be sold to shops
-    price = 10,                          -- Base price
-    blackmarket = false,                 -- Only sold on black market
-
-    -- Equipment properties (for wearables)
-    equipSlot = nil,                     -- "head", "body", "accessory", etc.
-
-    -- Weapon properties (for weapons)
-    weapon = false,                      -- Is this a weapon
-    ammoType = nil,                      -- Ammo type if weapon
-    throwable = false                    -- Can be thrown
+    -- Container properties (for container types)
+    container = nil                      -- Container identifier if type = 10
 }
 ```
 
@@ -106,47 +99,83 @@ Items are defined in `shared/items.lua` files across resources:
 
 ### Usage Properties
 
-<ParamField path="usable" type="boolean" optional default="false">
+<ParamField path="isUsable" type="boolean" optional default="false">
   Whether the item can be used from inventory
 
   **Example:**
   ```lua
-  usable = true  -- For consumables, tools, etc.
-  usable = false -- For passive items, materials
+  isUsable = true  -- For consumables, tools, etc.
+  isUsable = false -- For passive items, materials
   ```
 </ParamField>
 
-<ParamField path="unique" type="boolean" optional default="false">
-  Whether each item instance is unique (can't stack, has unique metadata)
+<ParamField path="isRemoved" type="boolean" optional default="false">
+  Whether the item is removed from inventory when used
 
-  **Use For:**
-  - Weapons (serial numbers)
-  - Phones (phone numbers)
-  - ID cards (character-specific)
-  - Vehicles keys (specific vehicle)
+  **Note:** This is a client interpretation flag. The actual removal must be implemented in the use code.
 
   **Example:**
   ```lua
-  unique = true  -- Each weapon has unique serial, ammo, durability
+  isRemoved = true  -- Item consumed on use (food, drinks)
+  isRemoved = false -- Item stays in inventory (ID cards, tools)
   ```
 </ParamField>
 
-<ParamField path="stackable" type="boolean" optional default="true">
-  Whether items can stack in a single slot
+<ParamField path="isStackable" type="number|boolean" optional default="false">
+  Stack size limit. Use `false` for non-stackable items, or a number for the maximum stack size.
 
   **Example:**
   ```lua
-  stackable = true   -- Water bottles can stack
-  stackable = false  -- Weapons don't stack
+  isStackable = 50   -- Max 50 items per slot
+  isStackable = false -- Cannot stack (weapons, unique items)
   ```
 </ParamField>
 
-<ParamField path="maxStack" type="number" optional default="99">
-  Maximum stack size if `stackable = true`
+<ParamField path="isDestroyed" type="boolean" optional default="false">
+  Whether item is completely removed when durability reaches 0
 
   **Example:**
   ```lua
-  maxStack = 50  -- Max 50 water bottles per slot
+  isDestroyed = true  -- Item deleted when durability = 0
+  isDestroyed = false -- Item remains but unusable
+  ```
+</ParamField>
+
+<ParamField path="durability" type="number" optional default="0">
+  Time in seconds for the item to fully degrade. Set to `0` for no decay.
+
+  **Example:**
+  ```lua
+  durability = (60 * 60 * 24)  -- 1 day durability
+  durability = 0               -- No decay
+  ```
+</ParamField>
+
+<ParamField path="closeUi" type="boolean" optional default="false">
+  Whether to close the inventory UI after using the item
+
+  **Example:**
+  ```lua
+  closeUi = true  -- Close UI after use
+  ```
+</ParamField>
+
+<ParamField path="metalic" type="boolean" optional default="false">
+  Whether the item is metallic (affects metal detectors, etc.)
+
+  **Example:**
+  ```lua
+  metalic = true  -- Weapons, tools
+  metalic = false -- Food, documents
+  ```
+</ParamField>
+
+<ParamField path="state" type="string" optional>
+  Character state key that is added when item is used and removed when item is lost
+
+  **Example:**
+  ```lua
+  state = "WEAPON_EQUIPPED"  -- Adds this state to character
   ```
 </ParamField>
 
@@ -154,20 +183,39 @@ Items are defined in `shared/items.lua` files across resources:
 
 ## Item Types
 
-The `type` field categorizes items:
+The `type` field uses **numeric codes** to categorize items:
 
 ```lua
-type = "consumable"   -- Food, drinks, medical items
-type = "weapon"       -- Firearms, melee weapons
-type = "ammo"         -- Ammunition
-type = "tool"         -- Lockpicks, repair kits, fishing rods
-type = "material"     -- Crafting materials, resources
-type = "valuable"     -- Jewelry, collectibles
-type = "document"     -- ID cards, licenses, contracts
-type = "clothing"     -- Wearable items
-type = "key"          -- Vehicle keys, building keys
-type = "container"    -- Backpacks, bags
-type = "misc"         -- Miscellaneous items
+type = 1   -- Consumable (food, drinks, medical items)
+type = 2   -- Weapon (firearms, melee weapons)
+type = 3   -- Tool (repair kits, special items)
+type = 4   -- Crafting ingredient (materials, resources)
+type = 5   -- Collectable (rare items, valuables)
+type = 6   -- Junk (trash, low-value items)
+type = 7   -- Unknown/Special (drugs, plants)
+type = 8   -- Evidence (police evidence items)
+type = 9   -- Ammo (ammunition)
+type = 10  -- Container (backpacks, bags, storage)
+type = 11  -- Gem (precious stones)
+type = 12  -- Paraphernalia (drug-related items)
+type = 13  -- Wearable (clothing, accessories)
+type = 14  -- Contraband (illegal items)
+type = 15  -- Gang chain (gang-specific items)
+type = 16  -- Weapon attachment (scopes, suppressors)
+type = 17  -- Schematic (crafting recipes)
+```
+
+### Rarity Levels
+
+The `rarity` field also uses numeric codes:
+
+```lua
+rarity = 0  -- Nothing/default
+rarity = 1  -- Common (white)
+rarity = 2  -- Uncommon (green)
+rarity = 3  -- Rare (blue)
+rarity = 4  -- Epic (purple)
+rarity = 5  -- Labor objective (yellow)
 ```
 
 ---
@@ -177,163 +225,136 @@ type = "misc"         -- Miscellaneous items
 ### Consumable Item
 
 ```lua
-["water"] = {
+{
     name = "water",
     label = "Water Bottle",
     description = "A refreshing bottle of water. Restores thirst.",
     weight = 0.5,
-    type = "consumable",
-    image = "water.png",
+    price = 5,
+    type = 1,                -- Consumable
+    rarity = 1,              -- Common
 
-    usable = true,
-    unique = false,
-    stackable = true,
-    maxStack = 10,
-
-    sellable = true,
-    price = 5
+    isUsable = true,
+    isRemoved = true,        -- Consumed when used
+    isStackable = 10,        -- Max 10 per slot
+    closeUi = false,
+    metalic = false
 }
 ```
 
 ### Weapon Item
 
 ```lua
-["weapon_pistol"] = {
+{
     name = "weapon_pistol",
     label = "Pistol",
     description = "A standard 9mm pistol. Reliable and accurate.",
     weight = 1.5,
-    type = "weapon",
-    image = "weapon_pistol.png",
-
-    usable = false,
-    unique = true,      -- Each weapon is unique
-    stackable = false,
-
-    weapon = true,
-    ammoType = "9mm",
-
-    illegal = false,
-    sellable = true,
     price = 5000,
+    type = 2,                -- Weapon
+    rarity = 2,              -- Uncommon
 
-    -- Default metadata for new weapons
-    metadata = {
-        serial = nil,      -- Generated on creation
-        durability = 100,
-        ammo = 12,
-        attachments = {}
-    },
+    isUsable = false,        -- Not directly usable from inventory
+    isRemoved = false,
+    isStackable = false,     -- Weapons don't stack
+    isDestroyed = false,     -- Remains when broken
+    closeUi = false,
+    metalic = true,          -- Metal detector will detect
 
-    -- Decay over time
-    decay = true,
-    decayRate = 0.1     -- 0.1% durability per minute
+    -- Durability in seconds (7 days)
+    durability = (60 * 60 * 24 * 7)
 }
 ```
+
+**Note:** Weapon-specific properties like ammo, serial numbers, and attachments are stored in item **metadata**, not in the item definition.
 
 ### Tool Item
 
 ```lua
-["lockpick"] = {
+{
     name = "lockpick",
     label = "Lockpick",
     description = "A bent piece of metal used for picking locks. May break on failed attempts.",
     weight = 0.1,
-    type = "tool",
-    image = "lockpick.png",
-
-    usable = true,
-    unique = false,
-    stackable = true,
-    maxStack = 5,
-
-    illegal = true,     -- Police can confiscate
-    sellable = true,
     price = 50,
-    blackmarket = true  -- Only sold illegally
+    type = 3,                -- Tool
+    rarity = 1,              -- Common
+
+    isUsable = true,
+    isRemoved = false,       -- Not consumed (but can break via code)
+    isStackable = 5,         -- Max 5 per slot
+    closeUi = true,          -- Close UI when used
+    metalic = true
 }
 ```
 
 ### Document Item
 
 ```lua
-["driver_license"] = {
-    name = "driver_license",
-    label = "Driver's License",
-    description = "Official driver's license. Required to legally operate a vehicle.",
-    weight = 0.01,
-    type = "document",
-    image = "driver_license.png",
+{
+    name = "govid",
+    label = "Government ID",
+    description = "Official government identification card.",
+    weight = 0,              -- Weightless
+    price = 0,               -- Not sold
+    type = 5,                -- Collectable
+    rarity = 1,              -- Common
 
-    usable = true,      -- Can view/show
-    unique = true,      -- Each license is character-specific
-    stackable = false,
-
-    sellable = false,   -- Can't sell licenses
-
-    -- Metadata contains character info
-    metadata = {
-        name = nil,     -- Character name
-        dob = nil,      -- Date of birth
-        photo = nil,    -- Character photo URL
-        issued = nil,   -- Issue date
-        expires = nil   -- Expiration date
-    }
+    isUsable = true,         -- Can view/show
+    isRemoved = false,
+    isStackable = false,     -- Each ID is unique
+    closeUi = true,
+    metalic = false
 }
 ```
+
+**Note:** Character-specific data like name, DOB, photo are stored in item **metadata**.
 
 ### Material Item
 
 ```lua
-["steel"] = {
+{
     name = "steel",
-    label = "Steel",
+    label = "Steel Bar",
     description = "High-quality steel. Used in crafting and construction.",
     weight = 2.0,
-    type = "material",
-    image = "steel.png",
+    price = 20,
+    type = 4,                -- Crafting ingredient
+    rarity = 1,              -- Common
 
-    usable = false,
-    unique = false,
-    stackable = true,
-    maxStack = 100,
-
-    sellable = true,
-    price = 20
+    isUsable = false,        -- Not directly usable
+    isRemoved = false,
+    isStackable = 100,       -- Max 100 per slot
+    closeUi = false,
+    metalic = true
 }
 ```
 
-### Phone Item
+### Phone Item (with Durability)
 
 ```lua
-["phone"] = {
+{
     name = "phone",
     label = "Smartphone",
     description = "A modern smartphone. Access contacts, messages, and apps.",
     weight = 0.2,
-    type = "tool",
-    image = "phone.png",
-
-    usable = true,
-    unique = true,      -- Each phone has unique number
-    stackable = false,
-
-    sellable = true,
     price = 500,
+    type = 3,                -- Tool
+    rarity = 2,              -- Uncommon
 
-    metadata = {
-        number = nil,       -- Phone number
-        contacts = {},      -- Contact list
-        messages = {},      -- Message history
-        battery = 100,      -- Battery level
-        apps = {            -- Installed apps
-            "contacts",
-            "messages",
-            "settings"
-        }
-    }
+    isUsable = true,
+    isRemoved = false,
+    isStackable = false,     -- Each phone is unique
+    isDestroyed = true,      -- Destroyed when durability reaches 0
+    closeUi = true,
+    metalic = true,
+
+    -- 30 day durability
+    durability = (60 * 60 * 24 * 30)
 }
 ```
+
+**Note:** Phone number, contacts, messages, battery, and apps are stored in item **metadata**.
 
 ---
 

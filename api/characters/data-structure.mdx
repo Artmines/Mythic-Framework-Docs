@@ -14,27 +14,65 @@ The complete character object structure stored in MongoDB:
 {
     _id = ObjectId("..."),              -- MongoDB document ID
     SID = 1,                             -- State ID (Character ID)
-    Owner = "steam:110000XXXXXXXX",      -- Player identifier who owns this character
+    User = 12345,                        -- Account ID of player who owns this character
     First = "John",                      -- First name
     Last = "Doe",                        -- Last name
     DOB = "1990-01-15",                  -- Date of birth (YYYY-MM-DD)
-    Gender = "Male",                     -- Gender ("Male" or "Female")
+    Gender = 0,                          -- Gender (0 = Male, 1 = Female)
     Phone = 5551234567,                  -- Phone number (unique)
+    Bio = "Character biography",         -- Character bio/backstory
+    Origin = 1,                          -- Character origin
 
-    -- Job Information
-    job = "police",                      -- Current job identifier
-    jobGrade = 2,                        -- Job rank/grade
-    onDuty = false,                      -- On-duty status
-
-    -- Gang Information (optional)
-    gang = "ballas",                     -- Gang affiliation
-    gangGrade = 1,                       -- Gang rank
+    -- Job Information (Array of jobs)
+    Jobs = {
+        {
+            Id = "police",               -- Job identifier
+            Name = "Los Santos Police Department",
+            Grade = {
+                Id = "officer",
+                Name = "Police Officer",
+                Level = 1
+            },
+            Workplace = {
+                Id = "lspd",
+                Name = "LSPD Mission Row"
+            }
+        }
+    },
 
     -- Money
-    cash = 5000,                         -- Cash on hand
-    bank = 25000,                        -- Bank balance
+    Cash = 5000,                         -- Cash on hand (note: capital C)
+    Bank = 25000,                        -- Bank balance (note: capital B)
 
-    -- Position
+    -- Licenses
+    Licenses = {
+        Drivers = {
+            Active = true,
+            Points = 0,
+            Suspended = false
+        },
+        Weapons = {
+            Active = false,
+            Suspended = false
+        },
+        Hunting = {
+            Active = false,
+            Suspended = false
+        },
+        Fishing = {
+            Active = false,
+            Suspended = false
+        },
+        Pilot = {
+            Active = false,
+            Suspended = false
+        }
+    },
+
+    -- Last played timestamp
+    LastPlayed = 1705334400,
+
+    -- Position (stored separately, synced to character)
     position = {
         x = 123.45,
         y = -678.90,
@@ -130,10 +168,12 @@ These fields are required when creating a character:
   **Example:** `"1990-01-15"`, `"1985-12-31"`
 </ParamField>
 
-<ParamField path="Gender" type="string" required>
-  Gender
+<ParamField path="Gender" type="number" required>
+  Gender (numeric value)
 
-  **Values:** `"Male"` or `"Female"`
+  **Values:**
+  - `0` = Male
+  - `1` = Female
 </ParamField>
 
 ---
@@ -148,10 +188,10 @@ These fields are automatically set by the system:
   **Auto-incremented** starting from 1
 </ResponseField>
 
-<ResponseField name="Owner" type="string">
-  Player identifier who owns this character
+<ResponseField name="User" type="number">
+  Account ID of the player who owns this character
 
-  **Automatically set** from the player's identifiers (usually Steam ID)
+  **Automatically set** from the player's AccountID
 </ResponseField>
 
 <ResponseField name="Phone" type="number">
@@ -180,13 +220,9 @@ Fields with default values if not specified:
 
 ```lua
 {
-    job = "unemployed",        -- Default job
-    jobGrade = 0,              -- Lowest grade
-    onDuty = false,            -- Off duty by default
-    gang = nil,                -- No gang
-    gangGrade = nil,           -- No gang grade
-    cash = 0,                  -- No starting cash
-    bank = 0,                  -- No starting bank money
+    Jobs = {},                 -- Empty jobs array (unemployed)
+    Cash = 5000,               -- Starting cash (5000 by default)
+    Bank = 0,                  -- No starting bank money
     position = {               -- Default spawn position
         x = -258.211,
         y = -293.738,
@@ -427,44 +463,66 @@ local characters = COMPONENTS.Database:find('characters', {
 })
 ```
 
-### Find by Owner
+### Find by User (Account ID)
 
 ```lua
-local identifier = GetPlayerIdentifier(source, 0)
-local characters = COMPONENTS.Database:find('characters', {
-    Owner = identifier
-})
+local player = Fetch:Source(source)
+local accountId = player:GetData('AccountID')
+
+Database.Game:find({
+    collection = 'characters',
+    query = {
+        User = accountId
+    }
+}, function(success, results)
+    if success and results then
+        -- Process characters
+    end
+end)
 ```
 
 ### Find by Job
 
 ```lua
-local police = COMPONENTS.Database:find('characters', {
-    job = 'police'
-}, {
-    sort = { jobGrade = -1 }  -- Sort by rank (highest first)
-})
+-- Note: Jobs is an array, so you need to query using array operators
+Database.Game:find({
+    collection = 'characters',
+    query = {
+        ['Jobs.Id'] = 'police'  -- Query for characters with police job
+    }
+}, function(success, results)
+    if success and results then
+        -- Process police characters
+    end
+end)
 ```
 
 ### Find Rich Players
 
 ```lua
-local rich = COMPONENTS.Database:aggregate('characters', {
-    {
-        ['$project'] = {
-            name = { ['$concat'] = { '$First', ' ', '$Last' } },
-            totalMoney = { ['$add'] = { '$cash', '$bank' } }
+Database.Game:aggregate({
+    collection = 'characters',
+    aggregate = {
+        {
+            ['$project'] = {
+                name = { ['$concat'] = { '$First', ' ', '$Last' } },
+                totalMoney = { ['$add'] = { '$Cash', '$Bank' } }  -- Note: Capital C and B
+            }
+        },
+        {
+            ['$match'] = {
+                totalMoney = { ['$gte'] = 1000000 }  -- $1M+
+            }
+        },
+        {
+            ['$sort'] = { totalMoney = -1 }
         }
-    },
-    {
-        ['$match'] = {
-            totalMoney = { ['$gte'] = 1000000 }  -- $1M+
-        }
-    },
-    {
-        ['$sort'] = { totalMoney = -1 }
     }
-})
+}, function(success, results)
+    if success and results then
+        -- Process rich players
+    end
+end)
 ```
 
 ---
@@ -517,8 +575,10 @@ end
 
 ```lua
 function ValidateGender(gender)
-    if gender ~= 'Male' and gender ~= 'Female' then
-        return false, 'Gender must be "Male" or "Female"'
+    local genderNum = tonumber(gender)
+
+    if not genderNum or (genderNum ~= 0 and genderNum ~= 1) then
+        return false, 'Gender must be 0 (Male) or 1 (Female)'
     end
 
     return true
