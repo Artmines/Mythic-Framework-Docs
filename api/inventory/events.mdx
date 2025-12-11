@@ -1,0 +1,858 @@
+---
+title: Inventory - Events
+description: Inventory-related events for item operations and state changes
+icon: 'bolt'
+---
+
+Inventory events fire when items are added, removed, used, or when inventory state changes, allowing other resources to react to inventory operations.
+
+## Server Events
+
+All inventory events fire on the **server-side**.
+
+<CardGroup cols={2}>
+  <Card title="Item Operations" icon="hand-holding-box">
+    Added, Removed, Moved, Swapped
+  </Card>
+  <Card title="Item Usage" icon="hand-pointer">
+    Used, Equipped, Dropped
+  </Card>
+  <Card title="Inventory State" icon="database">
+    Created, Deleted, Updated
+  </Card>
+  <Card title="Validation" icon="shield-check">
+    Pre-operation validation hooks
+  </Card>
+</CardGroup>
+
+---
+
+## Item Operation Events
+
+### mythic-inventory:server:ItemAdded
+
+Fired when an item is successfully added to an inventory.
+
+```lua
+AddEventHandler('mythic-inventory:server:ItemAdded', function(characterId, itemName, count, slot, metadata)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="characterId" type="number">
+  Character SID who received the item
+</ParamField>
+
+<ParamField path="itemName" type="string">
+  Item identifier (e.g., 'water', 'weapon_pistol')
+</ParamField>
+
+<ParamField path="count" type="number">
+  Quantity added
+</ParamField>
+
+<ParamField path="slot" type="number">
+  Slot number where item was added
+</ParamField>
+
+<ParamField path="metadata" type="table">
+  Item metadata (can be empty table)
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Log item additions
+AddEventHandler('mythic-inventory:server:ItemAdded', function(characterId, itemName, count, slot, metadata)
+    COMPONENTS.Logger:Info('Inventory', 'Item added', {
+        character = characterId,
+        item = itemName,
+        count = count,
+        slot = slot
+    })
+end)
+
+-- Track weapon distribution
+AddEventHandler('mythic-inventory:server:ItemAdded', function(characterId, itemName, count, slot, metadata)
+    if string.match(itemName, '^weapon_') then
+        -- Log weapon given
+        COMPONENTS.Database:insertOne('weapon_logs', {
+            character = characterId,
+            weapon = itemName,
+            serial = metadata.serial,
+            action = 'added',
+            timestamp = os.time()
+        })
+
+        -- Notify admins
+        COMPONENTS.Logger:Info('Weapons', 'Weapon distributed', {
+            character = characterId,
+            weapon = itemName,
+            serial = metadata.serial
+        }, { discord = true })
+    end
+end)
+
+-- Update client inventory UI
+AddEventHandler('mythic-inventory:server:ItemAdded', function(characterId, itemName, count, slot, metadata)
+    local player = Fetch:SID(characterId)
+
+    if player then
+        local source = player:GetData('Source')
+        local inventory = COMPONENTS.Inventory:Get(characterId)
+        TriggerClientEvent('mythic-inventory:client:SetInventory', source, inventory)
+
+        -- Show notification
+        local itemData = COMPONENTS.Items:Get(itemName)
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'Received ' .. count .. 'x ' .. itemData.label,
+            type = 'success'
+        })
+    end
+end)
+
+-- Achievement tracking
+AddEventHandler('mythic-inventory:server:ItemAdded', function(characterId, itemName, count, slot, metadata)
+    if itemName == 'rare_diamond' then
+        COMPONENTS.Achievements:Unlock(characterId, 'found_diamond')
+    end
+end)
+```
+
+---
+
+### mythic-inventory:server:ItemRemoved
+
+Fired when an item is removed from an inventory.
+
+```lua
+AddEventHandler('mythic-inventory:server:ItemRemoved', function(characterId, itemName, count, slot)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="characterId" type="number">
+  Character SID
+</ParamField>
+
+<ParamField path="itemName" type="string">
+  Item identifier
+</ParamField>
+
+<ParamField path="count" type="number">
+  Quantity removed
+</ParamField>
+
+<ParamField path="slot" type="number">
+  Slot number item was removed from
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Log item removals
+AddEventHandler('mythic-inventory:server:ItemRemoved', function(characterId, itemName, count, slot)
+    COMPONENTS.Logger:Info('Inventory', 'Item removed', {
+        character = characterId,
+        item = itemName,
+        count = count,
+        slot = slot
+    })
+end)
+
+-- Track consumable usage
+AddEventHandler('mythic-inventory:server:ItemRemoved', function(characterId, itemName, count, slot)
+    local consumables = { 'water', 'sandwich', 'burger', 'cola' }
+
+    if table.contains(consumables, itemName) then
+        -- Update consumption stats
+        COMPONENTS.Characters:UpdateCharacter(characterId, {
+            ['metadata.stats.consumed'] = (char.metadata.stats.consumed or 0) + count
+        })
+    end
+end)
+
+-- Notify on weapon removal
+AddEventHandler('mythic-inventory:server:ItemRemoved', function(characterId, itemName, count, slot)
+    if string.match(itemName, '^weapon_') then
+        local player = Fetch:SID(characterId)
+
+        if player then
+            local source = player:GetData('Source')
+            TriggerClientEvent('mythic-weapons:client:RemoveWeapon', source, itemName)
+        end
+    end
+end)
+```
+
+---
+
+### mythic-inventory:server:ItemUsed
+
+Fired when a player uses an item.
+
+```lua
+AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="source" type="number">
+  Player server ID who used the item
+</ParamField>
+
+<ParamField path="characterId" type="number">
+  Character SID
+</ParamField>
+
+<ParamField path="itemName" type="string">
+  Item identifier
+</ParamField>
+
+<ParamField path="slot" type="number">
+  Slot the item was used from
+</ParamField>
+
+<ParamField path="metadata" type="table">
+  Item metadata
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Handle item usage
+AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
+    if itemName == 'water' then
+        -- Restore thirst
+        COMPONENTS.Characters:UpdateCharacter(characterId, {
+            ['metadata.needs.thirst'] = 100
+        })
+
+        -- Remove item
+        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+
+        -- Notify
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'You drank water',
+            type = 'success'
+        })
+
+    elseif itemName == 'medkit' then
+        -- Heal player
+        TriggerClientEvent('mythic-medical:client:Heal', source, 100)
+
+        -- Remove item
+        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+
+    elseif itemName == 'lockpick' then
+        -- Start lockpicking minigame
+        TriggerClientEvent('mythic-lockpick:client:Start', source, function(success)
+            if not success then
+                -- Break lockpick on failure
+                COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+            end
+        end)
+    end
+end)
+
+-- Log usage
+AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
+    COMPONENTS.Logger:Info('Items', 'Item used', {
+        player = source,
+        character = characterId,
+        item = itemName
+    })
+end)
+
+-- Track drug usage
+AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
+    local drugs = { 'weed_joint', 'cocaine', 'meth' }
+
+    if table.contains(drugs, itemName) then
+        -- Track in character metadata
+        COMPONENTS.Characters:UpdateCharacter(characterId, {
+            ['metadata.stats.drugsUsed'] = (char.metadata.stats.drugsUsed or 0) + 1
+        })
+
+        -- Police can detect
+        TriggerEvent('mythic-police:server:DrugActivityDetected', source, itemName)
+    end
+end)
+```
+
+---
+
+### mythic-inventory:server:ItemMoved
+
+Fired when an item is moved from one slot to another.
+
+```lua
+AddEventHandler('mythic-inventory:server:ItemMoved', function(characterId, fromSlot, toSlot, itemName, count)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="characterId" type="number">
+  Character SID
+</ParamField>
+
+<ParamField path="fromSlot" type="number">
+  Source slot number
+</ParamField>
+
+<ParamField path="toSlot" type="number">
+  Destination slot number
+</ParamField>
+
+<ParamField path="itemName" type="string">
+  Item identifier
+</ParamField>
+
+<ParamField path="count" type="number">
+  Quantity moved
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Update client on move
+AddEventHandler('mythic-inventory:server:ItemMoved', function(characterId, fromSlot, toSlot, itemName, count)
+    local player = Fetch:SID(characterId)
+
+    if player then
+        local source = player:GetData('Source')
+        local inventory = COMPONENTS.Inventory:Get(characterId)
+        TriggerClientEvent('mythic-inventory:client:SetInventory', source, inventory)
+    end
+end)
+
+-- Log suspicious rapid movements (anti-cheat)
+local moveTracking = {}
+
+AddEventHandler('mythic-inventory:server:ItemMoved', function(characterId, fromSlot, toSlot, itemName, count)
+    moveTracking[characterId] = moveTracking[characterId] or { count = 0, lastMove = 0 }
+
+    local now = os.time()
+
+    if now - moveTracking[characterId].lastMove < 1 then
+        moveTracking[characterId].count = moveTracking[characterId].count + 1
+
+        if moveTracking[characterId].count > 10 then
+            -- Suspicious activity
+            COMPONENTS.Logger:Warn('AntiCheat', 'Rapid inventory movements', {
+                character = characterId,
+                moves = moveTracking[characterId].count
+            }, { discord = true })
+        end
+    else
+        moveTracking[characterId].count = 0
+    end
+
+    moveTracking[characterId].lastMove = now
+end)
+```
+
+---
+
+## Item Transfer Events
+
+### mythic-inventory:server:ItemGiven
+
+Fired when an item is given from one player to another.
+
+```lua
+AddEventHandler('mythic-inventory:server:ItemGiven', function(fromCharacterId, toCharacterId, itemName, count)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="fromCharacterId" type="number">
+  Character SID of giver
+</ParamField>
+
+<ParamField path="toCharacterId" type="number">
+  Character SID of receiver
+</ParamField>
+
+<ParamField path="itemName" type="string">
+  Item identifier
+</ParamField>
+
+<ParamField path="count" type="number">
+  Quantity given
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Log trades between players
+AddEventHandler('mythic-inventory:server:ItemGiven', function(fromCharacterId, toCharacterId, itemName, count)
+    COMPONENTS.Logger:Info('Trading', 'Item given', {
+        from = fromCharacterId,
+        to = toCharacterId,
+        item = itemName,
+        count = count
+    }, { file = true })
+
+    -- Insert trade log
+    COMPONENTS.Database:insertOne('trades', {
+        from = fromCharacterId,
+        to = toCharacterId,
+        item = itemName,
+        count = count,
+        timestamp = os.time()
+    })
+end)
+
+-- Prevent weapon trading
+AddEventHandler('mythic-inventory:server:ItemGiven', function(fromCharacterId, toCharacterId, itemName, count)
+    if string.match(itemName, '^weapon_') then
+        local fromPlayer = Fetch:SID(fromCharacterId)
+
+        -- Block weapon trades
+        COMPONENTS.Logger:Warn('Trading', 'Attempted weapon trade', {
+            console = true,
+            file = true
+        }, {
+            from = fromCharacterId,
+            to = toCharacterId,
+            weapon = itemName
+        })
+
+        if fromPlayer then
+            local fromSource = fromPlayer:GetData('Source')
+            TriggerClientEvent('mythic-notifications:client:Send', fromSource, {
+                message = 'Weapons cannot be traded',
+                type = 'error'
+            })
+        end
+
+        -- Cancel the trade
+        return false
+    end
+end)
+
+-- Track drug distribution
+AddEventHandler('mythic-inventory:server:ItemGiven', function(fromCharacterId, toCharacterId, itemName, count)
+    local drugs = { 'weed', 'cocaine', 'meth' }
+
+    if table.contains(drugs, itemName) then
+        -- Track dealer activity
+        COMPONENTS.Characters:UpdateCharacter(fromCharacterId, {
+            ['metadata.stats.drugsDealt'] = (char.metadata.stats.drugsDealt or 0) + count
+        })
+
+        -- Police can track distribution networks
+        TriggerEvent('mythic-police:server:DrugDistributionDetected', fromCharacterId, toCharacterId, itemName, count)
+    end
+end)
+```
+
+---
+
+### mythic-inventory:server:ItemDropped
+
+Fired when a player drops an item on the ground.
+
+```lua
+AddEventHandler('mythic-inventory:server:ItemDropped', function(source, characterId, itemName, count, coords)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="source" type="number">
+  Player server ID
+</ParamField>
+
+<ParamField path="characterId" type="number">
+  Character SID
+</ParamField>
+
+<ParamField path="itemName" type="string">
+  Item identifier
+</ParamField>
+
+<ParamField path="count" type="number">
+  Quantity dropped
+</ParamField>
+
+<ParamField path="coords" type="table">
+  Drop location {x, y, z}
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Create world item
+AddEventHandler('mythic-inventory:server:ItemDropped', function(source, characterId, itemName, count, coords)
+    -- Create pickup in the world
+    local pickup = COMPONENTS.WorldItems:Create(itemName, count, coords)
+
+    -- Notify nearby players
+    TriggerClientEvent('mythic-inventory:client:ItemDropped', -1, {
+        item = itemName,
+        count = count,
+        coords = coords,
+        pickupId = pickup.id
+    })
+
+    -- Auto-delete after 5 minutes
+    SetTimeout(300000, function()
+        COMPONENTS.WorldItems:Delete(pickup.id)
+    end)
+end)
+
+-- Log weapon drops
+AddEventHandler('mythic-inventory:server:ItemDropped', function(source, characterId, itemName, count, coords)
+    if string.match(itemName, '^weapon_') then
+        COMPONENTS.Logger:Info('Weapons', 'Weapon dropped', {
+            character = characterId,
+            weapon = itemName,
+            location = coords
+        }, { file = true })
+    end
+end)
+
+-- Prevent dropping certain items
+AddEventHandler('mythic-inventory:server:ItemDropped', function(source, characterId, itemName, count, coords)
+    local noDropItems = { 'id_card', 'driver_license', 'phone' }
+
+    if table.contains(noDropItems, itemName) then
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'You cannot drop this item',
+            type = 'error'
+        })
+
+        -- Cancel drop
+        return false
+    end
+end)
+```
+
+---
+
+## Inventory State Events
+
+### mythic-inventory:server:InventoryCreated
+
+Fired when a new inventory is created.
+
+```lua
+AddEventHandler('mythic-inventory:server:InventoryCreated', function(characterId, inventory)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+AddEventHandler('mythic-inventory:server:InventoryCreated', function(characterId, inventory)
+    COMPONENTS.Logger:Info('Inventory', 'Inventory created', {
+        character = characterId,
+        maxSlots = inventory.maxSlots,
+        maxWeight = inventory.maxWeight
+    })
+end)
+```
+
+---
+
+### mythic-inventory:server:InventoryOpened
+
+Fired when a player opens their inventory UI.
+
+```lua
+AddEventHandler('mythic-inventory:server:InventoryOpened', function(source, characterId)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+-- Send fresh inventory data
+AddEventHandler('mythic-inventory:server:InventoryOpened', function(source, characterId)
+    local inventory = COMPONENTS.Inventory:Get(characterId)
+    TriggerClientEvent('mythic-inventory:client:SetInventory', source, inventory)
+end)
+
+-- Track inventory usage
+AddEventHandler('mythic-inventory:server:InventoryOpened', function(source, characterId)
+    COMPONENTS.Characters:UpdateCharacter(characterId, {
+        ['metadata.stats.inventoryOpened'] = (char.metadata.stats.inventoryOpened or 0) + 1
+    })
+end)
+```
+
+---
+
+## Client Events
+
+### mythic-inventory:client:UpdateInventory
+
+Sent from server to update client inventory UI.
+
+```lua
+AddEventHandler('mythic-inventory:client:UpdateInventory', function(inventory)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+-- Update React UI
+AddEventHandler('mythic-inventory:client:UpdateInventory', function(inventory)
+    SendNUIMessage({
+        type = 'SET_INVENTORY',
+        inventory = inventory
+    })
+end)
+```
+
+---
+
+### mythic-inventory:client:ItemUsed
+
+Sent to client when an item is used (for client-side effects).
+
+```lua
+AddEventHandler('mythic-inventory:client:ItemUsed', function(itemName, metadata)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+-- Play animations/effects
+AddEventHandler('mythic-inventory:client:ItemUsed', function(itemName, metadata)
+    local ped = PlayerPedId()
+
+    if itemName == 'water' then
+        -- Play drinking animation
+        TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_DRINKING', 0, true)
+        Wait(3000)
+        ClearPedTasks(ped)
+
+    elseif itemName == 'sandwich' then
+        -- Play eating animation
+        TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_SEAT_WALL_EATING', 0, true)
+        Wait(5000)
+        ClearPedTasks(ped)
+
+    elseif itemName == 'phone' then
+        -- Open phone UI
+        TriggerEvent('mythic-phone:client:Open')
+    end
+end)
+```
+
+---
+
+## Using Events for Custom Logic
+
+### Custom Item Effects
+
+```lua
+-- Server: Handle custom consumable
+AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
+    if itemName == 'energy_drink' then
+        -- Restore energy
+        COMPONENTS.Characters:UpdateCharacter(characterId, {
+            ['metadata.needs.energy'] = 100
+        })
+
+        -- Give temporary speed boost
+        TriggerClientEvent('mythic-effects:client:SpeedBoost', source, 30000)  -- 30 seconds
+
+        -- Remove item
+        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+
+        -- Notify
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'You feel energized!',
+            type = 'success'
+        })
+    end
+end)
+
+-- Client: Apply speed boost
+AddEventHandler('mythic-effects:client:SpeedBoost', function(duration)
+    local ped = PlayerPedId()
+
+    SetPedMoveRateOverride(ped, 1.3)  -- 30% faster
+
+    SetTimeout(duration, function()
+        SetPedMoveRateOverride(ped, 1.0)  -- Back to normal
+    end)
+end)
+```
+
+### Inventory Logging System
+
+```lua
+-- Comprehensive inventory audit log
+local function LogInventoryAction(action, characterId, details)
+    COMPONENTS.Database:insertOne('inventory_logs', {
+        action = action,
+        character = characterId,
+        details = details,
+        timestamp = os.time()
+    })
+end
+
+AddEventHandler('mythic-inventory:server:ItemAdded', function(characterId, itemName, count, slot, metadata)
+    LogInventoryAction('item_added', characterId, {
+        item = itemName,
+        count = count,
+        slot = slot
+    })
+end)
+
+AddEventHandler('mythic-inventory:server:ItemRemoved', function(characterId, itemName, count, slot)
+    LogInventoryAction('item_removed', characterId, {
+        item = itemName,
+        count = count,
+        slot = slot
+    })
+end)
+
+AddEventHandler('mythic-inventory:server:ItemGiven', function(fromCharacterId, toCharacterId, itemName, count)
+    LogInventoryAction('item_given', fromCharacterId, {
+        to = toCharacterId,
+        item = itemName,
+        count = count
+    })
+end)
+```
+
+### Anti-Cheat Integration
+
+```lua
+-- Track suspicious inventory operations
+local suspiciousActivity = {}
+
+AddEventHandler('mythic-inventory:server:ItemAdded', function(characterId, itemName, count, slot, metadata)
+    -- Flag large item additions
+    if count > 100 then
+        local player = Fetch:SID(characterId)
+
+        COMPONENTS.Logger:Warn('AntiCheat', 'Large item addition', {
+            console = true,
+            file = true,
+            discord = true
+        }, {
+            character = characterId,
+            item = itemName,
+            count = count
+        })
+
+        suspiciousActivity[characterId] = (suspiciousActivity[characterId] or 0) + 1
+
+        if suspiciousActivity[characterId] > 3 and player then
+            -- Automatic kick/ban
+            local source = player:GetData('Source')
+            COMPONENTS.Punishment:Ban(source, 'Inventory manipulation', 7)  -- 7 day ban
+        end
+    end
+end)
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Validate Event Data" icon="shield-check">
+    ```lua
+    AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
+        -- Validate character
+        local char = COMPONENTS.Characters:GetCharacterByID(characterId)
+        if not char then
+            return
+        end
+
+        -- Validate item exists
+        local item = COMPONENTS.Items:Get(itemName)
+        if not item then
+            COMPONENTS.Logger:Warn('Inventory', 'Invalid item used', {
+                character = characterId,
+                item = itemName
+            })
+            return
+        end
+
+        -- Validate slot
+        local slotItem = COMPONENTS.Inventory:GetItemInSlot(characterId, slot)
+        if not slotItem or slotItem.name ~= itemName then
+            return
+        end
+
+        -- Process usage
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Update Client After Changes" icon="arrows-rotate">
+    ```lua
+    AddEventHandler('mythic-inventory:server:ItemAdded', function(characterId, itemName, count, slot, metadata)
+        local player = Fetch:SID(characterId)
+
+        if player then
+            local source = player:GetData('Source')
+            local inventory = COMPONENTS.Inventory:Get(characterId)
+            TriggerClientEvent('mythic-inventory:client:UpdateInventory', source, inventory)
+        end
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Clean Up Tracking Data" icon="broom">
+    ```lua
+    local eventTracking = {}
+
+    AddEventHandler('playerDropped', function()
+        local char = COMPONENTS.Characters:GetCharacter(source)
+        if char then
+            eventTracking[char.SID] = nil
+        end
+    end)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Inventory - Exports" icon="cube" href="/api/inventory/exports">
+    Inventory management methods
+  </Card>
+  <Card title="Inventory - Item Definition" icon="tags" href="/api/inventory/item-definition">
+    Item data structure
+  </Card>
+  <Card title="Characters Events" icon="user" href="/api/characters/events">
+    Character-related events
+  </Card>
+  <Card title="Event System" icon="bolt" href="/concepts/event-system">
+    Understanding events
+  </Card>
+</CardGroup>
+
+<Tip>
+**Event Order:** Inventory events fire in a specific sequence. For example, when an item is used, `ItemUsed` fires first, then if the item is consumed, `ItemRemoved` fires. Use this to your advantage when chaining logic.
+</Tip>

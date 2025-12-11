@@ -1,0 +1,821 @@
+---
+title: UI Framework
+description: Understanding React-based UI development in Mythic Framework
+icon: 'browser'
+---
+
+Mythic Framework uses React 17 with Redux for all user interfaces. This provides modern, responsive UIs with state management built-in. This guide covers how the UI layer works and integrates with the game.
+
+## UI Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│        Game Client (Lua)                     │
+│  ┌──────────────────────────────────────┐  │
+│  │  Client Scripts                       │  │
+│  │  • Event handlers                     │  │
+│  │  • NUI communication                  │  │
+│  │  • Game logic                         │  │
+│  └──────────────────────────────────────┘  │
+│              ↕ SendNUIMessage                │
+│              ↕ RegisterNUICallback           │
+│  ┌──────────────────────────────────────┐  │
+│  │  NUI Layer (Chromium Browser)        │  │
+│  │  ┌────────────────────────────────┐  │  │
+│  │  │  React Application             │  │  │
+│  │  │  • Components (JSX)            │  │  │
+│  │  │  • Redux Store                 │  │  │
+│  │  │  • Actions & Reducers          │  │  │
+│  │  │  • Material-UI                 │  │  │
+│  │  └────────────────────────────────┘  │  │
+│  └──────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+## Technology Stack
+
+<CardGroup cols={2}>
+  <Card title="React 17.0.2" icon="react">
+    Component-based UI framework for building interfaces
+  </Card>
+  <Card title="Redux + Thunk" icon="database">
+    State management and async action handling
+  </Card>
+  <Card title="Material-UI v5" icon="palette">
+    Component library for consistent, beautiful UIs
+  </Card>
+  <Card title="Emotion" icon="paintbrush">
+    CSS-in-JS styling solution
+  </Card>
+  <Card title="Webpack 5" icon="cube">
+    Module bundler for building production UI
+  </Card>
+  <Card title="Babel" icon="code">
+    JavaScript transpiler for modern syntax
+  </Card>
+</CardGroup>
+
+## UI Resources
+
+Mythic Framework includes several UI resources:
+
+<AccordionGroup>
+  <Accordion title="mythic-hud" icon="display">
+    Main heads-up display showing:
+    - Health and armor bars
+    - Status effects (hunger, thirst, stress)
+    - Vehicle information (speed, fuel)
+    - Minimap information
+    - Notifications
+  </Accordion>
+
+  <Accordion title="mythic-phone" icon="mobile">
+    Fully functional smartphone with apps:
+    - Contacts
+    - Messages
+    - Phone calls
+    - Email
+    - Browser
+    - Camera
+    - Settings
+  </Accordion>
+
+  <Accordion title="mythic-inventory" icon="box-open">
+    Inventory management interface:
+    - Drag and drop items
+    - Item tooltips
+    - Weight management
+    - Crafting interface
+    - Shop interface
+  </Accordion>
+
+  <Accordion title="mythic-mdt" icon="laptop">
+    Mobile Data Terminal for police:
+    - Warrant search
+    - Person lookup
+    - Vehicle lookup
+    - Dispatch
+    - Reports
+  </Accordion>
+
+  <Accordion title="mythic-laptop" icon="laptop-code">
+    Generic laptop interface:
+    - Email client
+    - Documents
+    - Apps
+    - Browser
+  </Accordion>
+
+  <Accordion title="mythic-characters" icon="user">
+    Character creation and selection:
+    - Appearance customization
+    - Character information
+    - Character selection
+  </Accordion>
+
+  <Accordion title="mythic-menu" icon="bars">
+    Context menu system:
+    - Right-click style menus
+    - Nested submenus
+    - Keyboard navigation
+  </Accordion>
+
+  <Accordion title="mythic-admin" icon="shield">
+    Admin panel:
+    - Player management
+    - Server controls
+    - Resource management
+    - Debug tools
+  </Accordion>
+</AccordionGroup>
+
+## UI Structure
+
+Standard UI resource structure:
+
+```
+mythic-[name]/
+├── ui/
+│   ├── src/                    # Source code
+│   │   ├── components/         # React components
+│   │   │   ├── App.jsx        # Main component
+│   │   │   ├── Header.jsx
+│   │   │   ├── ItemSlot.jsx
+│   │   │   └── ...
+│   │   ├── reducers/          # Redux reducers
+│   │   │   └── index.js
+│   │   ├── actions/           # Redux actions
+│   │   │   └── index.js
+│   │   ├── hooks/             # Custom hooks
+│   │   │   ├── useNuiEvent.js
+│   │   │   └── useKeyPress.js
+│   │   ├── utils/             # Utility functions
+│   │   │   ├── fetchNui.js
+│   │   │   └── formatters.js
+│   │   ├── assets/            # Images, fonts
+│   │   ├── styles/            # Global styles
+│   │   └── index.jsx          # Entry point
+│   ├── dist/                  # Built files (webpack output)
+│   │   ├── index.html
+│   │   └── main.js
+│   ├── public/                # Static files
+│   │   └── assets/
+│   ├── package.json
+│   ├── webpack.config.js
+│   └── .babelrc
+```
+
+## Client-UI Communication
+
+### Lua → React (SendNUIMessage)
+
+Send data from client Lua to React UI:
+
+```lua
+-- client/main.lua
+
+-- Open UI
+SendNUIMessage({
+    type = 'OPEN_INVENTORY',
+    data = {
+        inventory = inventoryData,
+        maxSlots = 50,
+        maxWeight = 100
+    }
+})
+
+-- Update specific data
+SendNUIMessage({
+    type = 'UPDATE_MONEY',
+    data = {
+        cash = 5000,
+        bank = 25000
+    }
+})
+
+-- Close UI
+SendNUIMessage({
+    type = 'CLOSE_INVENTORY'
+})
+```
+
+**React side:**
+
+```jsx
+// ui/src/App.jsx
+import { useEffect } from 'react';
+
+function App() {
+    useEffect(() => {
+        const handleMessage = (event) => {
+            const { type, data } = event.data;
+
+            switch (type) {
+                case 'OPEN_INVENTORY':
+                    // Open inventory with data
+                    setInventory(data.inventory);
+                    setVisible(true);
+                    break;
+
+                case 'UPDATE_MONEY':
+                    // Update money display
+                    setMoney(data);
+                    break;
+
+                case 'CLOSE_INVENTORY':
+                    setVisible(false);
+                    break;
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
+    // ...
+}
+```
+
+### React → Lua (RegisterNUICallback)
+
+Send data from React back to Lua:
+
+```jsx
+// ui/src/utils/fetchNui.js
+export const fetchNui = async (eventName, data = {}) => {
+    const resourceName = window.GetParentResourceName
+        ? window.GetParentResourceName()
+        : 'mythic-inventory';
+
+    const response = await fetch(`https://${resourceName}/${eventName}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+
+    return await response.json();
+};
+
+// Usage in component
+import { fetchNui } from '../utils/fetchNui';
+
+const handleUseItem = (slot) => {
+    fetchNui('useItem', { slot })
+        .then((response) => {
+            if (response.success) {
+                console.log('Item used successfully');
+            }
+        });
+};
+```
+
+**Lua side:**
+
+```lua
+-- client/ui.lua
+
+RegisterNUICallback('useItem', function(data, cb)
+    local slot = data.slot
+
+    -- Request server to use item
+    TriggerServerEvent('mythic-inventory:server:UseItem', slot)
+
+    -- Respond to UI
+    cb({ success = true })
+end)
+
+RegisterNUICallback('closeInventory', function(data, cb)
+    SetNuiFocus(false, false)
+    cb('ok')
+end)
+```
+
+## Custom Hooks
+
+### useNuiEvent Hook
+
+Simplify NUI message handling:
+
+```jsx
+// ui/src/hooks/useNuiEvent.js
+import { useEffect } from 'react';
+
+export const useNuiEvent = (action, handler) => {
+    useEffect(() => {
+        const handleMessage = (event) => {
+            const { type, data } = event.data;
+
+            if (type === action) {
+                handler(data);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [action, handler]);
+};
+
+// Usage
+import { useNuiEvent } from './hooks/useNuiEvent';
+
+function InventoryApp() {
+    const [inventory, setInventory] = useState([]);
+    const [visible, setVisible] = useState(false);
+
+    useNuiEvent('SET_INVENTORY', (data) => {
+        setInventory(data.inventory);
+    });
+
+    useNuiEvent('OPEN_INVENTORY', () => {
+        setVisible(true);
+    });
+
+    useNuiEvent('CLOSE_INVENTORY', () => {
+        setVisible(false);
+    });
+
+    // ...
+}
+```
+
+### useKeyPress Hook
+
+Handle keyboard input:
+
+```jsx
+// ui/src/hooks/useKeyPress.js
+import { useEffect } from 'react';
+
+export const useKeyPress = (targetKey, handler) => {
+    useEffect(() => {
+        const handleKeyPress = (event) => {
+            if (event.key === targetKey) {
+                handler(event);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, [targetKey, handler]);
+};
+
+// Usage
+import { useKeyPress } from './hooks/useKeyPress';
+
+function InventoryApp() {
+    const [visible, setVisible] = useState(false);
+
+    useKeyPress('Escape', () => {
+        if (visible) {
+            fetchNui('closeInventory');
+            setVisible(false);
+        }
+    });
+
+    // ...
+}
+```
+
+## Redux State Management
+
+### Store Setup
+
+```jsx
+// ui/src/store/index.js
+import { createStore, applyMiddleware } from 'redux';
+import thunk from 'redux-thunk';
+import rootReducer from '../reducers';
+
+const store = createStore(
+    rootReducer,
+    applyMiddleware(thunk)
+);
+
+export default store;
+```
+
+### Reducer Example
+
+```jsx
+// ui/src/reducers/inventoryReducer.js
+const initialState = {
+    items: [],
+    maxSlots: 50,
+    maxWeight: 100,
+    visible: false
+};
+
+export default function inventoryReducer(state = initialState, action) {
+    switch (action.type) {
+        case 'SET_INVENTORY':
+            return {
+                ...state,
+                items: action.payload.items,
+                maxSlots: action.payload.maxSlots,
+                maxWeight: action.payload.maxWeight
+            };
+
+        case 'UPDATE_SLOT':
+            const newItems = [...state.items];
+            newItems[action.payload.slot] = action.payload.item;
+            return {
+                ...state,
+                items: newItems
+            };
+
+        case 'TOGGLE_VISIBLE':
+            return {
+                ...state,
+                visible: !state.visible
+            };
+
+        default:
+            return state;
+    }
+}
+```
+
+### Actions
+
+```jsx
+// ui/src/actions/inventoryActions.js
+export const setInventory = (inventory) => ({
+    type: 'SET_INVENTORY',
+    payload: inventory
+});
+
+export const updateSlot = (slot, item) => ({
+    type: 'UPDATE_SLOT',
+    payload: { slot, item }
+});
+
+export const toggleVisible = () => ({
+    type: 'TOGGLE_VISIBLE'
+});
+
+// Async action with thunk
+export const useItem = (slot) => {
+    return async (dispatch) => {
+        const result = await fetchNui('useItem', { slot });
+
+        if (result.success) {
+            dispatch(updateSlot(slot, null));
+        }
+    };
+};
+```
+
+### Using Redux in Components
+
+```jsx
+// ui/src/components/Inventory.jsx
+import { useSelector, useDispatch } from 'react-redux';
+import { setInventory, useItem } from '../actions/inventoryActions';
+
+function Inventory() {
+    const items = useSelector(state => state.inventory.items);
+    const visible = useSelector(state => state.inventory.visible);
+    const dispatch = useDispatch();
+
+    const handleUseItem = (slot) => {
+        dispatch(useItem(slot));
+    };
+
+    if (!visible) return null;
+
+    return (
+        <div className="inventory">
+            {items.map((item, index) => (
+                <ItemSlot
+                    key={index}
+                    item={item}
+                    onClick={() => handleUseItem(index)}
+                />
+            ))}
+        </div>
+    );
+}
+```
+
+## Material-UI Theming
+
+```jsx
+// ui/src/theme.js
+import { createTheme } from '@mui/material/styles';
+
+const theme = createTheme({
+    palette: {
+        mode: 'dark',
+        primary: {
+            main: '#8B5CF6',
+            light: '#A78BFA',
+            dark: '#6D28D9'
+        },
+        secondary: {
+            main: '#10B981'
+        },
+        background: {
+            default: '#0F0F1E',
+            paper: '#1A1A2E'
+        },
+        text: {
+            primary: '#FFFFFF',
+            secondary: 'rgba(255, 255, 255, 0.7)'
+        }
+    },
+    typography: {
+        fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+        h1: {
+            fontSize: '2.5rem',
+            fontWeight: 600
+        }
+    },
+    components: {
+        MuiButton: {
+            styleOverrides: {
+                root: {
+                    borderRadius: 8,
+                    textTransform: 'none'
+                }
+            }
+        }
+    }
+});
+
+export default theme;
+
+// App.jsx
+import { ThemeProvider } from '@mui/material/styles';
+import theme from './theme';
+
+function App() {
+    return (
+        <ThemeProvider theme={theme}>
+            {/* Your app components */}
+        </ThemeProvider>
+    );
+}
+```
+
+## Building & Deployment
+
+### package.json
+
+```json
+{
+    "name": "mythic-inventory-ui",
+    "version": "1.0.0",
+    "scripts": {
+        "dev": "webpack serve --mode development",
+        "build": "webpack --mode production",
+        "watch": "webpack --mode development --watch"
+    },
+    "dependencies": {
+        "react": "^17.0.2",
+        "react-dom": "^17.0.2",
+        "redux": "^4.1.1",
+        "react-redux": "^7.2.5",
+        "redux-thunk": "^2.3.0",
+        "@mui/material": "^5.0.0",
+        "@emotion/react": "^11.5.0",
+        "@emotion/styled": "^11.3.0"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.15.0",
+        "@babel/preset-react": "^7.14.5",
+        "babel-loader": "^8.2.2",
+        "webpack": "^5.52.0",
+        "webpack-cli": "^4.8.0",
+        "webpack-dev-server": "^4.1.1",
+        "html-webpack-plugin": "^5.3.2",
+        "css-loader": "^6.2.0",
+        "style-loader": "^3.2.1"
+    }
+}
+```
+
+### webpack.config.js
+
+```javascript
+const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+
+module.exports = (env, argv) => {
+    const isDevelopment = argv.mode === 'development';
+
+    return {
+        entry: './src/index.jsx',
+        output: {
+            path: path.resolve(__dirname, 'dist'),
+            filename: 'main.js',
+            clean: true
+        },
+        module: {
+            rules: [
+                {
+                    test: /\.(js|jsx)$/,
+                    exclude: /node_modules/,
+                    use: {
+                        loader: 'babel-loader',
+                        options: {
+                            presets: ['@babel/preset-react']
+                        }
+                    }
+                },
+                {
+                    test: /\.css$/,
+                    use: ['style-loader', 'css-loader']
+                }
+            ]
+        },
+        resolve: {
+            extensions: ['.js', '.jsx']
+        },
+        plugins: [
+            new HtmlWebpackPlugin({
+                template: './public/index.html'
+            })
+        ],
+        devServer: {
+            static: path.join(__dirname, 'dist'),
+            port: 3000,
+            hot: true
+        },
+        devtool: isDevelopment ? 'inline-source-map' : false
+    };
+};
+```
+
+### Building the UI
+
+```bash
+# Development mode (with hot reload)
+npm run dev
+
+# Watch mode (rebuilds on changes)
+npm run watch
+
+# Production build
+npm run build
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="1. Visibility Control" icon="eye">
+    Always control UI visibility properly:
+
+    ```jsx
+    function MyUI() {
+        const [visible, setVisible] = useState(false);
+
+        useNuiEvent('OPEN_UI', () => setVisible(true));
+        useNuiEvent('CLOSE_UI', () => setVisible(false));
+
+        // Don't render if not visible
+        if (!visible) return null;
+
+        return <div>...</div>;
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="2. ESC Key Handling" icon="keyboard">
+    Always handle ESC to close UI:
+
+    ```jsx
+    useEffect(() => {
+        const handleEscape = (e) => {
+            if (e.key === 'Escape' && visible) {
+                fetchNui('close');
+                setVisible(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [visible]);
+    ```
+  </Accordion>
+
+  <Accordion title="3. NUI Focus Management" icon="crosshairs">
+    Properly manage NUI focus in Lua:
+
+    ```lua
+    -- Open UI
+    SendNUIMessage({ type = 'OPEN_UI' })
+    SetNuiFocus(true, true)  -- Enable cursor and input
+
+    -- Close UI
+    RegisterNUICallback('close', function(data, cb)
+        SetNuiFocus(false, false)  -- Disable cursor and input
+        cb('ok')
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="4. Performance" icon="gauge-high">
+    Optimize React performance:
+
+    ```jsx
+    // Use React.memo for expensive components
+    const ItemSlot = React.memo(({ item, onClick }) => {
+        return <div onClick={onClick}>{item.label}</div>;
+    });
+
+    // Use useCallback for event handlers
+    const handleClick = useCallback((slot) => {
+        dispatch(useItem(slot));
+    }, [dispatch]);
+
+    // Use useMemo for expensive calculations
+    const totalWeight = useMemo(() => {
+        return items.reduce((sum, item) => sum + (item.weight * item.count), 0);
+    }, [items]);
+    ```
+  </Accordion>
+
+  <Accordion title="5. Development vs Production" icon="code">
+    Handle development vs production mode:
+
+    ```jsx
+    const isDevelopment = !window.GetParentResourceName;
+
+    // Mock data for development
+    if (isDevelopment) {
+        useEffect(() => {
+            setInventory(mockInventoryData);
+            setVisible(true);
+        }, []);
+    }
+
+    // Fetch helper that works in both modes
+    export const fetchNui = async (eventName, data) => {
+        if (isDevelopment) {
+            console.log('Dev mode - would call:', eventName, data);
+            return { success: true };
+        }
+
+        // Production code
+        const resourceName = window.GetParentResourceName();
+        const response = await fetch(`https://${resourceName}/${eventName}`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+
+        return await response.json();
+    };
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Debugging UI
+
+```jsx
+// Add debug panel in development
+{isDevelopment && (
+    <div style={{ position: 'absolute', top: 0, left: 0, background: 'black', padding: 10 }}>
+        <h3>Debug Panel</h3>
+        <button onClick={() => setVisible(!visible)}>Toggle Visible</button>
+        <button onClick={() => setItems(mockData)}>Load Mock Data</button>
+        <pre>{JSON.stringify({ visible, itemCount: items.length }, null, 2)}</pre>
+    </div>
+)}
+
+// Console logging
+useEffect(() => {
+    console.log('Inventory state changed:', { items, visible });
+}, [items, visible]);
+
+// Redux DevTools
+import { createStore, applyMiddleware, compose } from 'redux';
+
+const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
+const store = createStore(
+    rootReducer,
+    composeEnhancers(applyMiddleware(thunk))
+);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="UI Development Guide" icon="code" href="/development/ui/overview">
+    Complete guide to building UIs for Mythic
+  </Card>
+  <Card title="React Setup" icon="react" href="/development/ui/react-setup">
+    Setting up a new React UI resource
+  </Card>
+  <Card title="NUI Communication" icon="wifi" href="/development/ui/nui-communication">
+    Deep dive into Lua ↔ React communication
+  </Card>
+  <Card title="Example UIs" icon="palette" href="/guides/developers/custom-ui-component">
+    Build your first custom UI
+  </Card>
+</CardGroup>
+
+<Tip>
+**Start with an existing UI** as a template. Copy `mythic-hud` or `mythic-menu` and modify it for your needs. This is faster than building from scratch.
+</Tip>

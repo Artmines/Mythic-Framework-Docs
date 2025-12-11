@@ -1,0 +1,648 @@
+---
+title: Event System
+description: Understanding event-driven communication in Mythic Framework
+icon: 'bolt'
+---
+
+Mythic Framework uses an event-driven architecture that enables loosely-coupled communication between resources, between client and server, and between different parts of the same resource.
+
+## Event Types
+
+Mythic Framework uses several types of events:
+
+<CardGroup cols={2}>
+  <Card title="Native FiveM Events" icon="server">
+    Built-in FiveM events like `playerConnecting`, `onResourceStart`, etc.
+  </Card>
+  <Card title="Network Events" icon="wifi">
+    Client-server communication via `TriggerServerEvent` and `TriggerClientEvent`
+  </Card>
+  <Card title="Local Events" icon="location-dot">
+    Same-side communication via `TriggerEvent` (doesn't cross network)
+  </Card>
+  <Card title="Mythic Events" icon="bolt">
+    Framework-specific events with middleware support
+  </Card>
+</CardGroup>
+
+## Event Naming Conventions
+
+Mythic Framework follows consistent naming patterns:
+
+```lua
+-- Pattern: resource:side:action
+'mythic-inventory:server:AddItem'
+'mythic-inventory:client:UpdateUI'
+'mythic-characters:shared:CharacterLoaded'
+
+-- Pattern: System:Type:Event
+'Core:Shared:Ready'
+'Proxy:Shared:RegisterReady'
+'Middleware:Server:PlayerConnecting'
+```
+
+**Naming Rules:**
+
+<Steps>
+  <Step title="Resource Name">
+    Start with the resource name: `mythic-inventory`, `mythic-jobs`, etc.
+  </Step>
+  <Step title="Side Indicator">
+    Specify where event fires: `:server:`, `:client:`, or `:shared:`
+  </Step>
+  <Step title="Action Description">
+    Describe what happened: `AddItem`, `CharacterLoaded`, `VehicleSpawned`
+  </Step>
+</Steps>
+
+**Examples:**
+
+```lua
+-- ✅ GOOD
+'mythic-inventory:server:UseItem'
+'mythic-police:client:ShowMDT'
+'mythic-vehicles:server:VehicleSpawned'
+
+-- ❌ BAD
+'UseItem'  -- Missing resource and side
+'inventory_use_item'  -- Wrong separator
+'mythicInventoryUseItem'  -- Wrong format
+```
+
+## Core Framework Events
+
+### Initialization Events
+
+Events that fire during framework initialization:
+
+```lua
+-- Proxy system ready
+AddEventHandler('Proxy:Shared:RegisterReady', function()
+    -- Proxy system initialized
+    -- Safe to register components
+end)
+
+-- Core components loaded
+AddEventHandler('Core:Shared:Ready', function()
+    -- All core components available
+    -- Safe to fetch and use components
+    local Logger = COMPONENTS.Logger
+    local Database = COMPONENTS.Database
+end)
+
+-- Component registered/extended
+AddEventHandler('Proxy:Shared:ExtendReady', function(componentName)
+    -- A component was registered or extended
+    print('Component ready:', componentName)
+end)
+
+-- Resource started
+AddEventHandler('onResourceStart', function(resourceName)
+    if resourceName == GetCurrentResourceName() then
+        -- This resource just started
+        print('Resource started:', resourceName)
+    end
+end)
+```
+
+### Player Events (Server)
+
+```lua
+-- Player connecting (before fully connected)
+AddEventHandler('playerConnecting', function(name, setKickReason, deferrals)
+    local source = source
+
+    deferrals.defer()
+    deferrals.update('Checking whitelist...')
+
+    -- Check whitelist, bans, etc.
+    local allowed = CheckWhitelist(source)
+
+    if allowed then
+        deferrals.done()
+    else
+        deferrals.done('Not whitelisted')
+    end
+end)
+
+-- Player fully joined
+AddEventHandler('playerJoining', function()
+    local source = source
+    print('Player joined:', GetPlayerName(source))
+end)
+
+-- Player dropped
+AddEventHandler('playerDropped', function(reason)
+    local source = source
+    print('Player left:', GetPlayerName(source), 'Reason:', reason)
+
+    -- Save player data
+    COMPONENTS.Characters:SaveCharacter(source)
+end)
+```
+
+### Character Events
+
+```lua
+-- Server-side
+AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
+    print('Character created:', character.First, character.Last)
+end)
+
+AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
+    -- Character selected and loaded
+    print('Character loaded:', character.SID)
+end)
+
+-- Client-side
+AddEventHandler('mythic-characters:client:Spawned', function(character, location)
+    -- Player spawned in world
+    print('Spawned at:', location.x, location.y, location.z)
+end)
+```
+
+## Registering Event Handlers
+
+### Server-Side Events
+
+```lua
+-- Listen to server event
+AddEventHandler('mythic-inventory:server:UseItem', function(slot)
+    local source = source  -- Player who triggered event
+
+    -- Get player's character
+    local char = COMPONENTS.Characters:GetCharacter(source)
+
+    -- Get item in slot
+    local item = COMPONENTS.Inventory:GetItemInSlot(char.SID, slot)
+
+    if item then
+        -- Use the item
+        COMPONENTS.Items:UseItem(source, item)
+    end
+end)
+
+-- Listen to client event from server
+RegisterNetEvent('mythic-inventory:server:DropItem', function(slot, count)
+    local source = source
+    -- Handle drop
+end)
+```
+
+### Client-Side Events
+
+```lua
+-- Listen to client event
+AddEventHandler('mythic-hud:client:UpdateStatus', function(status)
+    -- Update HUD with new status
+    SendNUIMessage({
+        type = 'UPDATE_STATUS',
+        status = status
+    })
+end)
+
+-- Listen to server event (must be registered)
+RegisterNetEvent('mythic-inventory:client:UpdateInventory', function(inventory)
+    -- Update UI
+    SendNUIMessage({
+        type = 'SET_INVENTORY',
+        inventory = inventory
+    })
+end)
+```
+
+## Triggering Events
+
+### Local Events (Same Side)
+
+```lua
+-- Server to server (same resource or different)
+TriggerEvent('mythic-economy:server:AddMoney', source, 500)
+
+-- Client to client (same resource or different)
+TriggerEvent('mythic-hud:client:ShowNotification', {
+    message = 'Welcome!',
+    type = 'info'
+})
+```
+
+### Network Events (Cross Network)
+
+```lua
+-- Client to server
+TriggerServerEvent('mythic-inventory:server:UseItem', slot)
+
+-- Server to specific client
+TriggerClientEvent('mythic-inventory:client:UpdateInventory', source, inventory)
+
+-- Server to all clients
+TriggerClientEvent('mythic-notifications:client:SendAll', -1, {
+    message = 'Server restarting in 5 minutes',
+    type = 'warning'
+})
+
+-- Server to all clients except one
+for _, playerId in ipairs(GetPlayers()) do
+    if playerId ~= source then
+        TriggerClientEvent('someEvent', playerId, data)
+    end
+end
+```
+
+## Middleware System
+
+Mythic Framework includes a middleware system for intercepting and processing events.
+
+**Location:** `mythic-base/core/sv_middleware.lua`
+
+### How Middleware Works
+
+```lua
+-- Middleware can:
+-- 1. Modify event data before handlers receive it
+-- 2. Block events from firing
+-- 3. Add logging/monitoring
+-- 4. Validate data
+-- 5. Add timing information
+```
+
+### Registering Middleware
+
+```lua
+-- Register middleware for playerConnecting
+COMPONENTS.Middleware:Add('playerConnecting', function(source, ...)
+    local args = {...}
+    local name = args[1]
+
+    -- Log connection attempt
+    COMPONENTS.Logger:Info('Connections', 'Player connecting', {
+        source = source,
+        name = name
+    })
+
+    -- Allow event to continue
+    return true, ...
+end, 10)  -- Priority 10 (lower = earlier)
+
+-- Register middleware that can block
+COMPONENTS.Middleware:Add('playerConnecting', function(source, ...)
+    local args = {...}
+
+    -- Check if server is full
+    if #GetPlayers() >= GetConvarInt('sv_maxclients', 32) then
+        -- Block event
+        return false, 'Server is full'
+    end
+
+    -- Allow event
+    return true, ...
+end, 5)  -- Higher priority runs first
+```
+
+### Middleware Priority
+
+Lower numbers = higher priority (run first):
+
+```lua
+-- Priority 1 - Runs first
+COMPONENTS.Middleware:Add('event', handler, 1)
+
+-- Priority 10 - Runs second
+COMPONENTS.Middleware:Add('event', handler, 10)
+
+-- Priority 100 - Runs third
+COMPONENTS.Middleware:Add('event', handler, 100)
+```
+
+**Example Use Case:**
+
+```lua
+-- Anti-cheat middleware (high priority)
+COMPONENTS.Middleware:Add('mythic-inventory:server:AddItem', function(source, item, count)
+    -- Validate request
+    if count > 1000 then
+        COMPONENTS.Logger:Warn('AntiCheat', 'Suspicious add item request', {
+            source = source,
+            item = item,
+            count = count
+        })
+        return false, 'Invalid request'
+    end
+
+    return true, item, count
+end, 1)
+
+-- Logging middleware (low priority)
+COMPONENTS.Middleware:Add('mythic-inventory:server:AddItem', function(source, item, count)
+    COMPONENTS.Logger:Info('Inventory', 'Item added', {
+        source = source,
+        item = item,
+        count = count
+    })
+
+    return true, item, count
+end, 100)
+```
+
+## Callback System
+
+For request-response patterns, use callbacks instead of events.
+
+### Server Callbacks
+
+```lua
+-- Register callback on server
+COMPONENTS.Callback:RegisterCallback('mythic-garage:GetVehicles', function(source, data, cb)
+    local char = COMPONENTS.Characters:GetCharacter(source)
+    local vehicles = COMPONENTS.Database:fetchAll('vehicles', {
+        owner = char.SID
+    })
+
+    cb(vehicles)
+end)
+
+-- Client requests data
+COMPONENTS.Callback:DoCallback('mythic-garage:GetVehicles', {}, function(vehicles)
+    print('Got vehicles:', #vehicles)
+    -- Update UI with vehicles
+end)
+```
+
+### Client Callbacks
+
+```lua
+-- Register callback on client
+COMPONENTS.Callback:RegisterCallback('mythic-hud:GetPosition', function(data, cb)
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+
+    cb({
+        x = coords.x,
+        y = coords.y,
+        z = coords.z
+    })
+end)
+
+-- Server requests data from client
+COMPONENTS.Callback:DoCallback(source, 'mythic-hud:GetPosition', {}, function(position)
+    print('Player position:', position.x, position.y, position.z)
+end)
+```
+
+## Event Patterns
+
+### 1. Fire and Forget
+
+Simple one-way events:
+
+```lua
+-- Trigger event, don't wait for response
+TriggerEvent('mythic-logs:AddLog', {
+    type = 'admin_action',
+    action = 'teleport',
+    player = source
+})
+```
+
+### 2. Request-Response
+
+Use callbacks for request-response:
+
+```lua
+-- Client requests, server responds
+COMPONENTS.Callback:DoCallback('getData', {id = 123}, function(data)
+    print('Received:', data)
+end)
+```
+
+### 3. Pub/Sub (Publish-Subscribe)
+
+Multiple handlers subscribe to same event:
+
+```lua
+-- Publisher
+TriggerEvent('player:moneyChanged', source, newAmount, oldAmount)
+
+-- Multiple subscribers
+AddEventHandler('player:moneyChanged', function(source, new, old)
+    -- Update HUD
+    TriggerClientEvent('hud:updateMoney', source, new)
+end)
+
+AddEventHandler('player:moneyChanged', function(source, new, old)
+    -- Log to database
+    COMPONENTS.Database:insert('money_logs', {
+        player = source,
+        change = new - old,
+        timestamp = os.time()
+    })
+end)
+
+AddEventHandler('player:moneyChanged', function(source, new, old)
+    -- Check achievements
+    if new >= 1000000 then
+        TriggerEvent('achievements:unlock', source, 'millionaire')
+    end
+end)
+```
+
+### 4. Event Chaining
+
+Events trigger other events:
+
+```lua
+-- Initial event
+AddEventHandler('player:killed', function(victim, killer)
+    TriggerEvent('player:death', victim)
+    TriggerEvent('player:killCredit', killer)
+    TriggerEvent('stats:updateKills', killer)
+end)
+
+-- Subsequent events
+AddEventHandler('player:death', function(source)
+    -- Respawn logic
+end)
+
+AddEventHandler('player:killCredit', function(source)
+    -- Award points
+end)
+
+AddEventHandler('stats:updateKills', function(source)
+    -- Update kill count
+end)
+```
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="Event Frequency" icon="gauge">
+    Avoid triggering events in tight loops:
+
+    ```lua
+    // ❌ BAD - Triggers 100 events per tick
+    CreateThread(function()
+        while true do
+            for i = 1, 100 do
+                TriggerEvent('someEvent', i)
+            end
+            Wait(0)
+        end
+    end)
+
+    // ✅ GOOD - Batch data
+    CreateThread(function()
+        while true do
+            local batch = {}
+            for i = 1, 100 do
+                table.insert(batch, i)
+            end
+            TriggerEvent('someEvent', batch)
+            Wait(1000)
+        end
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Network Events" icon="wifi">
+    Network events have overhead. Use sparingly:
+
+    ```lua
+    // ❌ BAD - Network event every frame
+    CreateThread(function()
+        while true do
+            local coords = GetEntityCoords(PlayerPedId())
+            TriggerServerEvent('updatePosition', coords)
+            Wait(0)
+        end
+    end)
+
+    // ✅ GOOD - Update periodically
+    CreateThread(function()
+        while true do
+            local coords = GetEntityCoords(PlayerPedId())
+            TriggerServerEvent('updatePosition', coords)
+            Wait(5000)  -- Every 5 seconds
+        end
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Event Handler Count" icon="layer-group">
+    Too many handlers for one event slows processing:
+
+    ```lua
+    // Avoid registering handlers in loops
+    for i = 1, 100 do
+        AddEventHandler('someEvent', function()
+            -- Handler logic
+        end)
+    end
+
+    // Instead, use one handler
+    AddEventHandler('someEvent', function()
+        for i = 1, 100 do
+            -- Process logic
+        end
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Data Size" icon="database">
+    Keep event data small to reduce network traffic:
+
+    ```lua
+    // ❌ BAD - Sending entire inventory every update
+    TriggerClientEvent('updateInventory', source, entireInventory)
+
+    // ✅ GOOD - Send only what changed
+    TriggerClientEvent('updateInventorySlot', source, slot, item)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Debugging Events
+
+### Logging Events
+
+```lua
+-- Log when event fires
+local originalTriggerEvent = TriggerEvent
+TriggerEvent = function(eventName, ...)
+    print('Event triggered:', eventName)
+    return originalTriggerEvent(eventName, ...)
+end
+```
+
+### Event Monitoring
+
+```lua
+-- Monitor specific event
+AddEventHandler('mythic-inventory:server:UseItem', function(...)
+    local args = {...}
+    print('UseItem called with args:', json.encode(args))
+
+    -- Continue to other handlers
+end)
+```
+
+### Network Event Debugging
+
+```lua
+-- Client-side: Monitor outgoing server events
+local originalTriggerServerEvent = TriggerServerEvent
+TriggerServerEvent = function(eventName, ...)
+    print('[Client->Server]', eventName, json.encode({...}))
+    return originalTriggerServerEvent(eventName, ...)
+end
+
+-- Server-side: Monitor outgoing client events
+local originalTriggerClientEvent = TriggerClientEvent
+TriggerClientEvent = function(eventName, target, ...)
+    print('[Server->Client]', eventName, 'to', target, json.encode({...}))
+    return originalTriggerClientEvent(eventName, target, ...)
+end
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Descriptive Names" icon="tag">
+    Event names should clearly describe what happened
+  </Card>
+  <Card title="Document Events" icon="book">
+    Document events in resource README, especially public events others might use
+  </Card>
+  <Card title="Validate Data" icon="shield-check">
+    Always validate data received in events, especially from clients
+  </Card>
+  <Card title="Handle Errors" icon="triangle-exclamation">
+    Wrap event handlers in pcall to prevent crashes
+  </Card>
+  <Card title="Clean Up Handlers" icon="broom">
+    Remove event handlers when no longer needed (rare, but important for dynamic resources)
+  </Card>
+  <Card title="Use Callbacks for Responses" icon="reply">
+    When you need data back, use callbacks instead of bidirectional events
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Component System" icon="cubes" href="/concepts/component-system">
+    Complement events with components
+  </Card>
+  <Card title="Callbacks" icon="phone" href="/api/core/base">
+    Learn the callback system in detail
+  </Card>
+  <Card title="Middleware" icon="filter" href="/development/patterns/server-client-sync">
+    Advanced middleware patterns
+  </Card>
+  <Card title="Creating Resources" icon="plus" href="/development/creating-resources/overview">
+    Use events in your custom resources
+  </Card>
+</CardGroup>
+
+<Tip>
+**Events are powerful but can be overused.** For tight integration between systems, consider using components instead of events. Events are best for loose coupling and notifications.
+</Tip>

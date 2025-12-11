@@ -1,0 +1,438 @@
+---
+title: Server Setup
+description: Download and configure FiveM server files for Mythic Framework
+icon: 'server'
+---
+
+This guide covers downloading the FiveM server, setting up the directory structure, and preparing your server for Mythic Framework installation.
+
+## Download FiveM Server
+
+FiveM server artifacts are updated frequently. Always download the latest stable build.
+
+### Choosing a Build
+
+<Tabs>
+  <Tab title="Windows">
+    **Recommended Build:** Latest recommended build
+
+    1. Visit [FiveM Artifacts](https://runtime.fivem.net/artifacts/fivem/build_server_windows/master/)
+    2. Look for builds marked with **recommended** (green badge)
+    3. Download the latest recommended build
+    4. Extract to your desired location (e.g., `C:\FiveMServer\`)
+
+    <Tip>
+    Avoid the absolute latest build unless you need specific features. Recommended builds are more stable.
+    </Tip>
+  </Tab>
+  <Tab title="Linux">
+    **Download via Command Line:**
+    ```bash
+    # Create server directory
+    mkdir -p ~/fivem-server
+    cd ~/fivem-server
+
+    # Download latest recommended build
+    wget https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/[BUILD-NUMBER]/fx.tar.xz
+
+    # Extract
+    tar xf fx.tar.xz
+
+    # Make run script executable
+    chmod +x run.sh
+    ```
+
+    **Find Latest Build Number:**
+    Visit [Linux Artifacts](https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/) and copy the recommended build number.
+  </Tab>
+</Tabs>
+
+### FiveM Server Structure
+
+After extraction, you should have:
+
+```
+FiveMServer/
+├── FXServer.exe (Windows) or run.sh (Linux)
+├── citizen/
+├── adhesive.dll / .so
+└── (other FiveM files)
+```
+
+## Extract Mythic Framework
+
+Now we'll add Mythic Framework to your FiveM server.
+
+<Steps>
+  <Step title="Obtain Mythic Framework">
+    Extract the Mythic Framework package you received to a temporary location
+  </Step>
+  <Step title="Copy to Server Directory">
+    Copy the following folders/files into your FiveM server directory:
+    - `resources/` folder
+    - `configs/` folder
+    - `server.cfg` file
+    - `logo96.png` (optional - server icon)
+  </Step>
+  <Step title="Verify Structure">
+    Your server directory should now look like this:
+    ```
+    FiveMServer/
+    ├── FXServer.exe (or run.sh)
+    ├── citizen/
+    ├── cache/              # Created on first run
+    ├── configs/
+    │   └── resources.cfg
+    ├── resources/
+    │   ├── [cfx-default]/
+    │   ├── [mythic]/
+    │   └── oxmysql/
+    ├── server.cfg
+    └── logo96.png
+    ```
+  </Step>
+</Steps>
+
+## Understanding the Directory Structure
+
+### resources/ Directory
+
+This contains all server resources (scripts, assets, etc.).
+
+```
+resources/
+├── [cfx-default]/     # Default FiveM resources
+│   ├── mapmanager/
+│   ├── spawnmanager/
+│   ├── sessionmanager/
+│   └── ...
+├── [mythic]/          # Mythic Framework resources (60+)
+│   ├── mythic-base/   # Core framework
+│   ├── mythic-characters/
+│   ├── mythic-inventory/
+│   ├── mythic-hud/
+│   └── ...
+└── oxmysql/           # MySQL resource
+```
+
+<Note>
+The `[mythic]` folder naming (with brackets) is important for organization in the server console. FiveM treats folders with brackets as resource categories.
+</Note>
+
+### configs/ Directory
+
+Contains resource loading configuration.
+
+```
+configs/
+└── resources.cfg     # Defines which resources load and in what order
+```
+
+<Accordion title="Understanding resources.cfg">
+  The `resources.cfg` file is executed by `server.cfg` and contains `ensure` statements that load resources:
+
+  ```bash
+  # Load core CFX resources first
+  ensure mapmanager
+  ensure spawnmanager
+  ensure sessionmanager
+  ensure baseevents
+
+  # Load oxmysql before Mythic
+  ensure oxmysql
+
+  # Load Mythic Framework (load order matters!)
+  ensure mythic-base     # Must be first
+  ensure mythic-pwnzor   # Anti-cheat second
+  ensure mythic-characters
+  # ... more resources
+  ```
+
+  **Load order is critical** - mythic-base must load before all other Mythic resources.
+</Accordion>
+
+### cache/ Directory
+
+Automatically created on first server start. Stores temporary files and build artifacts.
+
+```
+cache/
+├── files/
+├── http-files/
+└── (various cache files)
+```
+
+<Warning>
+Never manually edit files in `cache/`. If you experience issues, you can safely delete the entire cache folder - it will rebuild on next start.
+</Warning>
+
+## File Permissions (Linux Only)
+
+On Linux, ensure proper permissions for server files:
+
+```bash
+# Set ownership (replace 'youruser' with your username)
+sudo chown -R youruser:youruser ~/fivem-server
+
+# Make run script executable
+chmod +x ~/fivem-server/run.sh
+
+# Make FXServer executable
+chmod +x ~/fivem-server/FXServer
+
+# Set permissions for cache directory (will be created on first run)
+chmod 755 ~/fivem-server
+```
+
+## Resource Overview
+
+Mythic Framework includes 60+ resources. Here's a breakdown:
+
+<AccordionGroup>
+  <Accordion title="Core Resources (Must Load First)" icon="box">
+    - `mythic-base` - Core framework, component system, database
+    - `mythic-pwnzor` - Anti-cheat system
+    - `mythic-queue` - Server queue and whitelist
+    - `mythic-loadscreen` - Loading screen
+  </Accordion>
+
+  <Accordion title="Character & Player" icon="user">
+    - `mythic-characters` - Multi-character system
+    - `mythic-spawn` - Spawn management
+    - `mythic-ped` - Character customization
+  </Accordion>
+
+  <Accordion title="Inventory & Economy" icon="box-open">
+    - `mythic-inventory` - Full inventory system
+    - `mythic-finance` - Banking and cash
+    - `mythic-businesses` - Business ownership
+    - `mythic-dealerships` - Vehicle dealerships
+  </Accordion>
+
+  <Accordion title="Jobs" icon="briefcase">
+    - `mythic-jobs` - Job framework
+    - `mythic-police` - Police job
+    - `mythic-mechanic` - Mechanic job
+    - `mythic-restaurant` - Restaurant job
+    - `mythic-taxi` - Taxi job
+    - `mythic-tow` - Tow truck job
+    - `mythic-labor` - Labor jobs
+  </Accordion>
+
+  <Accordion title="UI Systems" icon="desktop">
+    - `mythic-hud` - Main HUD
+    - `mythic-phone` - Smartphone system
+    - `mythic-laptop` - Laptop interface
+    - `mythic-mdt` - Mobile Data Terminal
+    - `mythic-menu` - Context menu
+    - `mythic-chat` - Chat system
+    - `mythic-notifications` - Notifications
+  </Accordion>
+
+  <Accordion title="World & Interaction" icon="globe">
+    - `mythic-polyzone` - Zone system
+    - `mythic-targeting` - Third-eye targeting
+    - `mythic-doors` - Door locks
+    - `mythic-blips` - Map markers
+    - `mythic-locations` - Location management
+  </Accordion>
+</AccordionGroup>
+
+For a complete list, see the [Features documentation](/features/characters/overview).
+
+## Verify Server Files
+
+Before proceeding, verify your installation:
+
+<Steps>
+  <Step title="Check FiveM Executable">
+    Ensure `FXServer.exe` (Windows) or `FXServer` (Linux) exists in the server root
+  </Step>
+  <Step title="Verify server.cfg">
+    Confirm `server.cfg` exists in the server root directory
+  </Step>
+  <Step title="Check Resources">
+    Verify the `resources/[mythic]/` folder contains 60+ Mythic resources
+  </Step>
+  <Step title="Confirm configs/">
+    Ensure `configs/resources.cfg` exists
+  </Step>
+</Steps>
+
+## Optional: Create Backup Structure
+
+It's good practice to keep backups before making changes:
+
+```bash
+# Windows (PowerShell)
+Copy-Item -Path "C:\FiveMServer" -Destination "C:\FiveMServer_Backup" -Recurse
+
+# Linux
+cp -r ~/fivem-server ~/fivem-server_backup
+```
+
+<Tip>
+Create a backup now (before configuration) so you can easily revert to a clean state if needed.
+</Tip>
+
+## Server Startup Scripts
+
+### Windows
+
+Create a `start.bat` file in your server root for easy server starting:
+
+```batch start.bat
+@echo off
+title Mythic Framework Server
+echo Starting Mythic Framework...
+
+FXServer.exe +exec server.cfg
+
+pause
+```
+
+### Linux
+
+The `run.sh` script is provided by default. You can customize it:
+
+```bash run.sh
+#!/bin/bash
+
+# Set working directory
+cd "$(dirname "$0")"
+
+# Start server
+exec ./FXServer +exec server.cfg
+```
+
+Make it executable:
+```bash
+chmod +x run.sh
+```
+
+## Testing Server Structure
+
+Let's do a quick test to ensure the server can start (it won't fully work yet - we still need database configuration):
+
+<Tabs>
+  <Tab title="Windows">
+    ```bash
+    # Navigate to server directory
+    cd C:\FiveMServer
+
+    # Try to start (it will fail without database config - that's expected)
+    FXServer.exe +exec server.cfg
+    ```
+
+    Press `Ctrl+C` to stop the server after seeing initial output.
+  </Tab>
+  <Tab title="Linux">
+    ```bash
+    # Navigate to server directory
+    cd ~/fivem-server
+
+    # Try to start
+    ./run.sh
+    ```
+
+    Press `Ctrl+C` to stop the server after seeing initial output.
+  </Tab>
+</Tabs>
+
+**Expected Output:**
+- FiveM banner and version info
+- License key check (will fail if not configured yet - that's OK)
+- Resource scan starting
+- You may see errors about database connections - **this is expected** at this stage
+
+<Warning>
+If you see "Missing required license key" - that's normal. We'll configure it in the next step.
+
+If the executable doesn't run at all, check:
+- File permissions (Linux)
+- Antivirus isn't blocking FXServer.exe (Windows)
+- You have required .NET Framework (Windows) or dependencies (Linux)
+</Warning>
+
+## Common Setup Issues
+
+<AccordionGroup>
+  <Accordion title="FXServer.exe won't run (Windows)" icon="windows">
+    **Solutions:**
+    - Install Visual C++ Redistributables: [Microsoft VC++ Downloads](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+    - Check Windows Defender/antivirus isn't blocking it
+    - Run as Administrator (right-click > Run as administrator)
+    - Check Windows Event Viewer for specific error details
+  </Accordion>
+
+  <Accordion title="Permission denied (Linux)" icon="linux">
+    **Solutions:**
+    ```bash
+    # Make FXServer executable
+    chmod +x FXServer
+    chmod +x run.sh
+
+    # If still failing, check ownership
+    ls -la FXServer
+    # Should show your user as owner
+
+    # Fix ownership if needed
+    chown youruser:youruser FXServer
+    ```
+  </Accordion>
+
+  <Accordion title="Resources not found" icon="folder-open">
+    **Solution:**
+    Verify directory structure is correct:
+    ```bash
+    # Should exist:
+    resources/[mythic]/mythic-base/
+
+    # If not, check extraction - files may be nested too deeply
+    # Move everything up one level if needed
+    ```
+  </Accordion>
+
+  <Accordion title="Wrong architecture (Linux)" icon="microchip">
+    **Error:** `cannot execute binary file: Exec format error`
+
+    **Solution:**
+    - Ensure you downloaded Linux build, not Windows
+    - Verify your system is 64-bit: `uname -m` (should show x86_64)
+    - Re-download the correct Linux artifact
+  </Accordion>
+</AccordionGroup>
+
+## Directory Structure Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Keep it Organized" icon="folder-tree">
+    Maintain separate folders for:
+    - Server files (`FiveMServer/`)
+    - Backups (`FiveMServer_Backups/`)
+    - Development resources (`Dev/`)
+  </Card>
+  <Card title="Version Control" icon="code-branch">
+    Consider using Git for:
+    - Custom resources you develop
+    - Configuration changes
+    - Easy rollback if issues arise
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Your server structure is now set up! Next, configure the databases:
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/installation/database-setup">
+    Create and configure MongoDB and MySQL databases
+  </Card>
+  <Card title="Server Configuration" icon="gear" href="/installation/configuration">
+    Configure server.cfg with your settings
+  </Card>
+</CardGroup>
+
+<Note>
+**Don't start the server fully yet!** Complete the database setup and configuration first to avoid errors.
+</Note>

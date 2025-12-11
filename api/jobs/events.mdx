@@ -1,0 +1,834 @@
+---
+title: Jobs - Events
+description: Job-related events for employment changes and duty status
+icon: 'bolt'
+---
+
+Job events fire when characters change jobs, get promoted/demoted, or change duty status, allowing other resources to react to employment changes.
+
+## Server Events
+
+All job events fire on the **server-side**.
+
+<CardGroup cols={2}>
+  <Card title="Job Changes" icon="briefcase">
+    Hired, Fired, JobChanged
+  </Card>
+  <Card title="Rank Changes" icon="ranking-star">
+    Promoted, Demoted
+  </Card>
+  <Card title="Duty Status" icon="toggle-on">
+    ClockedIn, ClockedOut
+  </Card>
+  <Card title="Paycheck" icon="money-bill">
+    PaycheckIssued
+  </Card>
+</CardGroup>
+
+---
+
+## Employment Events
+
+### mythic-jobs:server:JobChanged
+
+Fired when a character's job or grade changes.
+
+```lua
+AddEventHandler('mythic-jobs:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="characterId" type="number">
+  Character SID
+</ParamField>
+
+<ParamField path="newJob" type="string">
+  New job identifier
+</ParamField>
+
+<ParamField path="newGrade" type="number">
+  New job grade
+</ParamField>
+
+<ParamField path="oldJob" type="string">
+  Previous job identifier
+</ParamField>
+
+<ParamField path="oldGrade" type="number">
+  Previous job grade
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Log job changes
+AddEventHandler('mythic-jobs:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+    COMPONENTS.Logger:Info('Jobs', 'Job changed', {
+        character = characterId,
+        from = oldJob .. ' (Grade ' .. oldGrade .. ')',
+        to = newJob .. ' (Grade ' .. newGrade .. ')'
+    })
+end)
+
+-- Give job-specific equipment
+AddEventHandler('mythic-jobs:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+    local player = Fetch:SID(characterId)
+
+    if not player then
+        return
+    end
+
+    local source = player:GetData('Source')
+
+    -- Remove old job items
+    if oldJob == 'police' then
+        COMPONENTS.Inventory:RemoveItem(characterId, 'weapon_pistol', 999)
+        COMPONENTS.Inventory:RemoveItem(characterId, 'handcuffs', 999)
+        COMPONENTS.Inventory:RemoveItem(characterId, 'radio', 999)
+    elseif oldJob == 'ems' then
+        COMPONENTS.Inventory:RemoveItem(characterId, 'medkit', 999)
+        COMPONENTS.Inventory:RemoveItem(characterId, 'bandage', 999)
+    end
+
+    -- Give new job items
+    if newJob == 'police' then
+        COMPONENTS.Inventory:AddItem(characterId, 'weapon_pistol', 1, {
+            serial = GenerateSerial(),
+            ammo = 12
+        })
+        COMPONENTS.Inventory:AddItem(characterId, 'handcuffs', 1)
+        COMPONENTS.Inventory:AddItem(characterId, 'radio', 1)
+
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'You received your police equipment',
+            type = 'success'
+        })
+    elseif newJob == 'ems' then
+        COMPONENTS.Inventory:AddItem(characterId, 'medkit', 5)
+        COMPONENTS.Inventory:AddItem(characterId, 'bandage', 10)
+
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'You received your EMS equipment',
+            type = 'success'
+        })
+    end
+end)
+
+-- Update Discord roles
+AddEventHandler('mythic-jobs:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+    local player = Fetch:SID(characterId)
+
+    if player then
+        local source = player:GetData('Source')
+        -- Update Discord roles based on job
+        TriggerEvent('discord:updateRoles', source, newJob, newGrade)
+    end
+end)
+
+-- Grant/revoke permissions
+AddEventHandler('mythic-jobs:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+    local player = Fetch:SID(characterId)
+
+    if not player then
+        return
+    end
+
+    local source = player:GetData('Source')
+
+    local identifier = GetPlayerIdentifier(source, 0)
+
+    -- Remove old job permissions
+    if oldJob == 'police' then
+        ExecuteCommand('remove_principal identifier.' .. identifier .. ' group.police')
+    end
+
+    -- Grant new job permissions
+    if newJob == 'police' then
+        ExecuteCommand('add_principal identifier.' .. identifier .. ' group.police')
+    end
+end)
+```
+
+---
+
+### mythic-jobs:server:Hired
+
+Fired when a character gets hired (changes from unemployed to employed).
+
+```lua
+AddEventHandler('mythic-jobs:server:Hired', function(source, characterId, jobName, grade)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="source" type="number">
+  Player server ID
+</ParamField>
+
+<ParamField path="characterId" type="number">
+  Character SID
+</ParamField>
+
+<ParamField path="jobName" type="string">
+  New job identifier
+</ParamField>
+
+<ParamField path="grade" type="number">
+  Starting grade
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Welcome message on hire
+AddEventHandler('mythic-jobs:server:Hired', function(source, characterId, jobName, grade)
+    local jobLabel = COMPONENTS.Jobs:GetJobLabel(jobName)
+    local gradeLabel = COMPONENTS.Jobs:GetGradeLabel(jobName, grade)
+
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'Welcome to ' .. jobLabel .. ' as ' .. gradeLabel,
+        type = 'success',
+        duration = 5000
+    })
+end)
+
+-- Track employment history
+AddEventHandler('mythic-jobs:server:Hired', function(source, characterId, jobName, grade)
+    COMPONENTS.Database:insertOne('employment_history', {
+        character = characterId,
+        job = jobName,
+        grade = grade,
+        hiredAt = os.time()
+    })
+end)
+
+-- Achievement tracking
+AddEventHandler('mythic-jobs:server:Hired', function(source, characterId, jobName, grade)
+    COMPONENTS.Achievements:Unlock(characterId, 'first_job')
+
+    if jobName == 'police' then
+        COMPONENTS.Achievements:Unlock(characterId, 'joined_police')
+    end
+end)
+```
+
+---
+
+### mythic-jobs:server:Fired
+
+Fired when a character gets fired (changes to unemployed).
+
+```lua
+AddEventHandler('mythic-jobs:server:Fired', function(source, characterId, oldJob, oldGrade)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="source" type="number">
+  Player server ID
+</ParamField>
+
+<ParamField path="characterId" type="number">
+  Character SID
+</ParamField>
+
+<ParamField path="oldJob" type="string">
+  Previous job identifier
+</ParamField>
+
+<ParamField path="oldGrade" type="number">
+  Previous grade
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Remove job items on fire
+AddEventHandler('mythic-jobs:server:Fired', function(source, characterId, oldJob, oldGrade)
+    RemoveJobItems(source, oldJob)
+
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'You have been fired',
+        type = 'error'
+    })
+end)
+
+-- Clock out on fire
+AddEventHandler('mythic-jobs:server:Fired', function(source, characterId, oldJob, oldGrade)
+    COMPONENTS.Jobs:ClockOut(characterId)
+end)
+
+-- Update employment history
+AddEventHandler('mythic-jobs:server:Fired', function(source, characterId, oldJob, oldGrade)
+    COMPONENTS.Database:updateOne('employment_history',
+        { character = characterId, job = oldJob, firedAt = nil },
+        { ['$set'] = { firedAt = os.time() } }
+    )
+end)
+```
+
+---
+
+## Rank Events
+
+### mythic-jobs:server:Promoted
+
+Fired when a character is promoted (grade increased).
+
+```lua
+AddEventHandler('mythic-jobs:server:Promoted', function(source, characterId, jobName, newGrade, oldGrade)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+-- Congratulate on promotion
+AddEventHandler('mythic-jobs:server:Promoted', function(source, characterId, jobName, newGrade, oldGrade)
+    local jobLabel = COMPONENTS.Jobs:GetJobLabel(jobName)
+    local gradeLabel = COMPONENTS.Jobs:GetGradeLabel(jobName, newGrade)
+
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'Promoted to ' .. gradeLabel,
+        type = 'success'
+    })
+
+    -- Bonus for promotion
+    local bonus = 1000 * newGrade
+    COMPONENTS.Characters:AddMoney(characterId, 'bank', bonus, 'Promotion bonus')
+end)
+
+-- Update permissions on promotion
+AddEventHandler('mythic-jobs:server:Promoted', function(source, characterId, jobName, newGrade, oldGrade)
+    if jobName == 'police' then
+        -- Higher ranks get more permissions
+        if newGrade >= 3 then
+            -- Sergeants can access armory
+            TriggerClientEvent('mythic-police:client:GrantArmoryAccess', source, true)
+        end
+
+        if newGrade >= 4 then
+            -- Lieutenants can manage officers
+            TriggerClientEvent('mythic-police:client:GrantManagementAccess', source, true)
+        end
+    end
+end)
+```
+
+---
+
+### mythic-jobs:server:Demoted
+
+Fired when a character is demoted (grade decreased).
+
+```lua
+AddEventHandler('mythic-jobs:server:Demoted', function(source, characterId, jobName, newGrade, oldGrade)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+-- Notify on demotion
+AddEventHandler('mythic-jobs:server:Demoted', function(source, characterId, jobName, newGrade, oldGrade)
+    local gradeLabel = COMPONENTS.Jobs:GetGradeLabel(jobName, newGrade)
+
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'Demoted to ' .. gradeLabel,
+        type = 'warning'
+    })
+end)
+
+-- Revoke permissions on demotion
+AddEventHandler('mythic-jobs:server:Demoted', function(source, characterId, jobName, newGrade, oldGrade)
+    if jobName == 'police' then
+        if newGrade < 3 then
+            TriggerClientEvent('mythic-police:client:GrantArmoryAccess', source, false)
+        end
+
+        if newGrade < 4 then
+            TriggerClientEvent('mythic-police:client:GrantManagementAccess', source, false)
+        end
+    end
+end)
+```
+
+---
+
+## Duty Status Events
+
+### mythic-jobs:server:ClockedIn
+
+Fired when a character clocks in (goes on duty).
+
+```lua
+AddEventHandler('mythic-jobs:server:ClockedIn', function(source, characterId, jobName)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+-- Notify on clock in
+AddEventHandler('mythic-jobs:server:ClockedIn', function(source, characterId, jobName)
+    local jobLabel = COMPONENTS.Jobs:GetJobLabel(jobName)
+
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'Clocked in as ' .. jobLabel,
+        type = 'info'
+    })
+end)
+
+-- Give job equipment
+AddEventHandler('mythic-jobs:server:ClockedIn', function(source, characterId, jobName)
+    if jobName == 'police' then
+        -- Spawn police vehicle
+        TriggerEvent('mythic-vehicles:server:SpawnJobVehicle', source, 'police')
+    elseif jobName == 'taxi' then
+        TriggerEvent('mythic-vehicles:server:SpawnJobVehicle', source, 'taxi')
+    end
+end)
+
+-- Update HUD
+AddEventHandler('mythic-jobs:server:ClockedIn', function(source, characterId, jobName)
+    TriggerClientEvent('mythic-hud:client:SetDuty', source, true)
+end)
+
+-- Notify coworkers
+AddEventHandler('mythic-jobs:server:ClockedIn', function(source, characterId, jobName)
+    local player = Fetch:SID(characterId)
+
+    if not player then
+        return
+    end
+
+    local char = player:GetData('Character')
+    if not char then
+        return
+    end
+
+    local coworkers = COMPONENTS.Jobs:GetOnDutyPlayers(jobName)
+
+    for _, coworkerSID in ipairs(coworkers) do
+        if coworkerSID ~= characterId then
+            local coworkerPlayer = Fetch:SID(coworkerSID)
+
+            if coworkerPlayer then
+                local coworkerSource = coworkerPlayer:GetData('Source')
+                TriggerClientEvent('mythic-notifications:client:Send', coworkerSource, {
+                    message = char:GetData('First') .. ' ' .. char:GetData('Last') .. ' is now on duty',
+                    type = 'info'
+                })
+            end
+        end
+    end
+end)
+```
+
+---
+
+### mythic-jobs:server:ClockedOut
+
+Fired when a character clocks out (goes off duty).
+
+```lua
+AddEventHandler('mythic-jobs:server:ClockedOut', function(source, characterId, jobName)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+-- Remove job equipment
+AddEventHandler('mythic-jobs:server:ClockedOut', function(source, characterId, jobName)
+    -- Remove job vehicles
+    TriggerEvent('mythic-vehicles:server:RemoveJobVehicles', source)
+
+    -- End active tasks
+    TriggerEvent('mythic-jobs:server:EndActiveTasks', source)
+
+    -- Notify
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'Clocked out',
+        type = 'info'
+    })
+end)
+
+-- Update HUD
+AddEventHandler('mythic-jobs:server:ClockedOut', function(source, characterId, jobName)
+    TriggerClientEvent('mythic-hud:client:SetDuty', source, false)
+end)
+
+-- Track duty time
+local dutyStartTimes = {}
+
+AddEventHandler('mythic-jobs:server:ClockedIn', function(source, characterId, jobName)
+    dutyStartTimes[characterId] = os.time()
+end)
+
+AddEventHandler('mythic-jobs:server:ClockedOut', function(source, characterId, jobName)
+    if dutyStartTimes[characterId] then
+        local dutyTime = os.time() - dutyStartTimes[characterId]
+
+        -- Update total duty time
+        COMPONENTS.Characters:UpdateCharacter(characterId, {
+            ['metadata.stats.dutyTime'] = (char.metadata.stats.dutyTime or 0) + dutyTime
+        })
+
+        dutyStartTimes[characterId] = nil
+    end
+end)
+```
+
+---
+
+## Paycheck Events
+
+### mythic-jobs:server:PaycheckIssued
+
+Fired when a paycheck is issued to a character.
+
+```lua
+AddEventHandler('mythic-jobs:server:PaycheckIssued', function(source, characterId, jobName, amount)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+-- Notify on paycheck
+AddEventHandler('mythic-jobs:server:PaycheckIssued', function(source, characterId, jobName, amount)
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'Paycheck deposited: $' .. amount,
+        type = 'success'
+    })
+end)
+
+-- Log paychecks
+AddEventHandler('mythic-jobs:server:PaycheckIssued', function(source, characterId, jobName, amount)
+    COMPONENTS.Database:insertOne('paycheck_log', {
+        character = characterId,
+        job = jobName,
+        amount = amount,
+        timestamp = os.time()
+    })
+end)
+
+-- Tax system
+AddEventHandler('mythic-jobs:server:PaycheckIssued', function(source, characterId, jobName, amount)
+    local taxRate = 0.15  -- 15% tax
+
+    local taxAmount = math.floor(amount * taxRate)
+    local netPay = amount - taxAmount
+
+    -- Remove tax from character
+    COMPONENTS.Characters:RemoveMoney(characterId, 'bank', taxAmount, 'Income tax')
+
+    -- Add to government funds
+    COMPONENTS.Database:updateOne('government',
+        {},
+        { ['$inc'] = { funds = taxAmount } }
+    )
+
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'Tax deducted: $' .. taxAmount,
+        type = 'info'
+    })
+end)
+```
+
+---
+
+## Client Events
+
+### mythic-jobs:client:SetJob
+
+Sent to client when job changes.
+
+```lua
+AddEventHandler('mythic-jobs:client:SetJob', function(jobData)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+-- Update HUD with new job
+AddEventHandler('mythic-jobs:client:SetJob', function(jobData)
+    SendNUIMessage({
+        type = 'UPDATE_JOB',
+        job = {
+            label = jobData.jobLabel,
+            grade = jobData.gradeLabel,
+            onDuty = jobData.onDuty
+        }
+    })
+end)
+
+-- Load job-specific blips
+AddEventHandler('mythic-jobs:client:SetJob', function(jobData)
+    -- Remove old blips
+    RemoveJobBlips()
+
+    -- Add new job blips
+    if jobData.job == 'police' then
+        AddPoliceBlips()
+    elseif jobData.job == 'ems' then
+        AddEMSBlips()
+    end
+end)
+```
+
+---
+
+### mythic-jobs:client:SetDuty
+
+Sent to client when duty status changes.
+
+```lua
+AddEventHandler('mythic-jobs:client:SetDuty', function(onDuty)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+-- Update HUD
+AddEventHandler('mythic-jobs:client:SetDuty', function(onDuty)
+    SendNUIMessage({
+        type = 'SET_DUTY',
+        onDuty = onDuty
+    })
+end)
+
+-- Change ped model for uniforms
+AddEventHandler('mythic-jobs:client:SetDuty', function(onDuty)
+    if onDuty then
+        -- Put on uniform
+        TriggerEvent('mythic-clothing:client:LoadUniform')
+    else
+        -- Change to civilian clothes
+        TriggerEvent('mythic-clothing:client:LoadCivilian')
+    end
+end)
+```
+
+---
+
+## Using Events for Custom Logic
+
+### Custom Job Perks
+
+```lua
+-- Police get free repairs
+AddEventHandler('mythic-jobs:server:ClockedIn', function(source, characterId, jobName)
+    if jobName == 'police' then
+        -- Grant free repair perk
+        TriggerEvent('mythic-customs:server:GrantFreePerk', source, 'repairs')
+    end
+end)
+
+AddEventHandler('mythic-jobs:server:ClockedOut', function(source, characterId, jobName)
+    if jobName == 'police' then
+        -- Remove free repair perk
+        TriggerEvent('mythic-customs:server:RemoveFreePerk', source, 'repairs')
+    end
+end)
+```
+
+### Job-Based Pricing
+
+```lua
+-- Mechanics get discounts at parts shops
+AddEventHandler('mythic-shops:server:Purchase', function(source, item, price)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return price
+    end
+
+    local char = player:GetData('Character')
+    if not char then
+        return price
+    end
+
+    local stateId = char:GetData('SID')
+    local jobData = COMPONENTS.Jobs:GetJob(stateId)
+
+    if jobData and jobData.job == 'mechanic' then
+        -- 25% discount for mechanics
+        local discount = math.floor(price * 0.25)
+        local finalPrice = price - discount
+
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'Employee discount: $' .. discount,
+            type = 'success'
+        })
+
+        return finalPrice
+    end
+
+    return price
+end)
+```
+
+### Automatic Clock Out
+
+```lua
+-- Auto clock out on disconnect
+AddEventHandler('playerDropped', function()
+    local player = Fetch:Source(source)
+
+    if not player then
+        return
+    end
+
+    local char = player:GetData('Character')
+    if char then
+        local stateId = char:GetData('SID')
+        local jobData = COMPONENTS.Jobs:GetJob(stateId)
+
+        if jobData and jobData.onDuty then
+            COMPONENTS.Jobs:ClockOut(stateId)
+
+            COMPONENTS.Logger:Info('Jobs', 'Auto clocked out', {
+                console = true,
+                file = true
+            }, {
+                character = stateId,
+                job = jobData.job
+            })
+        end
+    end
+end)
+
+-- Auto clock out after inactivity
+local lastActivity = {}
+
+CreateThread(function()
+    while true do
+        Wait(60000)  -- Check every minute
+
+        for _, playerId in ipairs(GetPlayers()) do
+            local source = tonumber(playerId)
+            local player = Fetch:Source(source)
+
+            if player then
+                local char = player:GetData('Character')
+                if not char then
+                    goto continue
+                end
+
+                local stateId = char:GetData('SID')
+                local jobData = COMPONENTS.Jobs:GetJob(stateId)
+
+                if jobData and jobData.onDuty then
+                    local inactive = (os.time() - (lastActivity[source] or os.time())) > 1800  -- 30 min
+
+                    if inactive then
+                        COMPONENTS.Jobs:ClockOut(stateId)
+
+                        TriggerClientEvent('mythic-notifications:client:Send', source, {
+                            message = 'Clocked out due to inactivity',
+                            type = 'warning'
+                        })
+                    end
+                end
+            end
+
+            ::continue::
+        end
+    end
+end)
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Validate Character Exists" icon="shield-check">
+    ```lua
+    AddEventHandler('mythic-jobs:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+        local player = Fetch:SID(characterId)
+
+        if not player then
+            return
+        end
+
+        local char = player:GetData('Character')
+        if not char then
+            return
+        end
+
+        -- Process event
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Clean Up Tracking Data" icon="broom">
+    ```lua
+    local jobTracking = {}
+
+    AddEventHandler('playerDropped', function()
+        local player = Fetch:Source(source)
+
+        if player then
+            local char = player:GetData('Character')
+            if char then
+                local stateId = char:GetData('SID')
+                jobTracking[stateId] = nil
+            end
+        end
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Use Source Safely" icon="user">
+    ```lua
+    AddEventHandler('mythic-jobs:server:ClockedIn', function(source, characterId, jobName)
+        -- Source may be nil if triggered programmatically
+        if source then
+            TriggerClientEvent('notify', source, 'Clocked in')
+        end
+    end)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Jobs - Exports" icon="cube" href="/api/jobs/exports">
+    Job management methods
+  </Card>
+  <Card title="Jobs - Configuration" icon="gear" href="/api/jobs/configuration">
+    Job definitions
+  </Card>
+  <Card title="Characters Events" icon="user" href="/api/characters/events">
+    Character events
+  </Card>
+  <Card title="Job System Guide" icon="book" href="/features/jobs/overview">
+    Complete job system
+  </Card>
+</CardGroup>
+
+<Tip>
+**Event Timing:** Job events fire after the database is updated, so you can safely query the character's new job data within event handlers.
+</Tip>

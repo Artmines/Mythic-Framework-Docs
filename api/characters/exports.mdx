@@ -1,0 +1,793 @@
+---
+title: Characters - Working with Characters
+description: How to access and manage player characters using the Fetch component and DataStore pattern
+icon: 'user'
+---
+
+The Characters system manages player characters in Mythic Framework, including creation, selection, loading, and data persistence. Character data is accessed through the **Fetch component** using the DataStore pattern.
+
+<Warning>
+**Critical:** Do NOT use `COMPONENTS.Characters:GetCharacter()` - this method does not exist.
+
+**Always use the Fetch component:**
+```lua
+local player = Fetch:Source(source)
+local char = player:GetData('Character')
+```
+</Warning>
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="Multi-Character" icon="users">
+    Support for multiple characters per player
+  </Card>
+  <Card title="DataStore Pattern" icon="brackets-curly">
+    In-memory state management with GetData/SetData
+  </Card>
+  <Card title="Auto-Save" icon="database">
+    MongoDB persistence with periodic saves
+  </Card>
+  <Card title="Fetch Component" icon="magnifying-glass">
+    Primary API for character access
+  </Card>
+</CardGroup>
+
+---
+
+## Accessing Characters
+
+### Getting Active Character
+
+The **primary way** to access character data is through the Fetch component.
+
+**Pattern:**
+```lua
+local player = Fetch:Source(source)
+if not player then return end
+
+local char = player:GetData('Character')
+if not char then return end
+
+-- Access character data
+local stateId = char:GetData('SID')
+local firstName = char:GetData('First')
+```
+
+**Example in Event Handler:**
+```lua
+-- Server side
+RegisterNetEvent('myresource:server:doSomething', function()
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then
+        print('[ERROR] Player not found')
+        return
+    end
+
+    local char = player:GetData('Character')
+    if not char then
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'You must be logged in as a character',
+            type = 'error'
+        })
+        return
+    end
+
+    -- Safe to access character data
+    local stateId = char:GetData('SID')
+    local name = string.format('%s %s', char:GetData('First'), char:GetData('Last'))
+    local cash = char:GetData('Cash')
+    local bank = char:GetData('Bank')
+
+    print('Character:', name, 'SID:', stateId, 'Cash:', cash)
+end)
+```
+
+---
+
+### Character Data Access Methods
+
+Once you have a character DataStore object, use these methods:
+
+#### GetData
+
+Retrieve character data.
+
+**Signature:**
+```lua
+char:GetData(key)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| key | string | No | Specific field (omit for all data) |
+
+**Common Character Fields:**
+- `SID` (number) - State ID (primary key)
+- `First` (string) - First name
+- `Last` (string) - Last name
+- `DOB` (string) - Date of birth
+- `Gender` (number) - Gender code
+- `Phone` (string) - Phone number
+- `Job` (string) - Current job ID
+- `JobGrade` (number) - Job rank/grade
+- `Cash` (number) - Cash on hand
+- `Bank` (number) - Bank balance
+- `MetaData` (table) - Additional character data
+
+**Examples:**
+```lua
+-- Get specific fields
+local stateId = char:GetData('SID')
+local firstName = char:GetData('First')
+local lastName = char:GetData('Last')
+local cash = char:GetData('Cash')
+local bank = char:GetData('Bank')
+local job = char:GetData('Job')
+
+-- Get all data
+local allData = char:GetData()
+print(json.encode(allData, {indent = true}))
+
+-- Access nested data
+local metadata = char:GetData('MetaData')
+local hunger = metadata.hunger or 100
+```
+
+---
+
+#### SetData
+
+Update character data.
+
+**Signature:**
+```lua
+char:SetData(key, value)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| key | string | Yes | Field name |
+| value | any | Yes | New value |
+
+<Note>
+Character SetData automatically syncs to client with `Characters:Client:SetData` event.
+</Note>
+
+**Examples:**
+```lua
+-- Update money
+local currentCash = char:GetData('Cash')
+char:SetData('Cash', currentCash + 500)
+
+-- Update bank
+local currentBank = char:GetData('Bank')
+char:SetData('Bank', currentBank - 1000)
+
+-- Update job
+char:SetData('Job', 'police')
+char:SetData('JobGrade', 2)
+
+-- Update phone number
+char:SetData('Phone', '555-1234')
+
+-- Update nested metadata
+local metadata = char:GetData('MetaData')
+metadata.hunger = 80
+metadata.thirst = 90
+char:SetData('MetaData', metadata)
+```
+
+---
+
+## Finding Characters
+
+### By Server Source
+
+Get character by player server ID (most common).
+
+**Example:**
+```lua
+-- Get character from source
+local player = Fetch:Source(source)
+if player then
+    local char = player:GetData('Character')
+    if char then
+        print('Found character:', char:GetData('First'), char:GetData('Last'))
+    end
+end
+```
+
+See: [Core - Fetch: Source](/api/core/fetch#source)
+
+---
+
+### By State ID (SID)
+
+Find player by character State ID.
+
+**Example:**
+```lua
+-- Find character by SID
+local player = Fetch:SID(123)
+
+if player then
+    local char = player:GetData('Character')
+    local source = player:GetData('Source')
+
+    -- Send notification
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'You received a message',
+        type = 'info'
+    })
+end
+```
+
+See: [Core - Fetch: SID](/api/core/fetch#sid)
+
+---
+
+### By Character Data Field
+
+Find player by any character field (phone, name, etc).
+
+**Example:**
+```lua
+-- Find by phone number
+local player = Fetch:CharacterData('Phone', '555-0123')
+
+if player then
+    local char = player:GetData('Character')
+    print('Found:', char:GetData('First'), char:GetData('Last'))
+end
+
+-- Find by SID using CharacterData
+local player = Fetch:CharacterData('SID', 123)
+```
+
+See: [Core - Fetch: CharacterData](/api/core/fetch#characterdata)
+
+---
+
+### Offline Character Data
+
+Get specific data from offline character (database query).
+
+**Example:**
+```lua
+-- Get offline character data (blocking)
+local phone = Fetch:GetOfflineData(123, 'Phone')
+local cash = Fetch:GetOfflineData(123, 'Cash')
+
+print('Offline character phone:', phone)
+```
+
+<Warning>
+`GetOfflineData` is synchronous and blocks the thread. Use sparingly and only when player is offline.
+</Warning>
+
+See: [Core - Fetch: GetOfflineData](/api/core/fetch#getofflinedata)
+
+---
+
+## Common Patterns
+
+### Safe Character Access
+
+Always validate player and character exist:
+
+```lua
+RegisterNetEvent('myresource:server:action', function()
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then
+        print('[ERROR] Player not found')
+        return
+    end
+
+    local char = player:GetData('Character')
+
+    if not char then
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'You must be logged in as a character',
+            type = 'error'
+        })
+        return
+    end
+
+    -- Safe to use char now
+    local stateId = char:GetData('SID')
+end)
+```
+
+---
+
+### Money Management
+
+**Adding Money:**
+```lua
+-- Add cash
+local player = Fetch:Source(source)
+local char = player:GetData('Character')
+
+local currentCash = char:GetData('Cash')
+char:SetData('Cash', currentCash + 500)
+
+-- Add to bank
+local currentBank = char:GetData('Bank')
+char:SetData('Bank', currentBank + 1000)
+
+-- Notify player
+TriggerClientEvent('mythic-notifications:client:Send', source, {
+    message = 'Received $500 cash',
+    type = 'success'
+})
+```
+
+**Removing Money:**
+```lua
+-- Remove cash with validation
+local player = Fetch:Source(source)
+local char = player:GetData('Character')
+local price = 250
+
+local currentCash = char:GetData('Cash')
+
+if currentCash >= price then
+    char:SetData('Cash', currentCash - price)
+
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = string.format('Paid $%d', price),
+        type = 'success'
+    })
+else
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'Insufficient funds',
+        type = 'error'
+    })
+end
+```
+
+**Checking Money:**
+```lua
+-- Check if character has enough money
+function CanAfford(source, amount)
+    local player = Fetch:Source(source)
+    if not player then return false end
+
+    local char = player:GetData('Character')
+    if not char then return false end
+
+    local cash = char:GetData('Cash')
+    return cash >= amount
+end
+
+-- Usage
+if CanAfford(source, 500) then
+    -- Process purchase
+else
+    -- Send error
+end
+```
+
+---
+
+### Bank Transfers
+
+**Transfer between online players:**
+```lua
+RegisterNetEvent('banking:server:transfer', function(targetSID, amount, memo)
+    local src = source
+    local sender = Fetch:Source(src):GetData('Character')
+    local senderBank = sender:GetData('Bank')
+
+    -- Check sufficient funds
+    if senderBank < amount then
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'Insufficient funds',
+            type = 'error'
+        })
+        return
+    end
+
+    -- Find recipient
+    local recipient = Fetch:SID(targetSID)
+
+    if recipient then
+        -- Online - use DataStore
+        local recipientChar = recipient:GetData('Character')
+        local recipientBank = recipientChar:GetData('Bank')
+
+        recipientChar:SetData('Bank', recipientBank + amount)
+
+        -- Notify recipient
+        TriggerClientEvent('mythic-notifications:client:Send', recipient:GetData('Source'), {
+            message = string.format('Received $%d: %s', amount, memo),
+            type = 'success'
+        })
+    else
+        -- Offline - update database directly
+        Database.Game:updateOne({
+            collection = 'characters',
+            query = {SID = targetSID},
+            update = {
+                ['$inc'] = {Bank = amount}
+            }
+        }, function(success, updated)
+            if not success then
+                print('[ERROR] Failed to update offline character bank')
+            end
+        end)
+    end
+
+    -- Deduct from sender
+    sender:SetData('Bank', senderBank - amount)
+
+    TriggerClientEvent('mythic-notifications:client:Send', src, {
+        message = string.format('Transferred $%d', amount),
+        type = 'success'
+    })
+end)
+```
+
+---
+
+### Iterating All Online Characters
+
+```lua
+-- Get all online players
+local players = Fetch:All()
+
+for source, player in pairs(players) do
+    local char = player:GetData('Character')
+
+    if char then
+        local name = string.format('%s %s', char:GetData('First'), char:GetData('Last'))
+        local stateId = char:GetData('SID')
+
+        print(source, name, stateId)
+
+        -- Send server-wide event
+        TriggerClientEvent('myresource:client:serverEvent', source, eventData)
+    end
+end
+
+print('Total characters online:', Fetch:CountCharacters())
+```
+
+---
+
+### Getting Player Source from SID
+
+```lua
+-- You have a character SID, need the player source
+function GetSourceFromSID(stateId)
+    local player = Fetch:SID(stateId)
+
+    if player then
+        return player:GetData('Source')
+    end
+
+    return nil
+end
+
+-- Usage
+local targetSource = GetSourceFromSID(123)
+if targetSource then
+    TriggerClientEvent('myresource:client:event', targetSource, data)
+end
+```
+
+---
+
+## Character Management Events
+
+<Note>
+These events are triggered internally by the Characters system. You can listen to them but should not trigger them directly.
+</Note>
+
+### Character Selection
+
+**Event:** `Characters:Server:PlayerLoggedIn`
+
+Triggered when player selects a character and spawns.
+
+**Parameters:**
+- `source` (number) - Player server ID
+
+**Example:**
+```lua
+AddEventHandler('Characters:Server:PlayerLoggedIn', function(source)
+    local player = Fetch:Source(source)
+    local char = player:GetData('Character')
+
+    print('Character logged in:', char:GetData('First'), char:GetData('Last'))
+
+    -- Initialize systems
+    TriggerEvent('inventory:server:loadInventory', source)
+    TriggerEvent('jobs:server:loadJob', source)
+end)
+```
+
+---
+
+### Character Logout
+
+**Event:** `Characters:Server:PlayerDropped`
+
+Triggered when player disconnects.
+
+**Parameters:**
+- `source` (number) - Player server ID
+
+**Example:**
+```lua
+AddEventHandler('Characters:Server:PlayerDropped', function(source)
+    local player = Fetch:Source(source)
+
+    if player then
+        local char = player:GetData('Character')
+
+        if char then
+            print('Character logged out:', char:GetData('SID'))
+
+            -- Save data
+            TriggerEvent('inventory:server:saveInventory', source)
+        end
+    end
+end)
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always Use Fetch Component" icon="magnifying-glass">
+    **✅ Correct:**
+    ```lua
+    local player = Fetch:Source(source)
+    if not player then return end
+    local char = player:GetData('Character')
+    if not char then return end
+    ```
+
+    **❌ Wrong:**
+    ```lua
+    local char = COMPONENTS.Characters:GetCharacter(source)  -- DOESN'T EXIST!
+    ```
+  </Accordion>
+
+  <Accordion title="Use SID for Database Operations" icon="database">
+    **Character SID is the primary key for database queries:**
+
+    ```lua
+    -- ✅ Good: Use SID
+    local char = player:GetData('Character')
+    local stateId = char:GetData('SID')
+
+    Database.Game:findOne({
+        collection = 'vehicles',
+        query = {owner = stateId}
+    }, callback)
+
+    -- ❌ Bad: Don't use source
+    Database.Game:findOne({
+        collection = 'vehicles',
+        query = {owner = source}  -- Wrong! Source is player ID, not character ID
+    }, callback)
+    ```
+  </Accordion>
+
+  <Accordion title="DataStore Pattern" icon="brackets-curly">
+    **Use GetData/SetData methods, not direct table access:**
+
+    ```lua
+    -- ✅ Good: Use DataStore methods
+    local firstName = char:GetData('First')
+    char:SetData('Cash', 1000)
+
+    -- ❌ Bad: Direct access (may not work)
+    local firstName = char.First
+    char.Cash = 1000
+    ```
+  </Accordion>
+
+  <Accordion title="Check if Character is Online" icon="signal">
+    ```lua
+    function IsCharacterOnline(stateId)
+        return Fetch:SID(stateId) ~= nil
+    end
+
+    -- Usage
+    if IsCharacterOnline(123) then
+        -- Character is online, use Fetch
+        local player = Fetch:SID(123)
+        local char = player:GetData('Character')
+    else
+        -- Character is offline, use database or GetOfflineData
+        local phone = Fetch:GetOfflineData(123, 'Phone')
+    end
+    ```
+  </Accordion>
+
+  <Accordion title="Validate Before Modifying Money" icon="dollar-sign">
+    ```lua
+    function ModifyMoney(source, account, amount, reason)
+        local player = Fetch:Source(source)
+        if not player then return false end
+
+        local char = player:GetData('Character')
+        if not char then return false end
+
+        local current = char:GetData(account == 'cash' and 'Cash' or 'Bank')
+
+        if amount < 0 and current < math.abs(amount) then
+            return false  -- Insufficient funds
+        end
+
+        char:SetData(account == 'cash' and 'Cash' or 'Bank', current + amount)
+
+        -- Log transaction
+        COMPONENTS.Logger:Info('Economy', 'Money modified', {
+            console = true,
+            file = true,
+            database = true
+        }, {
+            characterSID = char:GetData('SID'),
+            account = account,
+            amount = amount,
+            reason = reason
+        })
+
+        return true
+    end
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Complete Examples
+
+### Job Payment System
+
+```lua
+-- Server side
+AddEventHandler('jobs:server:processPaycheck', function()
+    local players = Fetch:All()
+
+    for source, player in pairs(players) do
+        local char = player:GetData('Character')
+
+        if char then
+            local job = char:GetData('Job')
+            local jobGrade = char:GetData('JobGrade')
+
+            -- Calculate pay based on job and grade
+            local payAmount = GetJobPayAmount(job, jobGrade)
+
+            if payAmount > 0 then
+                -- Add to bank
+                local currentBank = char:GetData('Bank')
+                char:SetData('Bank', currentBank + payAmount)
+
+                -- Notify player
+                TriggerClientEvent('mythic-notifications:client:Send', source, {
+                    message = string.format('Paycheck: $%d deposited', payAmount),
+                    type = 'success'
+                })
+
+                -- Log
+                COMPONENTS.Logger:Info('Jobs', 'Paycheck processed', {
+                    console = true,
+                    file = true
+                }, {
+                    characterSID = char:GetData('SID'),
+                    job = job,
+                    grade = jobGrade,
+                    amount = payAmount
+                })
+            end
+        end
+    end
+end)
+```
+
+---
+
+### Shop Purchase System
+
+```lua
+-- Server side
+COMPONENTS.Callbacks:RegisterServerCallback('shop:purchaseItem', function(source, data, cb)
+    local player = Fetch:Source(source)
+    if not player then
+        return cb(false, 'Player not found')
+    end
+
+    local char = player:GetData('Character')
+    if not char then
+        return cb(false, 'Not logged in')
+    end
+
+    -- Get item data
+    local itemData = GetShopItem(data.shopId, data.itemName)
+    if not itemData then
+        return cb(false, 'Item not available')
+    end
+
+    local totalCost = itemData.price * data.count
+    local currentCash = char:GetData('Cash')
+
+    -- Check funds
+    if currentCash < totalCost then
+        return cb(false, 'Insufficient funds')
+    end
+
+    -- Deduct money
+    char:SetData('Cash', currentCash - totalCost)
+
+    -- Add item to inventory
+    local stateId = char:GetData('SID')
+    local success, slot = COMPONENTS.Inventory:AddItem(
+        stateId,
+        data.itemName,
+        data.count
+    )
+
+    if success then
+        cb(true, {
+            item = data.itemName,
+            count = data.count,
+            cost = totalCost,
+            remaining = currentCash - totalCost
+        })
+
+        -- Log purchase
+        COMPONENTS.Logger:Info('Shop', 'Purchase completed', {
+            console = true,
+            file = true,
+            database = true
+        }, {
+            characterSID = stateId,
+            item = data.itemName,
+            count = data.count,
+            cost = totalCost,
+            shop = data.shopId
+        })
+    else
+        -- Refund on failure
+        char:SetData('Cash', currentCash)
+        cb(false, 'Inventory full')
+    end
+end)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Core - Fetch" icon="magnifying-glass" href="/api/core/fetch">
+    Complete Fetch component documentation
+  </Card>
+  <Card title="Characters - Events" icon="bolt" href="/api/characters/events">
+    Character-related events
+  </Card>
+  <Card title="Characters - Data Structure" icon="database" href="/api/characters/data-structure">
+    Character data schema
+  </Card>
+  <Card title="Inventory API" icon="box" href="/api/inventory/exports">
+    Inventory management
+  </Card>
+</CardGroup>
+
+<Tip>
+**Critical Pattern:** Always use `Fetch:Source(source)` to get the player, then `player:GetData('Character')` to get the character. This is the ONLY correct way to access character data.
+</Tip>

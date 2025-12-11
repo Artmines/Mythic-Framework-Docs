@@ -1,0 +1,871 @@
+---
+title: Inventory - Exports
+description: Inventory management component API for items, slots, and storage
+icon: 'box'
+---
+
+The Inventory component manages character inventories, item storage, weights, and item operations. It's one of the most complex and frequently used components in Mythic Framework.
+
+## Overview
+
+Access via `COMPONENTS.Inventory` (server-side only).
+
+<CardGroup cols={2}>
+  <Card title="Slot-Based System" icon="grid">
+    Grid inventory with configurable slot count
+  </Card>
+  <Card title="Weight Management" icon="weight-scale">
+    Item weight and max capacity limits
+  </Card>
+  <Card title="Item Metadata" icon="tags">
+    Custom data per item instance
+  </Card>
+  <Card title="Multiple Inventories" icon="boxes-stacked">
+    Character, vehicle, stash, shop inventories
+  </Card>
+</CardGroup>
+
+<Warning>
+**Server-Side Only:** All inventory operations must be performed on the server. Never attempt to modify inventory from the client.
+</Warning>
+
+---
+
+## Inventory Management
+
+### Get
+
+Get a character's inventory.
+
+```lua
+COMPONENTS.Inventory:Get(characterId)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID (State ID)
+</ParamField>
+
+<ResponseField name="inventory" type="table|nil">
+  Inventory object with items, slots, and weight info
+
+  **Inventory Structure:**
+  ```lua
+  {
+      owner = 1,                    -- Character SID
+      type = "main",                -- Inventory type
+      maxSlots = 50,                -- Maximum slot count
+      maxWeight = 100,              -- Maximum weight
+      items = {                     -- Items indexed by slot
+          [1] = {
+              name = "water",
+              label = "Water Bottle",
+              count = 5,
+              weight = 0.5,
+              metadata = {}
+          },
+          [2] = { ... },
+          -- ...
+      }
+  }
+  ```
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Get inventory
+local inventory = COMPONENTS.Inventory:Get(char.SID)
+
+if inventory then
+    print('Inventory slots:', inventory.maxSlots)
+    print('Total items:', #inventory.items)
+end
+
+-- Check if inventory exists
+function HasInventory(characterId)
+    return COMPONENTS.Inventory:Get(characterId) ~= nil
+end
+
+-- Get inventory in callback
+COMPONENTS.Callbacks:RegisterServerCallback('inventory:getInventory', function(source, data, cb)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return cb(false, 'Player not found')
+    end
+
+    local char = player:GetData('Character')
+
+    if not char then
+        return cb(false, 'No character')
+    end
+
+    local inventory = COMPONENTS.Inventory:Get(char:GetData('SID'))
+
+    cb(true, inventory)
+end)
+```
+
+---
+
+### Create
+
+Create a new inventory for a character.
+
+```lua
+COMPONENTS.Inventory:Create(characterId, maxSlots, maxWeight)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ParamField path="maxSlots" type="number" optional default="50">
+  Maximum number of inventory slots
+</ParamField>
+
+<ParamField path="maxWeight" type="number" optional default="100">
+  Maximum weight capacity
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Create default inventory
+COMPONENTS.Inventory:Create(char.SID)
+
+-- Create with custom limits
+COMPONENTS.Inventory:Create(char.SID, 75, 150)
+
+-- Create inventory on character creation
+AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
+    COMPONENTS.Inventory:Create(character.SID, 50, 100)
+
+    -- Give starter items
+    COMPONENTS.Inventory:AddItem(character.SID, 'phone', 1)
+    COMPONENTS.Inventory:AddItem(character.SID, 'water', 2)
+end)
+```
+
+---
+
+### Delete
+
+Delete an inventory permanently.
+
+```lua
+COMPONENTS.Inventory:Delete(characterId)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Delete inventory
+COMPONENTS.Inventory:Delete(char.SID)
+
+-- Delete on character deletion
+AddEventHandler('mythic-characters:server:CharacterDeleted', function(source, characterId)
+    COMPONENTS.Inventory:Delete(characterId)
+end)
+```
+
+---
+
+## Item Operations
+
+### AddItem
+
+Add an item to an inventory.
+
+```lua
+COMPONENTS.Inventory:AddItem(characterId, itemName, count, metadata, slot)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ParamField path="itemName" type="string" required>
+  Item identifier (e.g., 'water', 'phone', 'weapon_pistol')
+</ParamField>
+
+<ParamField path="count" type="number" optional default="1">
+  Quantity to add
+</ParamField>
+
+<ParamField path="metadata" type="table" optional>
+  Custom item metadata (serial number, durability, etc.)
+</ParamField>
+
+<ParamField path="slot" type="number" optional>
+  Specific slot to add to (finds first available if not specified)
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if item was added successfully
+</ResponseField>
+
+<ResponseField name="slot" type="number|nil">
+  Slot where item was added, or `nil` if failed
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Add single item
+local success, slot = COMPONENTS.Inventory:AddItem(char.SID, 'water', 1)
+
+if success then
+    print('Added water to slot', slot)
+else
+    print('Failed to add item (inventory full or no space)')
+end
+
+-- Add multiple items
+COMPONENTS.Inventory:AddItem(char.SID, 'sandwich', 5)
+
+-- Add with metadata
+COMPONENTS.Inventory:AddItem(char.SID, 'weapon_pistol', 1, {
+    serial = 'ABC123456',
+    durability = 100,
+    ammo = 12
+})
+
+-- Add to specific slot
+COMPONENTS.Inventory:AddItem(char.SID, 'phone', 1, {
+    number = char.Phone
+}, 1)  -- Always in slot 1
+
+-- Add item with validation
+function GiveItemToPlayer(source, itemName, count)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return false, 'Player not found'
+    end
+
+    local char = player:GetData('Character')
+
+    if not char then
+        return false, 'No character'
+    end
+
+    -- Check if item exists
+    local itemData = COMPONENTS.Items:Get(itemName)
+    if not itemData then
+        return false, 'Invalid item'
+    end
+
+    -- Add item
+    local stateId = char:GetData('SID')
+    local success, slot = COMPONENTS.Inventory:AddItem(stateId, itemName, count)
+
+    if success then
+        -- Notify player
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'Received ' .. count .. 'x ' .. itemData.label,
+            type = 'success'
+        })
+
+        return true, slot
+    else
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'Inventory full',
+            type = 'error'
+        })
+
+        return false, 'Inventory full'
+    end
+end
+```
+
+---
+
+### RemoveItem
+
+Remove an item from an inventory.
+
+```lua
+COMPONENTS.Inventory:RemoveItem(characterId, slot, count)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ParamField path="slot" type="number" required>
+  Slot number to remove from
+</ParamField>
+
+<ParamField path="count" type="number" optional default="1">
+  Quantity to remove
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if item was removed successfully
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Remove single item
+local success = COMPONENTS.Inventory:RemoveItem(char.SID, 5, 1)
+
+if success then
+    print('Item removed')
+else
+    print('Failed to remove (slot empty or insufficient quantity)')
+end
+
+-- Remove all items from slot
+COMPONENTS.Inventory:RemoveItem(char.SID, 3, 999)  -- Removes up to 999
+
+-- Remove item by name (find first slot)
+function RemoveItemByName(characterId, itemName, count)
+    local inventory = COMPONENTS.Inventory:Get(characterId)
+
+    for slot, item in pairs(inventory.items) do
+        if item.name == itemName then
+            return COMPONENTS.Inventory:RemoveItem(characterId, slot, count)
+        end
+    end
+
+    return false
+end
+```
+
+---
+
+### HasItem
+
+Check if an inventory has a specific item.
+
+```lua
+COMPONENTS.Inventory:HasItem(characterId, itemName, count)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ParamField path="itemName" type="string" required>
+  Item identifier
+</ParamField>
+
+<ParamField path="count" type="number" optional default="1">
+  Required quantity
+</ParamField>
+
+<ResponseField name="hasItem" type="boolean">
+  `true` if inventory has the item in sufficient quantity
+</ResponseField>
+
+<ResponseField name="totalCount" type="number">
+  Total count of the item across all slots
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Check if has item
+if COMPONENTS.Inventory:HasItem(char.SID, 'water', 1) then
+    print('Has water')
+else
+    print('No water')
+end
+
+-- Check quantity
+local hasItem, totalCount = COMPONENTS.Inventory:HasItem(char.SID, 'lockpick', 1)
+
+print('Has', totalCount, 'lockpicks')
+
+-- Require item for action
+function CanCraftItem(characterId, recipe)
+    for _, ingredient in ipairs(recipe.ingredients) do
+        if not COMPONENTS.Inventory:HasItem(characterId, ingredient.item, ingredient.count) then
+            return false, 'Missing ' .. ingredient.item
+        end
+    end
+
+    return true
+end
+
+-- Consume items for crafting
+function CraftItem(source, recipeId)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return false, 'Player not found'
+    end
+
+    local char = player:GetData('Character')
+
+    if not char then
+        return false, 'No character'
+    end
+
+    local stateId = char:GetData('SID')
+    local recipe = Recipes[recipeId]
+
+    -- Check has ingredients
+    local canCraft, error = CanCraftItem(stateId, recipe)
+
+    if not canCraft then
+        return false, error
+    end
+
+    -- Remove ingredients
+    for _, ingredient in ipairs(recipe.ingredients) do
+        RemoveItemByName(stateId, ingredient.item, ingredient.count)
+    end
+
+    -- Give crafted item
+    COMPONENTS.Inventory:AddItem(stateId, recipe.result, 1)
+
+    return true
+end
+```
+
+---
+
+### GetItemInSlot
+
+Get the item in a specific slot.
+
+```lua
+COMPONENTS.Inventory:GetItemInSlot(characterId, slot)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ParamField path="slot" type="number" required>
+  Slot number
+</ParamField>
+
+<ResponseField name="item" type="table|nil">
+  Item data or `nil` if slot is empty
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Get item in slot
+local item = COMPONENTS.Inventory:GetItemInSlot(char.SID, 1)
+
+if item then
+    print('Slot 1 contains:', item.label)
+    print('Count:', item.count)
+    print('Weight:', item.weight)
+else
+    print('Slot 1 is empty')
+end
+
+-- Use item callback
+COMPONENTS.Callbacks:RegisterServerCallback('inventory:useItem', function(source, data, cb)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return cb(false, 'Player not found')
+    end
+
+    local char = player:GetData('Character')
+
+    if not char then
+        return cb(false, 'No character')
+    end
+
+    local stateId = char:GetData('SID')
+    local item = COMPONENTS.Inventory:GetItemInSlot(stateId, data.slot)
+
+    if not item then
+        return cb(false, 'No item in slot')
+    end
+
+    -- Use item
+    local success = COMPONENTS.Items:Use(source, item)
+
+    cb(success)
+end)
+```
+
+---
+
+### MoveItem
+
+Move an item from one slot to another.
+
+```lua
+COMPONENTS.Inventory:MoveItem(characterId, fromSlot, toSlot, count)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ParamField path="fromSlot" type="number" required>
+  Source slot
+</ParamField>
+
+<ParamField path="toSlot" type="number" required>
+  Destination slot
+</ParamField>
+
+<ParamField path="count" type="number" optional>
+  Amount to move (moves all if not specified)
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Move entire stack
+COMPONENTS.Inventory:MoveItem(char.SID, 1, 5)
+
+-- Move partial stack
+COMPONENTS.Inventory:MoveItem(char.SID, 1, 5, 3)  -- Move 3 items from slot 1 to slot 5
+
+-- Swap items
+COMPONENTS.Inventory:MoveItem(char.SID, 1, 2)  -- Swaps items in slots 1 and 2
+```
+
+---
+
+## Weight Management
+
+### GetWeight
+
+Get the current weight of an inventory.
+
+```lua
+COMPONENTS.Inventory:GetWeight(characterId)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ResponseField name="currentWeight" type="number">
+  Total weight of all items in inventory
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Get current weight
+local weight = COMPONENTS.Inventory:GetWeight(char.SID)
+
+print('Current weight:', weight, 'kg')
+
+-- Check if can carry more
+local inventory = COMPONENTS.Inventory:Get(char.SID)
+local weight = COMPONENTS.Inventory:GetWeight(char.SID)
+
+if weight >= inventory.maxWeight then
+    print('Inventory is full (by weight)')
+end
+
+-- Check before adding item
+function CanAddItem(characterId, itemName, count)
+    local inventory = COMPONENTS.Inventory:Get(characterId)
+    local currentWeight = COMPONENTS.Inventory:GetWeight(characterId)
+    local itemData = COMPONENTS.Items:Get(itemName)
+
+    local additionalWeight = itemData.weight * count
+
+    if currentWeight + additionalWeight > inventory.maxWeight then
+        return false, 'Too heavy'
+    end
+
+    -- Check slot availability
+    local emptySlots = COMPONENTS.Inventory:GetEmptySlots(characterId)
+
+    if #emptySlots == 0 and not CanStack(characterId, itemName) then
+        return false, 'No empty slots'
+    end
+
+    return true
+end
+```
+
+---
+
+### GetEmptySlots
+
+Get all empty slots in an inventory.
+
+```lua
+COMPONENTS.Inventory:GetEmptySlots(characterId)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ResponseField name="emptySlots" type="table">
+  Array of empty slot numbers
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Get empty slots
+local emptySlots = COMPONENTS.Inventory:GetEmptySlots(char.SID)
+
+print('Empty slots:', #emptySlots)
+
+for _, slot in ipairs(emptySlots) do
+    print('Slot', slot, 'is empty')
+end
+
+-- Check if full
+if #emptySlots == 0 then
+    print('Inventory is full')
+end
+```
+
+---
+
+## Item Search
+
+### FindItem
+
+Find first slot containing an item.
+
+```lua
+COMPONENTS.Inventory:FindItem(characterId, itemName)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ParamField path="itemName" type="string" required>
+  Item identifier
+</ParamField>
+
+<ResponseField name="slot" type="number|nil">
+  First slot containing the item, or `nil` if not found
+</ResponseField>
+
+<ResponseField name="item" type="table|nil">
+  Item data if found
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Find item
+local slot, item = COMPONENTS.Inventory:FindItem(char.SID, 'lockpick')
+
+if slot then
+    print('Found lockpick in slot', slot)
+    print('Count:', item.count)
+else
+    print('No lockpick found')
+end
+
+-- Use first available item
+function UseFirstOfType(source, itemName)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return false, 'Player not found'
+    end
+
+    local char = player:GetData('Character')
+
+    if not char then
+        return false, 'No character'
+    end
+
+    local stateId = char:GetData('SID')
+    local slot, item = COMPONENTS.Inventory:FindItem(stateId, itemName)
+
+    if not slot then
+        return false, 'Item not found'
+    end
+
+    -- Use the item
+    COMPONENTS.Items:Use(source, item)
+
+    -- Remove one
+    COMPONENTS.Inventory:RemoveItem(stateId, slot, 1)
+
+    return true
+end
+```
+
+---
+
+### FindAllItems
+
+Find all slots containing an item.
+
+```lua
+COMPONENTS.Inventory:FindAllItems(characterId, itemName)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ParamField path="itemName" type="string" required>
+  Item identifier
+</ParamField>
+
+<ResponseField name="results" type="table">
+  Array of {slot, item} pairs for each occurrence
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Find all instances of an item
+local results = COMPONENTS.Inventory:FindAllItems(char.SID, 'water')
+
+print('Found water in', #results, 'slots')
+
+for _, result in ipairs(results) do
+    print('Slot', result.slot, ':', result.item.count, 'water')
+end
+
+-- Count total across all slots
+local total = 0
+local results = COMPONENTS.Inventory:FindAllItems(char.SID, 'lockpick')
+
+for _, result in ipairs(results) do
+    total = total + result.item.count
+end
+
+print('Total lockpicks:', total)
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always Validate Before Operations" icon="shield-check">
+    **❌ Bad:**
+    ```lua
+    -- Assume operation succeeds
+    COMPONENTS.Inventory:AddItem(char.SID, 'water', 1)
+    print('Item added')  -- Maybe not!
+    ```
+
+    **✅ Good:**
+    ```lua
+    local success, slot = COMPONENTS.Inventory:AddItem(char.SID, 'water', 1)
+
+    if success then
+        print('Item added to slot', slot)
+        -- Notify player
+        TriggerClientEvent('notify', source, 'Item added')
+    else
+        print('Failed to add item')
+        TriggerClientEvent('notify', source, 'Inventory full')
+    end
+    ```
+  </Accordion>
+
+  <Accordion title="Check Weight Before Adding" icon="weight-scale">
+    ```lua
+    function SafeAddItem(characterId, itemName, count)
+        local canAdd, error = CanAddItem(characterId, itemName, count)
+
+        if not canAdd then
+            return false, error
+        end
+
+        return COMPONENTS.Inventory:AddItem(characterId, itemName, count)
+    end
+    ```
+  </Accordion>
+
+  <Accordion title="Use Metadata for Unique Items" icon="tags">
+    ```lua
+    -- Weapons with serial numbers
+    COMPONENTS.Inventory:AddItem(char.SID, 'weapon_pistol', 1, {
+        serial = GenerateSerial(),
+        durability = 100,
+        ammo = 12,
+        attachments = { 'flashlight', 'suppressor' }
+    })
+
+    -- Phones with numbers
+    COMPONENTS.Inventory:AddItem(char.SID, 'phone', 1, {
+        number = char.Phone,
+        contacts = {},
+        messages = {}
+    })
+
+    -- ID cards
+    COMPONENTS.Inventory:AddItem(char.SID, 'id_card', 1, {
+        name = char.First .. ' ' .. char.Last,
+        dob = char.DOB,
+        photo = 'url_to_photo'
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="Clean Up on Character Delete" icon="broom">
+    ```lua
+    AddEventHandler('mythic-characters:server:CharacterDeleted', function(source, characterId)
+        COMPONENTS.Inventory:Delete(characterId)
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Sync Inventory to Client" icon="arrows-rotate">
+    ```lua
+    -- After inventory changes, update client
+    function UpdateInventoryUI(source)
+        local player = Fetch:Source(source)
+
+        if not player then return end
+
+        local char = player:GetData('Character')
+
+        if not char then return end
+
+        local stateId = char:GetData('SID')
+        local inventory = COMPONENTS.Inventory:Get(stateId)
+
+        TriggerClientEvent('mythic-inventory:client:SetInventory', source, inventory)
+    end
+
+    -- Call after add/remove
+    local stateId = char:GetData('SID')
+    COMPONENTS.Inventory:AddItem(stateId, 'water', 1)
+    UpdateInventoryUI(source)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Inventory - Events" icon="bolt" href="/api/inventory/events">
+    Inventory-related events
+  </Card>
+  <Card title="Inventory - Item Definition" icon="tags" href="/api/inventory/item-definition">
+    Item data structure and definitions
+  </Card>
+  <Card title="Characters API" icon="user" href="/api/characters/exports">
+    Character management
+  </Card>
+  <Card title="Items System" icon="cube" href="/features/inventory/items">
+    Using and creating items
+  </Card>
+</CardGroup>
+
+<Tip>
+**Performance Tip:** Inventory operations update the database. For bulk operations (giving many items at once), consider batching updates or using transactions where possible.
+</Tip>

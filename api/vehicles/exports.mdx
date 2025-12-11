@@ -1,0 +1,908 @@
+---
+title: Vehicles - Exports
+description: Vehicle management, ownership, spawning, and keys system
+icon: 'car'
+---
+
+The Vehicles component handles owned vehicles, temporary vehicle spawning, vehicle keys, garage management, and vehicle state management. It integrates with the inventory, characters, jobs, and properties systems.
+
+## Vehicle Ownership
+
+### AddToCharacter
+
+Add a vehicle to a character's ownership.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| charSID | number | Yes | Character State ID |
+| vehicleHash | number | Yes | Vehicle model hash |
+| vehicleType | number | Yes | Vehicle type (0=car, 1=boat, 2=aircraft) |
+| infoData | table | Yes | Vehicle information (make, model, class, value) |
+| cb | function | Yes | Callback function (success, vehicleData) |
+| properties | table | No | Vehicle customization properties |
+| defaultStorage | table | No | Storage location {Type, Id} |
+| suppliedVIN | string | No | Custom VIN (auto-generated if not provided) |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| function | Calls callback with success status and vehicle data |
+
+**Example:**
+```lua
+-- Server side
+local characterId = 123
+local vehicleHash = GetHashKey('adder')
+
+COMPONENTS.Vehicles.Owned:AddToCharacter(
+    characterId,
+    vehicleHash,
+    0, -- Car type
+    {
+        make = 'Truffade',
+        model = 'Adder',
+        class = 'Super',
+        value = 1000000
+    },
+    function(success, vehicleData)
+        if success then
+            print('Vehicle added:', vehicleData.VIN)
+            print('Plate:', vehicleData.RegisteredPlate)
+
+            -- Give keys to player
+            COMPONENTS.Vehicles.Keys:Add(source, vehicleData.VIN)
+        else
+            print('Failed to add vehicle')
+        end
+    end,
+    nil, -- Properties (will use defaults)
+    nil, -- Default storage
+    nil  -- Auto-generate VIN
+)
+```
+
+**Use Cases:**
+```lua
+-- Add vehicle from dealership purchase
+AddEventHandler('dealership:server:PurchaseVehicle', function(modelName, price)
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then
+        return
+    end
+
+    local char = player:GetData('Character')
+    if not char then
+        return
+    end
+
+    local stateId = char:GetData('SID')
+
+    local vehicleHash = GetHashKey(modelName)
+
+    -- Charge player
+    if COMPONENTS.Characters:RemoveMoney(stateId, 'bank', price, 'Vehicle purchase') then
+        -- Add vehicle to character
+        COMPONENTS.Vehicles.Owned:AddToCharacter(
+            stateId,
+            vehicleHash,
+            0,
+            {
+                make = GetMakeName(modelName),
+                model = GetModelName(modelName),
+                class = GetVehicleClass(modelName),
+                value = price
+            },
+            function(success, vehicleData)
+                if success then
+                    -- Give keys
+                    COMPONENTS.Vehicles.Keys:Add(src, vehicleData.VIN)
+
+                    -- Notify player
+                    TriggerClientEvent('mythic-notifications:client:Send', src, {
+                        message = 'Vehicle purchased! Check your garage.',
+                        type = 'success'
+                    })
+                end
+            end
+        )
+    end
+end)
+```
+
+---
+
+### AddToFleet
+
+Add a vehicle to a job fleet.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| jobId | string | Yes | Job identifier |
+| jobWorkplace | string | No | Workplace ID (for multi-department jobs) |
+| vehicleLevel | number | Yes | Minimum grade level required to access |
+| vehicleHash | number | Yes | Vehicle model hash |
+| vehicleType | number | Yes | Vehicle type (0=car, 1=boat, 2=aircraft) |
+| infoData | table | Yes | Vehicle information |
+| cb | function | Yes | Callback function |
+| properties | table | No | Vehicle customization |
+| qual | string | No | Required qualification/certification |
+
+**Example:**
+```lua
+-- Server side - Add police vehicle to fleet
+local policeCarHash = GetHashKey('police')
+
+COMPONENTS.Vehicles.Owned:AddToFleet(
+    'police',          -- Job ID
+    'lspd',            -- Workplace (LSPD department)
+    10,                -- Level 10 (Officer) required
+    policeCarHash,
+    0,                 -- Car type
+    {
+        make = 'Generic',
+        model = 'Police Cruiser',
+        class = 'Emergency',
+        value = 50000
+    },
+    function(success, vehicleData)
+        if success then
+            print('Fleet vehicle added:', vehicleData.VIN)
+        end
+    end,
+    {
+        -- Custom livery
+        livery = 0,
+        extras = {
+            [1] = true,  -- Extra 1 enabled
+            [2] = false,
+        }
+    },
+    nil  -- No special qualification required
+)
+```
+
+**Fleet Vehicle Access:**
+```lua
+-- Only officers (level 10+) at LSPD can spawn this vehicle
+-- Checked automatically when spawning fleet vehicles
+```
+
+---
+
+### GetActive
+
+Get active (spawned) vehicle data by VIN.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| VIN | string | Yes | Vehicle Identification Number |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table/boolean | Vehicle DataStore object or false if not spawned |
+
+**Example:**
+```lua
+-- Server side
+local VIN = 'ABC123456789'
+local vehicleData = COMPONENTS.Vehicles.Owned:GetActive(VIN)
+
+if vehicleData then
+    print('Vehicle is spawned')
+    print('Entity ID:', vehicleData:GetData('EntityId'))
+    print('Fuel:', vehicleData:GetData('Fuel'))
+    print('Mileage:', vehicleData:GetData('Mileage'))
+
+    -- Update vehicle data
+    vehicleData:SetData('Fuel', 50)
+else
+    print('Vehicle is not currently spawned')
+end
+```
+
+---
+
+### GetVIN
+
+Get vehicle data from database by VIN.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| VIN | string | Yes | Vehicle Identification Number |
+| cb | function | Yes | Callback function |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| function | Calls callback with vehicle data or false |
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Vehicles.Owned:GetVIN('ABC123456789', function(vehicleData)
+    if vehicleData then
+        print('Owner:', vehicleData.Owner.Type, vehicleData.Owner.Id)
+        print('Make/Model:', vehicleData.Make, vehicleData.Model)
+        print('Storage:', vehicleData.Storage.Type, vehicleData.Storage.Id)
+        print('Fuel:', vehicleData.Fuel)
+        print('Mileage:', vehicleData.Mileage)
+    else
+        print('Vehicle not found')
+    end
+end)
+```
+
+---
+
+### GetAll
+
+Get all vehicles matching criteria.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| vehType | number | No | Vehicle type filter (0=car, 1=boat, 2=aircraft) |
+| ownerType | number | No | Owner type (0=character, 1=fleet) |
+| ownerId | number/string | No | Owner ID (character SID or job ID) |
+| cb | function | Yes | Callback function |
+| storageType | number | No | Storage type (0=impound, 1=garage, 2=property) |
+| storageId | string | No | Storage location ID |
+| ignoreSpawned | boolean | No | Exclude currently spawned vehicles |
+| checkFleetOwner | table | No | Check fleet access {Id, Workplace, Level} |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| function | Calls callback with array of vehicle data |
+
+**Example:**
+```lua
+-- Get all character's vehicles
+COMPONENTS.Vehicles.Owned:GetAll(0, 0, characterId, function(vehicles)
+    if vehicles then
+        print(string.format('Found %d vehicles', #vehicles))
+        for k, v in ipairs(vehicles) do
+            print(v.Make, v.Model, v.RegisteredPlate)
+            print('Storage:', v.Storage.Type, v.Storage.Id)
+            print('Spawned:', v.Spawned and 'Yes' or 'No')
+        end
+    end
+end, nil, nil, false)
+
+-- Get vehicles in specific garage
+COMPONENTS.Vehicles.Owned:GetAll(
+    0,              -- Cars only
+    0,              -- Character owned
+    characterId,    -- Owner
+    function(vehicles)
+        -- Display garage menu
+    end,
+    1,              -- Garage storage
+    'legion_square' -- Garage ID
+)
+
+-- Get job fleet vehicles accessible to player
+local player = Fetch:Source(source)
+
+if not player then
+    return
+end
+
+local char = player:GetData('Character')
+if not char then
+    return
+end
+
+local jobId = char:GetData('Job')
+
+COMPONENTS.Vehicles.Owned:GetAll(
+    0,    -- Cars
+    nil,  -- Any owner type
+    nil,  -- Any owner
+    function(vehicles)
+        -- Display fleet menu
+    end,
+    nil,  -- Any storage
+    nil,  -- Any location
+    true, -- Ignore spawned
+    {     -- Fleet access check
+        Id = jobId,
+        Workplace = char:GetData('JobWorkplace'),
+        Level = char:GetData('JobGrade')
+    }
+)
+```
+
+---
+
+### Spawn
+
+Spawn an owned vehicle into the world.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Player source (0 for server-spawned) |
+| VIN | string | Yes | Vehicle Identification Number |
+| coords | vector3 | Yes | Spawn coordinates |
+| heading | number | No | Spawn heading |
+| cb | function | Yes | Callback function |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| function | Calls callback with (success, vehicleData, entityId) |
+
+**Example:**
+```lua
+-- Server side
+local VIN = 'ABC123456789'
+local spawnCoords = vector3(100.0, 200.0, 30.0)
+local heading = 90.0
+
+COMPONENTS.Vehicles.Owned:Spawn(
+    source,
+    VIN,
+    spawnCoords,
+    heading,
+    function(success, vehicleData, entityId)
+        if success then
+            print('Vehicle spawned:', entityId)
+            print('Plate:', vehicleData.RegisteredPlate)
+
+            -- Give keys to player
+            COMPONENTS.Vehicles.Keys:Add(source, VIN)
+
+            -- Notify client
+            TriggerClientEvent('mythic-vehicles:client:VehicleSpawned', source, entityId)
+        else
+            TriggerClientEvent('mythic-notifications:client:Send', source, {
+                message = 'Failed to spawn vehicle',
+                type = 'error'
+            })
+        end
+    end
+)
+```
+
+**Garage System Example:**
+```lua
+-- Spawn vehicle from garage
+AddEventHandler('garage:server:SpawnVehicle', function(VIN, spawnLocation)
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then
+        return
+    end
+
+    local char = player:GetData('Character')
+    if not char then
+        return
+    end
+
+    local stateId = char:GetData('SID')
+
+    -- Verify ownership
+    COMPONENTS.Vehicles.Owned:GetVIN(VIN, function(vehicleData)
+        if vehicleData and vehicleData.Owner.Type == 0 and vehicleData.Owner.Id == stateId then
+            -- Spawn vehicle
+            COMPONENTS.Vehicles.Owned:Spawn(
+                src,
+                VIN,
+                spawnLocation.coords,
+                spawnLocation.heading,
+                function(success, vehData, entityId)
+                    if success then
+                        COMPONENTS.Vehicles.Keys:Add(src, VIN)
+                    end
+                end
+            )
+        end
+    end)
+end)
+```
+
+---
+
+### Store
+
+Store a spawned vehicle in a garage/property.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| VIN | string | Yes | Vehicle Identification Number |
+| storageType | number | Yes | Storage type (0=impound, 1=garage, 2=property) |
+| storageId | string | Yes | Storage location ID |
+| cb | function | Yes | Callback function |
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Vehicles.Owned:Store(
+    'ABC123456789',
+    1,              -- Garage storage
+    'legion_square',
+    function(success)
+        if success then
+            print('Vehicle stored successfully')
+        end
+    end
+)
+```
+
+---
+
+### Delete
+
+Delete a spawned vehicle (despawn and save to database).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| VIN | string | Yes | Vehicle Identification Number |
+| cb | function | Yes | Callback function |
+| ignoreExists | boolean | No | Skip entity exists check |
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Vehicles.Owned:Delete('ABC123456789', function(success)
+    if success then
+        print('Vehicle deleted (saved to database)')
+    end
+end)
+```
+
+---
+
+### ForceSave
+
+Force save vehicle data to database immediately.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| VIN | string | Yes | Vehicle Identification Number |
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Vehicles.Owned:ForceSave('ABC123456789')
+
+-- Use before server shutdown
+AddEventHandler('onResourceStop', function(resourceName)
+    if resourceName == GetCurrentResourceName() then
+        for VIN, vehicleData in pairs(ACTIVE_OWNED_VEHICLES) do
+            COMPONENTS.Vehicles.Owned:ForceSave(VIN)
+        end
+    end
+end)
+```
+
+---
+
+### Track
+
+Get vehicle location (spawned or storage).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| VIN | string | Yes | Vehicle Identification Number |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| vector3 | Vehicle location coordinates |
+
+**Example:**
+```lua
+-- Server side (sync)
+local location = COMPONENTS.Vehicles.Owned:Track('ABC123456789')
+if location then
+    print('Vehicle location:', location)
+end
+```
+
+---
+
+## Vehicle Keys
+
+### Has
+
+Check if player has keys to a vehicle.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Player source |
+| VIN | string | Yes | Vehicle Identification Number |
+| groupKeys | string | No | Group key check (e.g., 'police', 'ems') |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | True if player has keys |
+
+**Example:**
+```lua
+-- Server side
+local hasKeys = COMPONENTS.Vehicles.Keys:Has(source, 'ABC123456789')
+
+if hasKeys then
+    print('Player has keys to this vehicle')
+end
+
+-- Check with group keys (police/ems can access without personal keys if on duty)
+local hasAccess = COMPONENTS.Vehicles.Keys:Has(source, 'ABC123456789', 'police')
+```
+
+---
+
+### Add
+
+Give vehicle keys to a player.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Player source |
+| VIN | string | Yes | Vehicle Identification Number |
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Vehicles.Keys:Add(source, 'ABC123456789')
+
+-- Give keys when player buys a vehicle
+AddEventHandler('dealership:vehiclePurchased', function(source, vehicleData)
+    COMPONENTS.Vehicles.Keys:Add(source, vehicleData.VIN)
+
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'You received the vehicle keys',
+        type = 'success'
+    })
+end)
+```
+
+---
+
+### Remove
+
+Remove vehicle keys from a player.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Player source |
+| VIN | string | Yes | Vehicle Identification Number |
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Vehicles.Keys:Remove(source, 'ABC123456789')
+
+-- Remove keys when vehicle is sold
+AddEventHandler('dealership:vehicleSold', function(source, VIN)
+    COMPONENTS.Vehicles.Keys:Remove(source, VIN)
+end)
+```
+
+---
+
+## Temporary Vehicles
+
+### SpawnTemp
+
+Spawn a temporary (non-owned) vehicle.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Player source (0 for server) |
+| model | number | Yes | Vehicle model hash |
+| coords | vector3 | Yes | Spawn coordinates |
+| heading | number | Yes | Spawn heading |
+| cb | function | Yes | Callback function |
+| vehicleInfoData | table | No | Vehicle info (Make, Model, Class, Value) |
+| properties | table | No | Vehicle customization |
+| preDamage | table | No | Initial damage state |
+| suppliedPlate | string | No | Custom plate |
+| suppliedVIN | string | No | Custom VIN |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| function | Calls callback with (entityId, VIN, plate) |
+
+**Example:**
+```lua
+-- Server side
+local model = GetHashKey('adder')
+local coords = vector3(100.0, 200.0, 30.0)
+local heading = 90.0
+
+COMPONENTS.Vehicles:SpawnTemp(
+    source,
+    model,
+    coords,
+    heading,
+    function(entityId, VIN, plate)
+        print('Temp vehicle spawned:', entityId)
+        print('VIN:', VIN)
+        print('Plate:', plate)
+    end,
+    {
+        Make = 'Truffade',
+        Model = 'Adder',
+        Class = 'Super',
+        Value = 1000000
+    },
+    nil,  -- No custom properties
+    nil,  -- No pre-damage
+    nil,  -- Auto-generate plate
+    nil   -- Auto-generate VIN
+)
+```
+
+**Use Cases:**
+```lua
+-- Rental vehicle
+AddEventHandler('rental:server:RentVehicle', function(modelName, duration)
+    local src = source
+    local model = GetHashKey(modelName)
+    local spawnCoords = GetRentalSpawnLocation()
+
+    COMPONENTS.Vehicles:SpawnTemp(
+        src,
+        model,
+        spawnCoords.coords,
+        spawnCoords.heading,
+        function(entityId, VIN, plate)
+            -- Give temp keys
+            COMPONENTS.Vehicles.Keys:Add(src, VIN)
+
+            -- Set rental expiry
+            SetTimeout(duration * 60000, function()
+                COMPONENTS.Vehicles:Delete(entityId, function() end)
+            end)
+        end
+    )
+end)
+
+-- Mission vehicle
+AddEventHandler('missions:spawnVehicle', function(location)
+    COMPONENTS.Vehicles:SpawnTemp(
+        0,  -- Server spawn
+        GetHashKey('burrito'),
+        location.coords,
+        location.heading,
+        function(entityId, VIN, plate)
+            -- Store for mission cleanup
+            MissionVehicles[missionId] = entityId
+        end
+    )
+end)
+```
+
+---
+
+### Delete (Any Vehicle)
+
+Delete any vehicle (owned or temporary).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| vehicleId | number | Yes | Vehicle entity ID |
+| cb | function | Yes | Callback function |
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Vehicles:Delete(vehicleEntity, function(success)
+    if success then
+        print('Vehicle deleted')
+    end
+end)
+```
+
+---
+
+## Garage Management
+
+### GetAll
+
+Get all garage locations.
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table | Table of garage data {label, location} |
+
+**Example:**
+```lua
+-- Server side
+local garages = COMPONENTS.Vehicles.Garages:GetAll()
+
+for id, data in pairs(garages) do
+    print(id, data.label, data.location)
+end
+```
+
+---
+
+### Get
+
+Get specific garage data.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| id | string | Yes | Garage identifier |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table | Garage data or nil |
+
+**Example:**
+```lua
+-- Server side
+local garage = COMPONENTS.Vehicles.Garages:Get('legion_square')
+
+if garage then
+    print('Garage:', garage.name)
+    print('Location:', garage.coords)
+    print('Type:', garage.vehType) -- 0=car, 1=boat, 2=aircraft
+end
+```
+
+---
+
+### Impound
+
+Get impound lot data.
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table | Impound location data |
+
+**Example:**
+```lua
+-- Server side
+local impound = COMPONENTS.Vehicles.Garages:Impound()
+
+print('Impound:', impound.name)
+print('Location:', impound.coords)
+```
+
+---
+
+## Property Garage
+
+### Store
+
+Store character vehicle in property garage.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Player source |
+| VIN | string | Yes | Vehicle Identification Number |
+| propertyId | string | Yes | Property identifier |
+| cb | function | Yes | Callback function |
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Vehicles.Owned.Properties:Store(
+    source,
+    'ABC123456789',
+    'property_123',
+    function(success)
+        if success then
+            TriggerClientEvent('mythic-notifications:client:Send', source, {
+                message = 'Vehicle stored in property garage',
+                type = 'success'
+            })
+        end
+    end
+)
+```
+
+---
+
+### Get
+
+Get vehicles stored in property garage.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| propertyId | string | Yes | Property identifier |
+| ownerStateId | number | No | Filter by owner character SID |
+| cb | function | Yes | Callback function |
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Vehicles.Owned.Properties:Get(
+    'property_123',
+    characterId,
+    function(vehicles)
+        if vehicles then
+            print(string.format('Found %d vehicles in property', #vehicles))
+        end
+    end
+)
+```
+
+---
+
+### GetCount
+
+Get count of vehicles in property garage.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| propertyId | string | Yes | Property identifier |
+| ignoreVIN | string | No | Exclude specific VIN from count |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| number | Vehicle count |
+
+**Example:**
+```lua
+-- Server side (sync)
+local count = COMPONENTS.Vehicles.Owned.Properties:GetCount('property_123')
+print('Vehicles in property:', count)
+
+-- Check capacity before storing
+local maxCapacity = 4
+local currentCount = COMPONENTS.Vehicles.Owned.Properties:GetCount('property_123', VIN)
+
+if currentCount >= maxCapacity then
+    -- Property garage is full
+end
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Vehicles - Events" icon="bolt" href="/api/vehicles/events">
+    Vehicle-related events
+  </Card>
+  <Card title="Vehicles - Configuration" icon="sliders" href="/api/vehicles/configuration">
+    Vehicle configuration and data structures
+  </Card>
+  <Card title="Keys & Locks Feature" icon="key" href="/features/vehicles/keys">
+    Vehicle keys and locking system
+  </Card>
+  <Card title="Garages Feature" icon="warehouse" href="/features/vehicles/garages">
+    Garage and storage system
+  </Card>
+</CardGroup>
+
+<Tip>
+**Vehicle State:** Spawned vehicles have state stored in `Entity(vehicle).state` including VIN, Owner, Fuel, Damage, Mileage, and more. Access using `Entity(veh).state.PropertyName`.
+</Tip>
+
+<Warning>
+**Vehicle Saving:** Vehicle data is automatically saved when despawned. Use `ForceSave()` before server shutdown to prevent data loss.
+</Warning>

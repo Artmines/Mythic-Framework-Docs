@@ -1,0 +1,305 @@
+---
+title: Welcome to Mythic Framework
+description: A professional, production-ready FiveM roleplay framework built for experienced developers
+icon: 'rocket'
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.png"
+  alt="Mythic Framework Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.png"
+  alt="Mythic Framework Hero Dark"
+/>
+
+## What is Mythic Framework?
+
+Mythic Framework is a comprehensive, enterprise-grade FiveM roleplay framework designed for serious roleplay servers. Built from the ground up with modern technologies and architectural patterns, Mythic provides a robust foundation for creating immersive roleplay experiences.
+
+<CardGroup cols={2}>
+  <Card title="For Server Owners" icon="server" href="/installation/prerequisites">
+    Complete installation guides, configuration references, and feature documentation to get your server running quickly.
+  </Card>
+  <Card title="For Developers" icon="code" href="/development/getting-started">
+    Comprehensive API documentation, development guides, and examples to build custom resources.
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/core/base">
+    Complete reference for all 60+ resources including exports, events, and data structures.
+  </Card>
+  <Card title="Community" icon="users" href="https://discord.gg/mythicframework">
+    Join our Discord community for support, updates, and to showcase your server.
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<CardGroup cols={3}>
+  <Card title="60+ Modular Resources" icon="puzzle-piece">
+    Fully-featured systems covering characters, inventory, jobs, vehicles, police, criminal activities, and more.
+  </Card>
+  <Card title="Modern UI Stack" icon="desktop">
+    React 17 + Redux + Material-UI v5 for responsive, beautiful interfaces including phone, HUD, MDT, and laptop systems.
+  </Card>
+  <Card title="Component Architecture" icon="cubes">
+    Sophisticated proxy-based component system for modular development and dependency injection.
+  </Card>
+  <Card title="Dual Database Support" icon="database">
+    MongoDB for game data and MySQL for compatibility, with seamless integration.
+  </Card>
+  <Card title="Event-Driven" icon="bolt">
+    Robust event system with middleware support and callback patterns for responsive gameplay.
+  </Card>
+  <Card title="Production Ready" icon="check-circle">
+    Built-in anti-cheat, queue system, comprehensive logging, and performance optimization.
+  </Card>
+</CardGroup>
+
+## Technology Stack
+
+Mythic Framework is built with cutting-edge technologies:
+
+<Tabs>
+  <Tab title="Backend">
+    **Languages:**
+    - Lua (Client & Server game logic)
+    - JavaScript/Node.js (Database layer)
+
+    **Databases:**
+    - MongoDB 3.6.6+ (Primary - auth & game data)
+    - MySQL (via OxMySQL for compatibility)
+
+    **Architecture:**
+    - Component-based proxy system
+    - Event-driven with middleware
+    - Dependency injection & resolution
+  </Tab>
+  <Tab title="Frontend">
+    **Core:**
+    - React 17.0.2
+    - Redux + Redux Thunk (State management)
+    - Material-UI v5 (Component library)
+
+    **Build Tools:**
+    - Webpack 5
+    - Babel (ES6+ transpilation)
+    - SASS/Emotion (Styling)
+
+    **Additional:**
+    - FontAwesome 6 (Icons)
+    - Moment.js (Date/time)
+    - DOMPurify (XSS protection)
+  </Tab>
+  <Tab title="FiveM">
+    **Platform:**
+    - FiveM Server (cfx.re)
+    - Lua 5.4
+    - Game Build: 3095+
+
+    **Integration:**
+    - Native UI (NUI) for React UIs
+    - StateBags for sync
+    - Voice integration ready
+  </Tab>
+</Tabs>
+
+## Core Systems
+
+Mythic Framework provides comprehensive systems for all aspects of roleplay:
+
+### Character & Player Management
+- Multi-character support with seamless switching
+- Detailed character creation with appearance customization
+- Persistent character data and permissions
+- Character-specific inventories and properties
+
+### Inventory & Economy
+- Weight-based inventory system with drag & drop UI
+- Advanced crafting system with schematics
+- Item metadata for durability, serial numbers, and custom properties
+- Banking system with cash and account separation
+- Business ownership and management
+- Vehicle dealerships
+
+### Jobs & Activities
+- Comprehensive job framework with grades and permissions
+- Built-in jobs: Police, EMS, Mechanic, Restaurant, Taxi, and more
+- Duty system with on/off-duty mechanics
+- Labor jobs for civilian activities
+- Workplace system for job-specific locations
+
+### Law Enforcement
+- Mobile Data Terminal (MDT) for police operations
+- Evidence collection and processing
+- Jail and prison system
+- Speed radar system
+- CCTV camera network
+- Warrant and citation management
+
+### Vehicles
+- Vehicle ownership with persistent customization
+- Fuel system with refueling mechanics
+- Vehicle customs (Los Santos Customs)
+- Mechanic repair system
+- Vehicle damage simulation
+- Stance/fitment customization
+
+### Properties & Housing
+- Apartment system with multiple properties per character
+- Property ownership and management
+- Door locking system with access control
+- Furniture placement (future)
+- Property storage/stashes
+
+### Criminal Activities
+- Robbery system with configurable locations
+- Drug production and distribution
+- Marijuana growing operations
+- Casino games and gambling
+- Money laundering mechanics
+
+### Communication
+- Fully-functional smartphone with apps
+  - Contacts, Messages, Email
+  - Phone calls with call forwarding
+  - Custom ringtones and wallpapers
+- In-game chat system
+- Radio system for voice communication
+- VoIP integration
+
+### User Interface
+- Immersive HUD with health, armor, status bars
+- Vehicle HUD with speed, fuel, and damage
+- Context menu system
+- Laptop interface for various systems
+- Targeting/interaction system (third-eye)
+- Notification system
+
+### World & Environment
+- Dynamic location system
+- Map blips and markers
+- PolyZone for area definition
+- IPL management for interiors
+- Object placement system
+- Scene management for RP scenarios
+
+### Administration
+- Comprehensive admin panel
+- Command framework
+- ACE permission integration
+- Anti-cheat system (Pwnzor)
+- Comprehensive logging with Discord webhooks
+- Server queue with priority
+
+## Architecture Overview
+
+Mythic Framework uses a component-based architecture that sets it apart from other frameworks:
+
+```lua
+-- Components are registered and fetched using exports
+exports['mythic-base']:RegisterComponent('MyComponent', {
+    DoSomething = function(self, param)
+        -- Your code here
+    end
+})
+
+-- Other resources fetch and use components
+local MyComponent = exports['mythic-base']:FetchComponent('MyComponent')
+MyComponent:DoSomething('value')
+```
+
+This pattern provides:
+- **Modularity**: Resources can be easily added, removed, or replaced
+- **Dependency Management**: Automatic dependency resolution
+- **Extensibility**: Components can be extended without modifying core code
+- **Protection**: Critical components can be marked as protected
+
+<Note>
+The component proxy system is the heart of Mythic Framework. Understanding it is essential for development. Learn more in the [Proxy Pattern documentation](/concepts/proxy-pattern).
+</Note>
+
+## Quick Stats
+
+<CardGroup cols={4}>
+  <Card title="Resources" icon="box">
+    60+
+  </Card>
+  <Card title="UI Systems" icon="window">
+    10+
+  </Card>
+  <Card title="Job Types" icon="briefcase">
+    15+
+  </Card>
+  <Card title="Built-in Features" icon="star">
+    100+
+  </Card>
+</CardGroup>
+
+## Why Choose Mythic Framework?
+
+<AccordionGroup>
+  <Accordion title="Professional Quality" icon="medal">
+    Built by experienced developers for production use, not a hobby project. Mythic powers real servers with hundreds of concurrent players.
+  </Accordion>
+  <Accordion title="Modern Architecture" icon="diagram-project">
+    Uses contemporary design patterns and technologies. Component-based architecture makes development clean and maintainable.
+  </Accordion>
+  <Accordion title="Comprehensive Documentation" icon="book-open">
+    Extensive documentation for both server owners and developers. Every system, API, and feature is documented with examples.
+  </Accordion>
+  <Accordion title="Active Development" icon="rocket">
+    Continuously updated with new features, security patches, and optimizations. Community-driven development.
+  </Accordion>
+  <Accordion title="Extensible Design" icon="puzzle-piece">
+    Easy to customize and extend without modifying core files. Component system allows seamless integration of custom resources.
+  </Accordion>
+  <Accordion title="Performance Optimized" icon="gauge-high">
+    Built with performance in mind. Efficient database queries, optimized UI rendering, and minimal resource usage.
+  </Accordion>
+</AccordionGroup>
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="bolt" href="/quickstart">
+    Get Mythic Framework running on your server in 5 minutes
+  </Card>
+  <Card title="Installation Guide" icon="download" href="/installation/prerequisites">
+    Complete step-by-step installation instructions
+  </Card>
+  <Card title="Core Concepts" icon="brain" href="/concepts/architecture">
+    Understand the architecture and design patterns
+  </Card>
+  <Card title="Developer Guide" icon="terminal" href="/development/getting-started">
+    Start building custom resources
+  </Card>
+</CardGroup>
+
+<Tip>
+**New to FiveM development?** Start with the [Core Concepts](/concepts/architecture) section to understand how Mythic Framework works, then follow the [Installation Guide](/installation/prerequisites) to set up your server.
+</Tip>
+
+<Warning>
+**Requirements:** Mythic Framework requires experienced UI/Lua developers to fully utilize its capabilities. This is a professional-grade framework, not suitable for beginners.
+</Warning>
+
+## Community & Support
+
+Join the Mythic Framework community:
+
+- **Discord**: [discord.gg/mythicframework](https://discord.gg/mythicframework)
+- **GitHub**: [github.com/mythicframework](https://github.com/mythicframework)
+- **Documentation**: You're here!
+
+## License & Credits
+
+Mythic Framework is created by:
+- **Alzar** - Lead Developer
+- **Dr Nick** - Developer
+- **Panda_builds** - Assets & Design
+
+<Note>
+This framework is designed for serious roleplay servers and requires technical expertise. Please review the license and terms before use.
+</Note>

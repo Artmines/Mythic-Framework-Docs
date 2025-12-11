@@ -1,0 +1,58 @@
+---
+title: "Interactive Tools"
+description: "Generate configurations and preview code with interactive tools"
+mode: "wide"
+---
+
+import { ColorGenerator } from "/snippets/color-generator.jsx"
+import { ItemGenerator } from "/snippets/item-generator.jsx"
+import { JobBuilder } from "/snippets/job-builder.jsx"
+import { ComponentDemo } from "/snippets/component-demo.jsx"
+
+<div className="text-center py-10 px-5">
+  <h1 className="text-5xl font-extrabold mb-4 bg-gradient-to-r from-[#36A3EC] to-[#5BB5F0] bg-clip-text text-transparent inline-block">
+    Interactive Tools
+  </h1>
+  <p className="text-xl text-zinc-400 mb-8 max-w-3xl mx-auto">
+    Build configurations and preview code with these interactive generators
+  </p>
+</div>
+
+---
+
+<AccordionGroup>
+  <Accordion title="Color Theme Generator" icon="palette">
+    <ColorGenerator />
+  </Accordion>
+
+  <Accordion title="Item Definition Generator" icon="box">
+    <ItemGenerator />
+  </Accordion>
+
+  <Accordion title="Job Configuration Builder" icon="briefcase">
+    <JobBuilder />
+  </Accordion>
+
+  <Accordion title="Component System Demo" icon="code">
+    <ComponentDemo />
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Why Use Interactive Tools?
+
+<CardGroup cols={2}>
+  <Card title="Live Preview" icon="eye">
+    See your configurations in action before implementing them in your server.
+  </Card>
+  <Card title="Copy-Ready Code" icon="clipboard">
+    Generate properly formatted Lua code that you can paste directly into your configs.
+  </Card>
+  <Card title="Learn by Doing" icon="graduation-cap">
+    Understand the framework's systems by experimenting with different values.
+  </Card>
+  <Card title="Save Time" icon="clock">
+    No more syntax errors or formatting issues - the tools handle it all for you.
+  </Card>
+</CardGroup>

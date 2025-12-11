@@ -1,0 +1,650 @@
+---
+title: First Start
+description: Starting your Mythic Framework server for the first time
+icon: 'rocket'
+---
+
+This guide walks you through starting your Mythic Framework server for the first time, verifying everything works correctly, and creating your first character.
+
+## Pre-Start Checklist
+
+Before starting, ensure you've completed:
+
+<Steps>
+  <Step title="Prerequisites installed">
+    MongoDB and MySQL running ✓
+  </Step>
+  <Step title="Server files extracted">
+    Mythic Framework in server directory ✓
+  </Step>
+  <Step title="Databases created">
+    `auth` and `fivem` MongoDB databases exist ✓
+  </Step>
+  <Step title="server.cfg configured">
+    License keys, database connections, and admin permissions set ✓
+  </Step>
+</Steps>
+
+<Warning>
+If any of these aren't complete, go back and finish them first. Starting with incomplete configuration will cause errors.
+</Warning>
+
+## Starting the Server
+
+### Windows
+
+<Tabs>
+  <Tab title="Using Batch File">
+    Create or use `start.bat` in your server root:
+
+    ```batch start.bat
+    @echo off
+    title Mythic Framework Server
+    echo Starting Mythic Framework...
+    echo.
+
+    FXServer.exe +exec server.cfg
+
+    pause
+    ```
+
+    Double-click `start.bat` to start the server.
+  </Tab>
+  <Tab title="Command Line">
+    ```bash
+    # Open Command Prompt in server directory
+    cd C:\Path\To\FiveMServer
+
+    # Start server
+    FXServer.exe +exec server.cfg
+    ```
+  </Tab>
+</Tabs>
+
+### Linux
+
+```bash
+# Navigate to server directory
+cd ~/fivem-server
+
+# Start server
+./run.sh
+
+# Or directly:
+./FXServer +exec server.cfg
+```
+
+### Running as Background Service (Linux)
+
+For production servers, run as a systemd service:
+
+<Accordion title="Create systemd service">
+```bash
+# Create service file
+sudo nano /etc/systemd/system/mythic-fivem.service
+```
+
+```ini mythic-fivem.service
+[Unit]
+Description=Mythic Framework FiveM Server
+After=network.target mongodb.service mysql.service
+
+[Service]
+Type=simple
+User=your_username
+WorkingDirectory=/home/your_username/fivem-server
+ExecStart=/home/your_username/fivem-server/FXServer +exec server.cfg
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# Reload systemd
+sudo systemctl daemon-reload
+
+# Enable service (start on boot)
+sudo systemctl enable mythic-fivem
+
+# Start service
+sudo systemctl start mythic-fivem
+
+# Check status
+sudo systemctl status mythic-fivem
+
+# View logs
+sudo journalctl -u mythic-fivem -f
+```
+</Accordion>
+
+## What to Expect
+
+### Console Output
+
+When starting, you'll see:
+
+<Steps>
+  <Step title="FiveM Banner">
+    ```
+    ========================================
+      FiveM Server (Build 6683)
+    ========================================
+    ```
+  </Step>
+  <Step title="License Validation">
+    ```
+    [Info] Checking license key...
+    [Info] License key is valid
+    ```
+  </Step>
+  <Step title="Resource Scanning">
+    ```
+    [Info] Scanning resources in resources/...
+    [Info] Found 75 resources
+    ```
+  </Step>
+  <Step title="Database Connections">
+    ```
+    [mythic-base] Connecting to MongoDB...
+    [mythic-base] MongoDB connected successfully
+    [oxmysql] Connecting to MySQL...
+    [oxmysql] MySQL connection established
+    ```
+  </Step>
+  <Step title="Resource Loading">
+    ```
+    [Info] Starting resource mythic-base
+    [mythic-base] Component system initialized
+    [mythic-base] Registering core components...
+    [Info] Starting resource mythic-characters
+    [Info] Starting resource mythic-inventory
+    ... (60+ resources)
+    ```
+  </Step>
+  <Step title="Server Ready">
+    ```
+    [Info] Server started
+    [Info] Server listening on 0.0.0.0:30120
+    [Info] Server is ready!
+    ```
+  </Step>
+</Steps>
+
+<Note>
+First start may take 2-5 minutes as databases initialize and resources compile. Subsequent starts will be faster.
+</Note>
+
+### Expected Initialization
+
+On first start, Mythic Framework will:
+
+1. **Create database collections** (MongoDB)
+   - `characters` collection
+   - `inventory` collection
+   - `users` collection
+   - `logs` collection
+   - And more...
+
+2. **Create database tables** (MySQL)
+   - Various persistent data tables
+   - Initialized with defaults
+
+3. **Initialize default data**
+   - Default items for inventory
+   - Default jobs
+   - Default locations
+   - System configurations
+
+4. **Create indexes** for performance
+
+All of this happens automatically - you don't need to do anything!
+
+## Verification
+
+### Check Console for Errors
+
+Watch the console for any red error messages:
+
+<AccordionGroup>
+  <Accordion title="✅ No Errors - All Good!" icon="check">
+    If you see `[Info] Server is ready!` with no red errors, your server started successfully!
+  </Accordion>
+
+  <Accordion title="❌ Database Connection Errors" icon="database">
+    ```
+    [Error] Failed to connect to MongoDB
+    [Error] MySQL connection failed
+    ```
+
+    **Solutions:**
+    - Verify MongoDB and MySQL are running
+    - Check connection strings in server.cfg
+    - See [Troubleshooting Guide](/installation/troubleshooting)
+  </Accordion>
+
+  <Accordion title="❌ License Key Errors" icon="key">
+    ```
+    [Error] Invalid license key
+    [Error] License key is for different IP
+    ```
+
+    **Solutions:**
+    - Verify license key is correct
+    - Check IP matches the one registered
+    - Generate new key if IP changed
+  </Accordion>
+
+  <Accordion title="❌ Resource Load Errors" icon="box">
+    ```
+    [Error] Failed to start resource mythic-XXXXX
+    [Error] Dependency YYYYY not found
+    ```
+
+    **Solutions:**
+    - Check resources.cfg load order
+    - Verify all resource folders exist
+    - Ensure mythic-base loads first
+  </Accordion>
+</AccordionGroup>
+
+### Verify Resource Status
+
+In server console, type:
+
+```bash
+# List all resources
+refresh
+status
+
+# Check specific resource
+status mythic-base
+status mythic-inventory
+```
+
+All Mythic resources should show as `started` in green.
+
+### Check Database Connections
+
+Verify databases were initialized:
+
+<Tabs>
+  <Tab title="MongoDB">
+    ```bash
+    # Connect to MongoDB
+    mongo
+
+    # Check auth database
+    use auth
+    show collections
+    # Should show: users, roles, etc.
+
+    # Check game database
+    use fivem
+    show collections
+    # Should show: characters, inventory, items, jobs, etc.
+    ```
+  </Tab>
+  <Tab title="MySQL">
+    ```bash
+    # Connect to MySQL
+    mysql -u mythic -p MythicFramework_345AE9
+
+    # Check tables
+    SHOW TABLES;
+    # Should show various tables created by framework
+    ```
+  </Tab>
+</Tabs>
+
+## Connecting to Your Server
+
+### From Same Machine (Localhost)
+
+<Steps>
+  <Step title="Open FiveM Client">
+    Launch FiveM on the same computer as the server
+  </Step>
+  <Step title="Open Console">
+    Press `F8` to open the console
+  </Step>
+  <Step title="Connect">
+    ```
+    connect localhost:30120
+    ```
+    (Use your port if different from 30120)
+  </Step>
+</Steps>
+
+### From Different Machine (LAN/Internet)
+
+<Steps>
+  <Step title="Find Server IP">
+    ```bash
+    # Windows
+    ipconfig
+    # Look for IPv4 Address
+
+    # Linux
+    ip addr show
+    # Look for inet address
+    ```
+  </Step>
+  <Step title="Open Required Ports">
+    Ensure port 30120 is open in:
+    - Windows Firewall / UFW
+    - Router port forwarding (for internet access)
+  </Step>
+  <Step title="Connect from FiveM">
+    ```
+    connect YOUR_IP:30120
+    ```
+  </Step>
+</Steps>
+
+## First Login Experience
+
+### Loading Screen
+
+When connecting, you'll see:
+
+1. Mythic Framework loading screen
+2. Resource downloads (if using server-side resources)
+3. "Entering session..." message
+
+### Character Creation
+
+On first login, you'll be prompted to create a character:
+
+<Steps>
+  <Step title="Character Creator Opens">
+    React-based character creation UI appears
+  </Step>
+  <Step title="Enter Character Details">
+    - First Name
+    - Last Name
+    - Date of Birth
+    - Gender
+    - Other demographic info
+  </Step>
+  <Step title="Customize Appearance">
+    - Face features
+    - Hair style and color
+    - Skin tone
+    - Clothing (basic)
+  </Step>
+  <Step title="Confirm Creation">
+    Review and create character
+  </Step>
+  <Step title="Spawn Into World">
+    Your character spawns in Los Santos!
+  </Step>
+</Steps>
+
+<Note>
+Character creation is powered by `mythic-characters`. All data is saved to MongoDB automatically.
+</Note>
+
+### In-Game Verification
+
+Once spawned, verify systems are working:
+
+<AccordionGroup>
+  <Accordion title="HUD Visible" icon="display">
+    - Health bar visible
+    - Armor bar visible
+    - Status effects (hunger, thirst) visible
+    - Vehicle info shows when in vehicle
+  </Accordion>
+
+  <Accordion title="Inventory Works" icon="box">
+    Press `I` (or configured keybind):
+    - Inventory UI opens
+    - Drag and drop works
+    - You can see starting items
+  </Accordion>
+
+  <Accordion title="Chat Works" icon="message">
+    Press `T` to open chat:
+    - Chat input opens
+    - Type a message
+    - Press Enter to send
+  </Accordion>
+
+  <Accordion title="Phone Works" icon="mobile">
+    Press `P` (or configured keybind):
+    - Phone UI opens
+    - Apps are visible
+    - Can navigate phone
+  </Accordion>
+
+  <Accordion title="Admin Commands" icon="shield">
+    If you added yourself as admin:
+    ```
+    /admin
+    ```
+    - Admin menu should open
+    - Shows admin tools and options
+  </Accordion>
+</AccordionGroup>
+
+## Post-Start Configuration
+
+### Adjust Server Settings
+
+Now that the server is running, you can fine-tune settings:
+
+1. **Player count** - Adjust based on performance
+2. **Resource configurations** - Each resource has config files
+3. **Job settings** - Configure available jobs
+4. **Economy** - Adjust starting money, prices
+
+See [Configuration Guides](/configuration/server-cfg) for details.
+
+### Add More Admins
+
+Add other admin team members:
+
+1. Have them connect to server
+2. Run `status` in console to see their identifiers
+3. Add to server.cfg:
+   ```bash
+   add_principal identifier.discord:THEIR_DISCORD_ID group.admin
+   ```
+4. Restart server
+
+### Configure Discord Webhooks
+
+If you haven't yet, set up Discord webhooks to monitor:
+- Player connections
+- Admin actions
+- Errors and warnings
+- Kill logs
+
+See [Discord Webhooks Configuration](/configuration/discord-webhooks).
+
+## Performance Monitoring
+
+Monitor your server's performance:
+
+<Tabs>
+  <Tab title="In-Game">
+    Press `F8` and type:
+    ```
+    # Show resource usage
+    resmon
+
+    # Shows:
+    # - CPU usage per resource
+    # - Memory usage
+    # - Network traffic
+    ```
+  </Tab>
+  <Tab title="Console Commands">
+    ```bash
+    # Show player list
+    status
+
+    # Show resource status
+    refresh
+
+    # Restart a resource
+    restart mythic-inventory
+
+    # Stop a resource
+    stop mythic-arcade
+
+    # Start a resource
+    start mythic-arcade
+    ```
+  </Tab>
+</Tabs>
+
+### Resource Usage Expectations
+
+Typical resource usage for Mythic Framework:
+
+| Resource | CPU (Idle) | CPU (48 players) | RAM |
+|----------|------------|------------------|-----|
+| mythic-base | 0.5-1% | 2-3% | 50MB |
+| mythic-inventory | 0.1% | 1-2% | 30MB |
+| mythic-hud | 0.3% | 0.5% | 20MB |
+| mythic-phone | 0.1% | 0.3% | 15MB |
+| All Mythic resources | 3-5% | 10-15% | 500MB |
+
+<Note>
+These are approximations. Actual usage varies based on player activity and server hardware.
+</Note>
+
+## Common First-Start Issues
+
+<AccordionGroup>
+  <Accordion title="Server crashes immediately" icon="circle-xmark">
+    **Causes:**
+    - Invalid license key
+    - Database connection failure
+    - Port already in use
+
+    **Solutions:**
+    - Check console for exact error
+    - Verify prerequisites are running
+    - See [Troubleshooting Guide](/installation/troubleshooting)
+  </Accordion>
+
+  <Accordion title="Can't connect to server" icon="wifi-slash">
+    **Solutions:**
+    - Verify server console shows "Server is ready"
+    - Check firewall isn't blocking port
+    - Try `connect 127.0.0.1:30120` if on same PC
+    - Verify port forwarding if remote
+  </Accordion>
+
+  <Accordion title="Resources failing to load" icon="box-open">
+    **Solutions:**
+    - Check resources.cfg load order
+    - Ensure mythic-base loads before other Mythic resources
+    - Verify all resource folders exist in resources/[mythic]/
+  </Accordion>
+
+  <Accordion title="Character creation not appearing" icon="user-xmark">
+    **Solutions:**
+    - Check mythic-characters resource is started
+    - F8 console - check for errors
+    - Verify database connection
+    - Try: `/logout` then reconnect
+  </Accordion>
+
+  <Accordion title="UI not showing (HUD, inventory, etc.)" icon="display-slash">
+    **Solutions:**
+    - Check mythic-hud, mythic-inventory are started
+    - F8 console - check for JavaScript errors
+    - Clear FiveM cache: Delete `%localappdata%\FiveM\FiveM.app\cache`
+    - Restart FiveM client
+  </Accordion>
+</AccordionGroup>
+
+## Server Maintenance Commands
+
+Useful console commands:
+
+```bash
+# Gracefully restart server (gives players warning)
+quit
+
+# Restart a specific resource
+restart mythic-inventory
+
+# Reload server.cfg changes
+refresh
+
+# Kick a player
+clientkick [player_id] "Reason"
+
+# Show server info
+sysinfo
+
+# Show network stats
+net_stats
+```
+
+## Backup Your Database
+
+Now that your server is running, set up automatic backups:
+
+<Tabs>
+  <Tab title="MongoDB Backup">
+    ```bash
+    # Manual backup
+    mongodump --db fivem --out /path/to/backup/$(date +%Y%m%d)
+    mongodump --db auth --out /path/to/backup/$(date +%Y%m%d)
+
+    # Automated daily backup (cron - Linux)
+    0 4 * * * mongodump --db fivem --out /backups/$(date +\%Y\%m\%d)
+    ```
+  </Tab>
+  <Tab title="MySQL Backup">
+    ```bash
+    # Manual backup
+    mysqldump -u mythic -p MythicFramework_345AE9 > backup_$(date +%Y%m%d).sql
+
+    # Automated daily backup (cron - Linux)
+    0 4 * * * mysqldump -u mythic -pPASSWORD MythicFramework_345AE9 > /backups/mysql_$(date +\%Y\%m\%d).sql
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+**Critical:** Set up automated backups before going live with players. Database corruption or errors can result in data loss.
+</Warning>
+
+## Next Steps
+
+Your server is running! Now:
+
+<CardGroup cols={2}>
+  <Card title="Configure Features" icon="sliders" href="/configuration/server-cfg">
+    Customize inventory items, jobs, economy, and more
+  </Card>
+  <Card title="Learn Core Concepts" icon="brain" href="/concepts/architecture">
+    Understand how Mythic Framework works
+  </Card>
+  <Card title="Explore Features" icon="grid" href="/features/characters/overview">
+    Learn about all the systems and features
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/installation/troubleshooting">
+    Fix common issues
+  </Card>
+</CardGroup>
+
+<Tip>
+**Recommended:** Run your server in development mode (`set sv_environment dev`) for a few days to identify and fix any issues before opening to public.
+</Tip>
+
+## Congratulations! 🎉
+
+Your Mythic Framework server is now running! Take time to explore the features, customize settings, and familiarize yourself with the systems before inviting players.
+
+<Note>
+Join our [Discord community](https://discord.gg/mythicframework) to get help, share your server, and stay updated on framework developments!
+</Note>

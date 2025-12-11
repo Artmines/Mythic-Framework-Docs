@@ -1,0 +1,668 @@
+---
+title: Inventory - Item Definition
+description: Item data structure, metadata, and item configuration
+icon: 'tags'
+---
+
+Items in Mythic Framework are defined with properties that control their behavior, appearance, and usage. Understanding the item structure is essential for creating custom items and integrating with the inventory system.
+
+## Item Definition Structure
+
+Items are defined in `shared/items.lua` files across resources:
+
+```lua
+{
+    name = "water",                      -- Unique identifier
+    label = "Water Bottle",              -- Display name
+    description = "A refreshing bottle of water",
+    weight = 0.5,                        -- Weight in kg
+    type = "consumable",                 -- Item type
+    image = "water.png",                 -- Image filename (in ui/assets/items/)
+
+    -- Usage properties
+    usable = true,                       -- Can be used from inventory
+    unique = false,                      -- Each instance is unique
+    stackable = true,                    -- Can stack in slots
+
+    -- Quantity limits
+    maxStack = 10,                       -- Max stack size (if stackable)
+
+    -- Metadata requirements
+    metadata = {},                       -- Default metadata
+
+    -- Decay/durability
+    decay = false,                       -- Item decays over time
+    decayRate = 0,                       -- Decay per minute
+
+    -- Special properties
+    illegal = false,                     -- Illegal item (police can search)
+    sellable = true,                     -- Can be sold to shops
+    price = 10,                          -- Base price
+    blackmarket = false,                 -- Only sold on black market
+
+    -- Equipment properties (for wearables)
+    equipSlot = nil,                     -- "head", "body", "accessory", etc.
+
+    -- Weapon properties (for weapons)
+    weapon = false,                      -- Is this a weapon
+    ammoType = nil,                      -- Ammo type if weapon
+    throwable = false                    -- Can be thrown
+}
+```
+
+---
+
+## Required Fields
+
+<ParamField path="name" type="string" required>
+  Unique item identifier
+
+  **Rules:**
+  - Lowercase, no spaces
+  - Use underscores for multi-word items
+  - Descriptive and consistent
+
+  **Examples:** `"water"`, `"weapon_pistol"`, `"lockpick"`, `"driver_license"`
+</ParamField>
+
+<ParamField path="label" type="string" required>
+  Display name shown to players
+
+  **Examples:** `"Water Bottle"`, `"Pistol"`, `"Lockpick"`, `"Driver's License"`
+</ParamField>
+
+<ParamField path="weight" type="number" required>
+  Item weight in kilograms
+
+  **Guidelines:**
+  - Small items: 0.1 - 0.5 kg
+  - Medium items: 0.5 - 2 kg
+  - Large items: 2 - 10 kg
+  - Very heavy: 10+ kg
+</ParamField>
+
+---
+
+## Optional Fields
+
+### Display Properties
+
+<ParamField path="description" type="string" optional>
+  Detailed item description shown in tooltips
+
+  **Example:**
+  ```lua
+  description = "A refreshing bottle of water. Restores thirst when consumed."
+  ```
+</ParamField>
+
+<ParamField path="image" type="string" optional default="default.png">
+  Image filename in `ui/assets/items/` directory
+
+  **Format:** PNG, recommended 150x150px
+
+  **Example:** `"water.png"`, `"weapon_pistol.png"`
+</ParamField>
+
+### Usage Properties
+
+<ParamField path="usable" type="boolean" optional default="false">
+  Whether the item can be used from inventory
+
+  **Example:**
+  ```lua
+  usable = true  -- For consumables, tools, etc.
+  usable = false -- For passive items, materials
+  ```
+</ParamField>
+
+<ParamField path="unique" type="boolean" optional default="false">
+  Whether each item instance is unique (can't stack, has unique metadata)
+
+  **Use For:**
+  - Weapons (serial numbers)
+  - Phones (phone numbers)
+  - ID cards (character-specific)
+  - Vehicles keys (specific vehicle)
+
+  **Example:**
+  ```lua
+  unique = true  -- Each weapon has unique serial, ammo, durability
+  ```
+</ParamField>
+
+<ParamField path="stackable" type="boolean" optional default="true">
+  Whether items can stack in a single slot
+
+  **Example:**
+  ```lua
+  stackable = true   -- Water bottles can stack
+  stackable = false  -- Weapons don't stack
+  ```
+</ParamField>
+
+<ParamField path="maxStack" type="number" optional default="99">
+  Maximum stack size if `stackable = true`
+
+  **Example:**
+  ```lua
+  maxStack = 50  -- Max 50 water bottles per slot
+  ```
+</ParamField>
+
+---
+
+## Item Types
+
+The `type` field categorizes items:
+
+```lua
+type = "consumable"   -- Food, drinks, medical items
+type = "weapon"       -- Firearms, melee weapons
+type = "ammo"         -- Ammunition
+type = "tool"         -- Lockpicks, repair kits, fishing rods
+type = "material"     -- Crafting materials, resources
+type = "valuable"     -- Jewelry, collectibles
+type = "document"     -- ID cards, licenses, contracts
+type = "clothing"     -- Wearable items
+type = "key"          -- Vehicle keys, building keys
+type = "container"    -- Backpacks, bags
+type = "misc"         -- Miscellaneous items
+```
+
+---
+
+## Complete Item Examples
+
+### Consumable Item
+
+```lua
+["water"] = {
+    name = "water",
+    label = "Water Bottle",
+    description = "A refreshing bottle of water. Restores thirst.",
+    weight = 0.5,
+    type = "consumable",
+    image = "water.png",
+
+    usable = true,
+    unique = false,
+    stackable = true,
+    maxStack = 10,
+
+    sellable = true,
+    price = 5
+}
+```
+
+### Weapon Item
+
+```lua
+["weapon_pistol"] = {
+    name = "weapon_pistol",
+    label = "Pistol",
+    description = "A standard 9mm pistol. Reliable and accurate.",
+    weight = 1.5,
+    type = "weapon",
+    image = "weapon_pistol.png",
+
+    usable = false,
+    unique = true,      -- Each weapon is unique
+    stackable = false,
+
+    weapon = true,
+    ammoType = "9mm",
+
+    illegal = false,
+    sellable = true,
+    price = 5000,
+
+    -- Default metadata for new weapons
+    metadata = {
+        serial = nil,      -- Generated on creation
+        durability = 100,
+        ammo = 12,
+        attachments = {}
+    },
+
+    -- Decay over time
+    decay = true,
+    decayRate = 0.1     -- 0.1% durability per minute
+}
+```
+
+### Tool Item
+
+```lua
+["lockpick"] = {
+    name = "lockpick",
+    label = "Lockpick",
+    description = "A bent piece of metal used for picking locks. May break on failed attempts.",
+    weight = 0.1,
+    type = "tool",
+    image = "lockpick.png",
+
+    usable = true,
+    unique = false,
+    stackable = true,
+    maxStack = 5,
+
+    illegal = true,     -- Police can confiscate
+    sellable = true,
+    price = 50,
+    blackmarket = true  -- Only sold illegally
+}
+```
+
+### Document Item
+
+```lua
+["driver_license"] = {
+    name = "driver_license",
+    label = "Driver's License",
+    description = "Official driver's license. Required to legally operate a vehicle.",
+    weight = 0.01,
+    type = "document",
+    image = "driver_license.png",
+
+    usable = true,      -- Can view/show
+    unique = true,      -- Each license is character-specific
+    stackable = false,
+
+    sellable = false,   -- Can't sell licenses
+
+    -- Metadata contains character info
+    metadata = {
+        name = nil,     -- Character name
+        dob = nil,      -- Date of birth
+        photo = nil,    -- Character photo URL
+        issued = nil,   -- Issue date
+        expires = nil   -- Expiration date
+    }
+}
+```
+
+### Material Item
+
+```lua
+["steel"] = {
+    name = "steel",
+    label = "Steel",
+    description = "High-quality steel. Used in crafting and construction.",
+    weight = 2.0,
+    type = "material",
+    image = "steel.png",
+
+    usable = false,
+    unique = false,
+    stackable = true,
+    maxStack = 100,
+
+    sellable = true,
+    price = 20
+}
+```
+
+### Phone Item
+
+```lua
+["phone"] = {
+    name = "phone",
+    label = "Smartphone",
+    description = "A modern smartphone. Access contacts, messages, and apps.",
+    weight = 0.2,
+    type = "tool",
+    image = "phone.png",
+
+    usable = true,
+    unique = true,      -- Each phone has unique number
+    stackable = false,
+
+    sellable = true,
+    price = 500,
+
+    metadata = {
+        number = nil,       -- Phone number
+        contacts = {},      -- Contact list
+        messages = {},      -- Message history
+        battery = 100,      -- Battery level
+        apps = {            -- Installed apps
+            "contacts",
+            "messages",
+            "settings"
+        }
+    }
+}
+```
+
+---
+
+## Item Metadata
+
+Metadata stores instance-specific data for unique or stackable items:
+
+### Common Metadata Fields
+
+```lua
+metadata = {
+    -- Weapons
+    serial = "ABC123456",
+    durability = 95,
+    ammo = 10,
+    attachments = { "flashlight", "suppressor" },
+
+    -- Consumables
+    quality = "excellent",
+    expiration = 1705334400,  -- Unix timestamp
+
+    -- Documents
+    name = "John Doe",
+    dob = "1990-01-15",
+    photo = "https://...",
+    issued = 1700000000,
+    expires = 1800000000,
+
+    -- Vehicles
+    plate = "ABC123",
+    vin = "1HGBH41JXMN109186",
+    fuel = 75,
+    mileage = 12500,
+
+    -- Containers
+    items = {
+        { name = "water", count = 5 },
+        { name = "sandwich", count = 3 }
+    },
+
+    -- Custom data
+    customField = "value",
+    owner = 123,
+    craftedBy = 456,
+    craftedAt = 1705334400
+}
+```
+
+### Accessing Metadata
+
+```lua
+-- Get item with metadata
+local item = COMPONENTS.Inventory:GetItemInSlot(char.SID, 1)
+
+if item then
+    print('Item:', item.label)
+    print('Serial:', item.metadata.serial)
+    print('Durability:', item.metadata.durability)
+    print('Ammo:', item.metadata.ammo)
+end
+
+-- Add item with metadata
+COMPONENTS.Inventory:AddItem(char.SID, 'weapon_pistol', 1, {
+    serial = GenerateSerial(),
+    durability = 100,
+    ammo = 12,
+    attachments = {}
+})
+
+-- Update metadata
+local item = COMPONENTS.Inventory:GetItemInSlot(char.SID, 1)
+item.metadata.ammo = 10
+item.metadata.durability = 95
+
+COMPONENTS.Inventory:UpdateSlot(char.SID, 1, item)
+```
+
+---
+
+## Creating Custom Items
+
+### Step 1: Define the Item
+
+```lua
+-- shared/items.lua (in your resource)
+
+Config.Items = {
+    ["energy_drink"] = {
+        name = "energy_drink",
+        label = "Energy Drink",
+        description = "Restores energy and gives a temporary speed boost.",
+        weight = 0.3,
+        type = "consumable",
+        image = "energy_drink.png",
+
+        usable = true,
+        unique = false,
+        stackable = true,
+        maxStack = 5,
+
+        sellable = true,
+        price = 25
+    }
+}
+```
+
+### Step 2: Register with Items Component
+
+```lua
+-- server/main.lua
+
+AddEventHandler('Core:Shared:Ready', function()
+    for itemName, itemData in pairs(Config.Items) do
+        COMPONENTS.Items:Register(itemName, itemData)
+    end
+end)
+```
+
+### Step 3: Handle Item Usage
+
+```lua
+-- server/items.lua
+
+AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
+    if itemName == 'energy_drink' then
+        -- Restore energy
+        COMPONENTS.Characters:UpdateCharacter(characterId, {
+            ['metadata.needs.energy'] = 100
+        })
+
+        -- Give speed boost
+        TriggerClientEvent('mythic-effects:client:SpeedBoost', source, 30000)
+
+        -- Remove item
+        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+
+        -- Notify
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'You feel energized!',
+            type = 'success'
+        })
+    end
+end)
+```
+
+### Step 4: Add Item Image
+
+Place `energy_drink.png` (150x150px) in:
+```
+mythic-inventory/ui/assets/items/energy_drink.png
+```
+
+---
+
+## Item Categories and Organization
+
+Group related items for easy management:
+
+```lua
+-- Consumables
+local Consumables = {
+    ["water"] = { ... },
+    ["sandwich"] = { ... },
+    ["burger"] = { ... },
+    ["cola"] = { ... }
+}
+
+-- Weapons
+local Weapons = {
+    ["weapon_pistol"] = { ... },
+    ["weapon_smg"] = { ... },
+    ["weapon_rifle"] = { ... }
+}
+
+-- Tools
+local Tools = {
+    ["lockpick"] = { ... },
+    ["repairkit"] = { ... },
+    ["fishing_rod"] = { ... }
+}
+
+-- Combine
+Config.Items = {}
+for k, v in pairs(Consumables) do Config.Items[k] = v end
+for k, v in pairs(Weapons) do Config.Items[k] = v end
+for k, v in pairs(Tools) do Config.Items[k] = v end
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Consistent Naming" icon="signature">
+    **Use a consistent naming scheme:**
+
+    ```lua
+    -- ✅ Good
+    "water"
+    "weapon_pistol"
+    "lockpick"
+    "driver_license"
+
+    -- ❌ Bad
+    "Water"
+    "pistolWeapon"
+    "lock-pick"
+    "DriversLicense"
+    ```
+  </Accordion>
+
+  <Accordion title="Realistic Weights" icon="weight-scale">
+    **Balance gameplay with realism:**
+
+    ```lua
+    -- Reference weights
+    water = 0.5          -- 500ml bottle
+    sandwich = 0.3       -- Light snack
+    phone = 0.2          -- Smartphone
+    weapon_pistol = 1.5  -- Loaded pistol
+    lockpick = 0.1       -- Small tool
+    steel = 2.0          -- Metal bar
+    ```
+  </Accordion>
+
+  <Accordion title="Clear Descriptions" icon="file-alt">
+    **Write helpful descriptions:**
+
+    ```lua
+    -- ✅ Good
+    description = "A lockpick made from bent metal. Used to pick locks on doors and vehicles. May break on failed attempts."
+
+    -- ❌ Bad
+    description = "Lockpick"
+    ```
+  </Accordion>
+
+  <Accordion title="Appropriate Pricing" icon="dollar-sign">
+    **Balance economy:**
+
+    ```lua
+    -- Basic consumables: $5-50
+    price = 10
+
+    -- Tools: $50-500
+    price = 150
+
+    -- Weapons: $500-10,000
+    price = 5000
+
+    -- Vehicles: $10,000-1,000,000
+    price = 50000
+    ```
+  </Accordion>
+
+  <Accordion title="Metadata Defaults" icon="brackets-curly">
+    **Provide sensible defaults:**
+
+    ```lua
+    metadata = {
+        durability = 100,  -- Full durability
+        quality = "good",  // Default quality
+        ammo = 12,         -- Full magazine
+        fuel = 100         -- Full tank
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Item Validation
+
+Validate items before adding to inventory:
+
+```lua
+function ValidateItem(itemName)
+    local item = COMPONENTS.Items:Get(itemName)
+
+    if not item then
+        return false, 'Item does not exist'
+    end
+
+    if not item.name or item.name == '' then
+        return false, 'Invalid item name'
+    end
+
+    if not item.label or item.label == '' then
+        return false, 'Invalid item label'
+    end
+
+    if not item.weight or item.weight < 0 then
+        return false, 'Invalid item weight'
+    end
+
+    return true
+end
+
+-- Use in add item
+function SafeAddItem(characterId, itemName, count)
+    local valid, error = ValidateItem(itemName)
+
+    if not valid then
+        return false, error
+    end
+
+    return COMPONENTS.Inventory:AddItem(characterId, itemName, count)
+end
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Inventory - Exports" icon="cube" href="/api/inventory/exports">
+    Inventory management methods
+  </Card>
+  <Card title="Inventory - Events" icon="bolt" href="/api/inventory/events">
+    Inventory events
+  </Card>
+  <Card title="Items System" icon="box" href="/features/inventory/items">
+    Using and creating items
+  </Card>
+  <Card title="Crafting System" icon="hammer" href="/features/inventory/crafting">
+    Item crafting and recipes
+  </Card>
+</CardGroup>
+
+<Tip>
+**Item Images:** Use consistent image sizes (150x150px recommended) and transparent backgrounds (PNG) for best results in the inventory UI.
+</Tip>

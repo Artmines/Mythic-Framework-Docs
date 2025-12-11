@@ -1,0 +1,611 @@
+---
+title: Discord Webhooks
+description: Configure Discord webhook integration for server logging and notifications
+icon: 'discord'
+---
+
+Mythic Framework integrates deeply with Discord through webhooks, providing real-time logging of admin actions, player connections, kills, errors, and anti-cheat detections directly to your Discord server.
+
+## What are Discord Webhooks?
+
+Discord webhooks allow external applications to post messages to Discord channels automatically. Mythic Framework uses webhooks to send structured, rich embeds with server activity logs.
+
+<CardGroup cols={2}>
+  <Card title="Real-Time Logging" icon="clock">
+    Get instant notifications of important server events
+  </Card>
+  <Card title="Rich Embeds" icon="palette">
+    Color-coded, formatted messages with detailed information
+  </Card>
+  <Card title="Centralized Monitoring" icon="eye">
+    All logs in one place for easy staff monitoring
+  </Card>
+  <Card title="Easy Setup" icon="bolt">
+    Simple configuration, works out of the box
+  </Card>
+</CardGroup>
+
+## Creating Discord Webhooks
+
+<Steps>
+  <Step title="Create or Select Discord Server">
+    You need a Discord server where you have **Manage Webhooks** permission.
+  </Step>
+
+  <Step title="Navigate to Channel Settings">
+    1. Right-click the channel where you want logs
+    2. Click "Edit Channel"
+    3. Go to "Integrations" tab
+    4. Click "Webhooks"
+  </Step>
+
+  <Step title="Create New Webhook">
+    1. Click "New Webhook" or "Create Webhook"
+    2. Customize the webhook:
+       - **Name:** e.g., "Mythic Admin Logs", "Connection Logs"
+       - **Avatar:** Optional custom icon
+    3. Click "Copy Webhook URL"
+  </Step>
+
+  <Step title="Add to server.cfg">
+    ```bash
+    set discord_admin_webhook "https://discord.com/api/webhooks/123456789/AbCdEfGhIjKlMnOpQrStUvWxYz..."
+    ```
+  </Step>
+</Steps>
+
+<Note>
+**Best Practice:** Create separate channels for different log types (admin actions, connections, errors, etc.) to keep logs organized.
+</Note>
+
+## Available Webhook Types
+
+Mythic Framework supports multiple webhook types for different logging purposes:
+
+### 1. Admin Logs Webhook
+
+**Purpose:** Logs all admin actions and commands
+
+**Variable:** `discord_admin_webhook`
+
+```bash
+set discord_admin_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+```
+
+**Logs:**
+- Admin command usage (/kick, /ban, /tp, etc.)
+- Permission grants/revocations
+- Server configuration changes
+- Resource restarts by admins
+- Noclip, god mode, invisibility usage
+
+**Example Log:**
+```
+🛡️ Admin Action
+Admin: John Doe (steam:110000...)
+Action: Teleported to player
+Target: Jane Smith
+Timestamp: 2025-01-15 14:32:11
+```
+
+### 2. Connection Logs Webhook
+
+**Purpose:** Tracks player connections and disconnections
+
+**Variable:** `discord_connection_webhook`
+
+```bash
+set discord_connection_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+```
+
+**Logs:**
+- Player join attempts
+- Successful connections
+- Disconnections with reason
+- Queue position updates
+- Connection failures
+
+**Example Log:**
+```
+✅ Player Connected
+Player: John Doe [123]
+Identifiers:
+  - Steam: 110000...
+  - License: license:...
+  - Discord: discord:...
+IP: 192.168.1.100
+Timestamp: 2025-01-15 14:30:00
+```
+
+### 3. Kill Logs Webhook
+
+**Purpose:** Logs player deaths and kills for moderation
+
+**Variable:** `discord_kill_webhook`
+
+```bash
+set discord_kill_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+```
+
+**Logs:**
+- Player kills with weapon used
+- Suicide/fall damage deaths
+- Vehicle-related deaths
+- Distance of kill
+- Victim and killer information
+
+**Example Log:**
+```
+☠️ Player Kill
+Killer: John Doe
+Victim: Jane Smith
+Weapon: weapon_pistol
+Distance: 15.2m
+Location: 123.45, -678.90, 21.00
+Timestamp: 2025-01-15 15:00:00
+```
+
+### 4. Error Logs Webhook
+
+**Purpose:** Critical error and crash reporting
+
+**Variable:** `discord_error_webhook`
+
+```bash
+set discord_error_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+```
+
+**Logs:**
+- Server errors and crashes
+- Resource errors
+- Database connection failures
+- Script runtime errors
+- Performance warnings
+
+**Example Log:**
+```
+❌ Server Error
+Error: Script runtime error in mythic-inventory
+Message: attempt to index a nil value
+Stack Trace:
+  mythic-inventory/server/main.lua:123
+  in function 'AddItem'
+Timestamp: 2025-01-15 15:30:00
+```
+
+### 5. Anti-Cheat Logs Webhook
+
+**Purpose:** Security and anti-cheat detections
+
+**Variable:** `discord_pwnzor_webhook`
+
+```bash
+set discord_pwnzor_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+```
+
+**Logs:**
+- Cheat/mod detections
+- Suspicious activity (triggering non-existent events)
+- Injection attempts
+- Resource manipulation
+- Automated bans
+
+**Example Log:**
+```
+🚨 Anti-Cheat Detection
+Player: Suspicious Player [456]
+Detection: Unauthorized event trigger
+Event: 'mythic-admin:server:giveMoney'
+Action: Automatic ban (7 days)
+Timestamp: 2025-01-15 16:00:00
+```
+
+## Recommended Channel Structure
+
+<Accordion title="Example Discord Server Structure">
+```
+📋 SERVER LOGS (Category)
+├── 🛡️ admin-logs       (discord_admin_webhook)
+├── 📊 connections       (discord_connection_webhook)
+├── ⚔️ kill-logs         (discord_kill_webhook)
+├── ❌ errors            (discord_error_webhook)
+└── 🚨 anti-cheat        (discord_pwnzor_webhook)
+```
+
+**Recommended Permissions:**
+- Admin logs: Staff only
+- Connection logs: Staff + Moderators
+- Kill logs: Staff + Moderators
+- Error logs: Developers only
+- Anti-cheat: Staff only
+</Accordion>
+
+## Complete Configuration Example
+
+```bash
+# ====================================
+# DISCORD WEBHOOK CONFIGURATION
+# ====================================
+
+# Admin actions and commands
+set discord_admin_webhook "https://discord.com/api/webhooks/123456789012345678/AbCdEfGh_AdminWebhook_1234567890AbCdEfGhIjKlMnOpQrStUvWxYz"
+
+# Player connections and disconnections
+set discord_connection_webhook "https://discord.com/api/webhooks/234567890123456789/XyZaBcDe_ConnectionWebhook_0987654321ZyXwVuTsRqPoNmLkJiHgFeDcBa"
+
+# Player kills and deaths
+set discord_kill_webhook "https://discord.com/api/webhooks/345678901234567890/MnOpQrSt_KillWebhook_AbCdEfGhIjKlMnOpQrStUvWxYz1234567890"
+
+# Server errors and crashes
+set discord_error_webhook "https://discord.com/api/webhooks/456789012345678901/UvWxYzAb_ErrorWebhook_9876543210ZyXwVuTsRqPoNmLkJiHgFeDc"
+
+# Anti-cheat detections and security
+set discord_pwnzor_webhook "https://discord.com/api/webhooks/567890123456789012/CdEfGhIj_PwnzorWebhook_AbCdEfGhIjKlMnOpQrStUvWxYz"
+```
+
+## Webhook Message Customization
+
+Some webhook features can be customized in resource configuration:
+
+### Custom Embed Colors
+
+Mythic Framework uses color-coded embeds:
+
+| Log Type | Color | Hex Code |
+|----------|-------|----------|
+| Admin Actions | Purple | `#8B5CF6` |
+| Connections | Green | `#10B981` |
+| Disconnections | Yellow | `#F59E0B` |
+| Kills | Red | `#EF4444` |
+| Errors | Dark Red | `#DC2626` |
+| Anti-Cheat | Orange | `#F97316` |
+
+### Filtering Logs
+
+You can configure which events get logged:
+
+```lua
+-- mythic-base/config/webhooks.lua (if exists)
+Config.Webhooks = {
+    AdminLogs = {
+        enabled = true,
+        logCommands = true,
+        logTeleports = true,
+        logNoclip = true,
+        logGodMode = true,
+        minimumRank = 'admin'  -- Only log admin+ actions
+    },
+
+    ConnectionLogs = {
+        enabled = true,
+        logJoins = true,
+        logLeaves = true,
+        logQueue = false,  -- Don't log queue updates
+        includeIP = true   -- Include IP in logs
+    },
+
+    KillLogs = {
+        enabled = true,
+        logPVP = true,
+        logPVE = false,  -- Don't log NPC kills
+        logSuicide = true,
+        minimumDistance = 0  -- Log all kills
+    },
+
+    ErrorLogs = {
+        enabled = true,
+        logWarnings = false,  -- Only errors, not warnings
+        logResourceErrors = true,
+        logDatabaseErrors = true,
+        logClientErrors = false
+    },
+
+    AntiCheatLogs = {
+        enabled = true,
+        logDetections = true,
+        logBans = true,
+        logWarnings = true
+    }
+}
+```
+
+## Testing Webhooks
+
+After configuration, test each webhook:
+
+<Steps>
+  <Step title="Start Server">
+    Start your FiveM server with webhook configuration
+  </Step>
+
+  <Step title="Trigger Test Events">
+    - **Admin:** Use an admin command
+    - **Connection:** Connect to server
+    - **Kill:** Kill or get killed by another player
+    - **Error:** Intentionally cause an error (restart a resource)
+    - **Anti-Cheat:** Trigger detection (if possible in dev)
+  </Step>
+
+  <Step title="Verify Discord Messages">
+    Check respective Discord channels for log messages
+  </Step>
+
+  <Step title="Troubleshoot if Needed">
+    See troubleshooting section below
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Webhook Not Posting" icon="xmark">
+    **Problem:** Messages not appearing in Discord
+
+    **Solutions:**
+    1. **Verify URL is correct**
+       - URL should start with `https://discord.com/api/webhooks/`
+       - Check for typos or truncation
+       - Ensure no extra spaces
+
+    2. **Check webhook still exists**
+       - Webhooks can be deleted in Discord settings
+       - Recreate webhook if needed
+
+    3. **Verify permissions**
+       - Bot/webhook needs permission to post in channel
+       - Check channel permissions
+
+    4. **Test webhook manually:**
+       ```bash
+       curl -X POST "YOUR_WEBHOOK_URL" \
+         -H "Content-Type: application/json" \
+         -d '{"content": "Test message"}'
+       ```
+
+    5. **Check server console for errors**
+       ```
+       [ERROR] Failed to send webhook: 404 Not Found
+       ```
+  </Accordion>
+
+  <Accordion title="Rate Limited" icon="gauge-high">
+    **Problem:** `429 Too Many Requests` error
+
+    **Cause:** Discord rate limits webhooks to:
+    - 30 requests per minute per webhook
+    - 5 requests per second per webhook
+
+    **Solutions:**
+    - Reduce logging frequency
+    - Use multiple webhooks for high-traffic logs
+    - Implement batching in resource configuration
+    - Add delays between rapid events
+
+    **Example Fix:**
+    ```lua
+    -- Batch connection logs
+    local connectionQueue = {}
+    CreateThread(function()
+        while true do
+            Wait(5000)  -- Every 5 seconds
+            if #connectionQueue > 0 then
+                SendWebhook(discord_connection_webhook, connectionQueue)
+                connectionQueue = {}
+            end
+        end
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Missing Information in Logs" icon="circle-info">
+    **Problem:** Logs don't contain expected data
+
+    **Solutions:**
+    - Check resource configuration for filtering settings
+    - Verify resource has access to required data
+    - Enable debug mode to see what's being sent:
+       ```bash
+       set debug_mode "true"
+       ```
+    - Check console for webhook payload logs
+  </Accordion>
+
+  <Accordion title="Formatting Issues" icon="font">
+    **Problem:** Messages look broken or poorly formatted
+
+    **Solutions:**
+    - Verify Discord doesn't have embed display disabled
+    - Check user/server settings → Text & Images → Show embeds
+    - Ensure webhook payload is valid JSON
+    - Test with manual curl request
+  </Accordion>
+
+  <Accordion title="Webhook Deleted/Invalid" icon="trash">
+    **Problem:** `404 Not Found` or webhook disappeared
+
+    **Cause:** Webhooks can be deleted from Discord settings
+
+    **Solutions:**
+    1. Go to Discord channel → Edit Channel → Integrations → Webhooks
+    2. Check if webhook still exists
+    3. If deleted, create new webhook
+    4. Update server.cfg with new URL
+    5. Restart server
+  </Accordion>
+</AccordionGroup>
+
+## Security Best Practices
+
+<Warning>
+**Webhook URLs are sensitive!** Anyone with the URL can post to your Discord channel.
+</Warning>
+
+<Steps>
+  <Step title="Keep URLs Private">
+    - Never commit webhook URLs to public repositories
+    - Don't share webhooks in public channels
+    - Use environment variables if possible
+    - Rotate webhooks if compromised
+  </Step>
+
+  <Step title="Restrict Channel Permissions">
+    - Make log channels staff-only
+    - Use role permissions to control access
+    - Consider separate webhooks for different staff ranks
+  </Step>
+
+  <Step title="Monitor for Abuse">
+    - Watch for unexpected messages
+    - Check webhook audit log in Discord
+    - Revoke and recreate if compromised
+  </Step>
+
+  <Step title="Use Different Webhooks Per Environment">
+    ```bash
+    # Development server
+    set discord_admin_webhook "https://...dev-webhook..."
+
+    # Production server
+    set discord_admin_webhook "https://...prod-webhook..."
+    ```
+  </Step>
+</Steps>
+
+## Advanced Configuration
+
+### Environment-Specific Webhooks
+
+```bash
+# Use different webhooks based on environment
+
+# Development
+if [[ "${environment}" == "dev" ]]; then
+    set discord_admin_webhook "https://discord.com/api/webhooks/DEV_WEBHOOK"
+else
+    # Production
+    set discord_admin_webhook "https://discord.com/api/webhooks/PROD_WEBHOOK"
+fi
+```
+
+### Conditional Webhook Loading
+
+```bash
+# Only enable certain webhooks
+
+# Always enabled
+set discord_admin_webhook "https://..."
+set discord_error_webhook "https://..."
+
+# Only in production
+if [[ "${environment}" == "prod" ]]; then
+    set discord_connection_webhook "https://..."
+    set discord_kill_webhook "https://..."
+    set discord_pwnzor_webhook "https://..."
+fi
+```
+
+### Custom Webhook Implementation
+
+You can send custom webhook messages from your resources:
+
+```lua
+-- Server-side Lua
+function SendCustomWebhook(webhookUrl, title, description, color, fields)
+    PerformHttpRequest(webhookUrl, function(err, text, headers)
+        if err ~= 200 then
+            print('[ERROR] Webhook failed:', err)
+        end
+    end, 'POST', json.encode({
+        embeds = {{
+            title = title,
+            description = description,
+            color = color or 8105222,  -- Purple
+            fields = fields or {},
+            footer = {
+                text = 'Mythic Framework',
+                icon_url = 'YOUR_ICON_URL'
+            },
+            timestamp = os.date('!%Y-%m-%dT%H:%M:%SZ')
+        }}
+    }), { ['Content-Type'] = 'application/json' })
+end
+
+-- Example usage
+SendCustomWebhook(
+    GetConvar('discord_admin_webhook', ''),
+    '🎉 Custom Event',
+    'Something important happened!',
+    3066993,  -- Green
+    {
+        { name = 'Player', value = 'John Doe', inline = true },
+        { name = 'Action', value = 'Completed quest', inline = true }
+    }
+)
+```
+
+## Webhook Color Reference
+
+Use these color codes for consistent Discord embed styling:
+
+```lua
+-- Decimal colors for Discord embeds
+local COLORS = {
+    PURPLE = 9133302,    -- #8B5CF6 - Admin/Info
+    GREEN = 1091737,     -- #10B981 - Success
+    YELLOW = 16096779,   -- #F59E0B - Warning
+    RED = 15669316,      -- #EF4444 - Error/Kill
+    DARK_RED = 14428710, -- #DC2626 - Critical
+    ORANGE = 16351766,   -- #F97316 - Anti-Cheat
+    BLUE = 3066993,      -- #2DD4BF - Info
+    GRAY = 9807270       -- #958DF1 - Neutral
+}
+```
+
+## Monitoring and Maintenance
+
+<CardGroup cols={2}>
+  <Card title="Regular Checks" icon="clipboard-check">
+    - Verify webhooks still work weekly
+    - Check for rate limit errors in console
+    - Monitor Discord channel for spam
+    - Review and update filters as needed
+  </Card>
+
+  <Card title="Webhook Rotation" icon="rotate">
+    - Rotate webhooks every 3-6 months
+    - Immediately rotate if compromised
+    - Update all server instances
+    - Document changes
+  </Card>
+
+  <Card title="Log Retention" icon="clock-rotate-left">
+    - Discord doesn't automatically delete messages
+    - Manually archive old logs periodically
+    - Use bots for automated cleanup
+    - Export important logs for records
+  </Card>
+
+  <Card title="Staff Training" icon="chalkboard-user">
+    - Train staff on reading logs
+    - Document log meanings
+    - Create response procedures
+    - Regular log review sessions
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Server Configuration" icon="server" href="/configuration/server-cfg">
+    Complete server.cfg settings
+  </Card>
+  <Card title="Admin Tools" icon="screwdriver-wrench" href="/features/admin">
+    Learn about admin commands
+  </Card>
+  <Card title="Logger Component" icon="file-lines" href="/api/core/logger">
+    API for custom logging
+  </Card>
+  <Card title="Security Best Practices" icon="shield" href="/guides/server-owners/security">
+    Secure your server
+  </Card>
+</CardGroup>

@@ -1,0 +1,1110 @@
+---
+title: Jobs - Configuration
+description: Job definitions, grades, permissions, and creating custom jobs
+icon: 'sliders'
+---
+
+Jobs in Mythic Framework are defined with structured configuration that controls job types, grades, permissions, salaries, and organizational structure. This page covers how to configure and create custom jobs.
+
+## Job Definition Structure
+
+Jobs are defined in configuration files under `mythic-jobs/config/defaultJobs/`:
+
+```lua
+table.insert(_defaultJobData, {
+    Type = 'Company',              -- Job type: 'Company' or 'Government'
+    LastUpdated = 1645547610,      -- Unix timestamp
+    Id = 'beanmachine',             -- Unique job identifier
+    Name = 'Bean Machine',         -- Display name
+    Salary = 250,                  -- Base salary per paycheck
+    SalaryTier = 1,                -- Salary tier (1-5)
+
+    -- Simple job: Grades directly
+    Grades = { ... },
+
+    -- OR Complex job: Workplaces with separate grades
+    Workplaces = { ... }
+})
+```
+
+---
+
+## Job Types
+
+<ParamField path="Type" type="string" required>
+  Job category for organization and behavior
+
+  **Options:**
+  - `"Company"` - Private businesses (restaurants, shops, etc.)
+  - `"Government"` - Government agencies (police, medical, etc.)
+
+  **Differences:**
+  - Government jobs typically have higher salaries and special permissions
+  - Company jobs can be player-owned with business management
+</ParamField>
+
+<ParamField path="Id" type="string" required>
+  Unique job identifier
+
+  **Rules:**
+  - Lowercase, no spaces
+  - Use underscores for multi-word jobs
+  - Must be unique across all jobs
+
+  **Examples:** `"police"`, `"ems"`, `"beanmachine"`, `"auto_exotics"`
+</ParamField>
+
+<ParamField path="Name" type="string" required>
+  Display name shown to players
+
+  **Examples:** `"Police"`, `"Medical"`, `"Bean Machine"`, `"Auto Exotics"`
+</ParamField>
+
+<ParamField path="Salary" type="number" required>
+  Base salary amount per paycheck interval
+
+  **Guidelines:**
+  - Entry-level jobs: $150-300
+  - Skilled jobs: $300-600
+  - Professional jobs: $600-1200
+  - Government jobs: $800-1500
+
+  **Note:** Actual pay is multiplied by SalaryTier
+</ParamField>
+
+<ParamField path="SalaryTier" type="number" required>
+  Salary multiplier tier (1-5)
+
+  Determines final paycheck amount: `FinalPay = Salary * SalaryTier * (GradeLevel / 100)`
+
+  **Examples:**
+  - Tier 1: Standard pay (1.0x)
+  - Tier 2: Higher pay (1.5x)
+  - Tier 3: Premium pay (2.0x)
+  - Tier 4: Executive pay (2.5x)
+  - Tier 5: Top pay (3.0x)
+</ParamField>
+
+<ParamField path="LastUpdated" type="number" optional>
+  Unix timestamp of last configuration update
+
+  Used for tracking changes and migrations
+</ParamField>
+
+---
+
+## Job Structures
+
+### Simple Job Structure
+
+For single-location businesses without departments:
+
+```lua
+table.insert(_defaultJobData, {
+    Type = 'Company',
+    Id = 'beanmachine',
+    Name = 'Bean Machine',
+    Salary = 250,
+    SalaryTier = 1,
+
+    -- Grades directly in job
+    Grades = {
+        {
+            Id = 'barista',
+            Name = 'Barista',
+            Level = 2,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_CRAFTING = true,
+            },
+        },
+        {
+            Id = 'manager',
+            Name = 'Manager',
+            Level = 5,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_CRAFTING = true,
+                JOB_HIRE = true,
+                JOB_FIRE = true,
+            },
+        },
+        {
+            Id = 'owner',
+            Name = 'Owner',
+            Level = 99,
+            Permissions = {
+                JOB_MANAGEMENT = true,
+                JOB_MANAGE_EMPLOYEES = true,
+                JOB_HIRE = true,
+                JOB_FIRE = true,
+                JOB_STORAGE = true,
+                JOB_CRAFTING = true,
+            },
+        },
+    }
+})
+```
+
+### Complex Job Structure (Workplaces)
+
+For organizations with multiple departments or locations:
+
+```lua
+table.insert(_defaultJobData, {
+    Type = 'Government',
+    Id = 'police',
+    Name = 'Police',
+    Salary = 1200,
+    SalaryTier = 1,
+
+    -- Multiple workplaces (departments)
+    Workplaces = {
+        {
+            Id = 'lspd',
+            Name = 'Los Santos Police Department',
+            Grades = {
+                {
+                    Id = 'chief',
+                    Name = 'Chief',
+                    Level = 99,
+                    Permissions = { ... }
+                },
+                {
+                    Id = 'captain',
+                    Name = 'Captain',
+                    Level = 70,
+                    Permissions = { ... }
+                },
+                {
+                    Id = 'officer',
+                    Name = 'Officer',
+                    Level = 10,
+                    Permissions = { ... }
+                },
+                {
+                    Id = 'cadet',
+                    Name = 'Cadet',
+                    Level = 1,
+                    Permissions = { ... }
+                },
+            }
+        },
+        {
+            Id = 'lscso',
+            Name = 'Blaine County Sheriff\'s Office',
+            Grades = {
+                {
+                    Id = 'sheriff',
+                    Name = 'Sheriff',
+                    Level = 99,
+                    Permissions = { ... }
+                },
+                {
+                    Id = 'deputy',
+                    Name = 'Deputy',
+                    Level = 10,
+                    Permissions = { ... }
+                },
+            }
+        },
+    }
+})
+```
+
+**Workplaces are used when:**
+- Job has multiple departments/locations
+- Each location has separate chain of command
+- Employees are assigned to specific workplace
+- Examples: Police departments, medical facilities, restaurant chains
+
+---
+
+## Grade Configuration
+
+Grades represent ranks or positions within a job:
+
+```lua
+{
+    Id = 'manager',                -- Unique grade identifier
+    Name = 'Manager',              -- Display name
+    Level = 50,                    -- Numeric level (1-99)
+    Permissions = {                -- Grade permissions
+        JOB_STORAGE = true,
+        JOB_HIRE = true,
+        JOB_FIRE = true,
+    },
+}
+```
+
+### Grade Fields
+
+<ParamField path="Id" type="string" required>
+  Unique identifier for this grade
+
+  **Rules:**
+  - Lowercase, no spaces
+  - Unique within the job
+  - Should not conflict across workplaces
+
+  **Examples:** `"cadet"`, `"officer"`, `"sergeant"`, `"chief"`
+</ParamField>
+
+<ParamField path="Name" type="string" required>
+  Display name for the grade
+
+  **Examples:** `"Cadet"`, `"Officer"`, `"Sergeant"`, `"Chief of Police"`
+</ParamField>
+
+<ParamField path="Level" type="number" required>
+  Numeric level representing rank hierarchy (1-99)
+
+  **Guidelines:**
+  - Entry level: 1-10
+  - Junior: 11-25
+  - Mid-level: 26-50
+  - Senior: 51-75
+  - Leadership: 76-90
+  - Command: 91-99
+
+  **Used for:**
+  - Salary calculations
+  - Permission hierarchies
+  - Promotion system
+  - Rank comparisons
+</ParamField>
+
+<ParamField path="Permissions" type="table" required>
+  Table of permission keys with boolean values
+
+  Determines what actions this grade can perform
+</ParamField>
+
+### Grade Levels Best Practices
+
+```lua
+-- Government Job Hierarchy
+Chief          = 99  -- Top command
+Deputy Chief   = 90  -- High command
+Captain        = 70  -- Upper management
+Lieutenant     = 60  -- Mid management
+Sergeant       = 50  -- Supervisor
+Corporal       = 20  -- Senior officer
+Officer        = 10  -- Standard
+Cadet          = 1   -- Entry level
+
+-- Business Hierarchy
+Owner          = 99  -- Full control
+Co-Owner       = 90  -- High management
+Manager        = 50  -- Management
+Supervisor     = 25  -- Team lead
+Employee       = 10  -- Standard
+Trainee        = 1   -- Entry level
+```
+
+---
+
+## Permission System
+
+Permissions control what actions employees can perform. They are boolean flags checked throughout the framework.
+
+### Common Permissions
+
+**Job Management:**
+```lua
+JOB_MANAGEMENT = true,         -- Full job control
+JOB_MANAGE_EMPLOYEES = true,   -- Edit employee data
+JOB_HIRE = true,               -- Hire new employees
+JOB_FIRE = true,               -- Fire employees
+```
+
+**Job Resources:**
+```lua
+JOB_STORAGE = true,            -- Access job storage
+JOB_CRAFTING = true,           -- Use job crafting benches
+```
+
+**Fleet/Vehicles:**
+```lua
+FLEET_VEHICLES_0 = true,       -- Access vehicle tier 0
+FLEET_VEHICLES_1 = true,       -- Access vehicle tier 1
+FLEET_VEHICLES_2 = true,       -- Access vehicle tier 2
+FLEET_VEHICLES_3 = true,       -- Access vehicle tier 3
+FLEET_VEHICLES_4 = true,       -- Access vehicle tier 4
+FLEET_MANAGEMENT = true,       -- Manage fleet
+```
+
+**MDT (Mobile Data Terminal):**
+```lua
+MDT_HIRE = true,                          -- Hire via MDT
+MDT_FIRE = true,                          -- Fire via MDT
+MDT_PROMOTE = true,                       -- Promote employees
+MDT_EDIT_EMPLOYEE = true,                 -- Edit employee records
+MDT_INCIDENT_REPORT_VIEW = true,          -- View incident reports
+MDT_INCIDENT_REPORT_CREATE = true,        -- Create incident reports
+MDT_CIVILIAN_REPORT_VIEW = true,          -- View civilian records
+MDT_CIVILIAN_REPORT_CREATE = true,        -- Create civilian records
+MDT_POLICE_DISCIPLINARY_REPORTS = true,   -- Disciplinary reports
+MDT_POLICE_FTO_REPORTS = true,            -- Field training reports
+MDT_MEDICAL_REPORTS = true,               -- Medical reports
+```
+
+**Banking:**
+```lua
+BANK_ACCOUNT_MANAGE = true,      -- Full account management
+BANK_ACCOUNT_DEPOSIT = true,     -- Make deposits
+BANK_ACCOUNT_WITHDRAW = true,    -- Make withdrawals
+BANK_ACCOUNT_TRANSACTIONS = true,-- View transactions
+BANK_ACCOUNT_BALANCE = true,     -- View balance
+```
+
+**Alerts:**
+```lua
+police_alerts = true,            -- Receive police alerts
+ems_alerts = true,               -- Receive medical alerts
+```
+
+**Special Permissions:**
+```lua
+PD_HIGH_COMMAND = true,          -- Police high command
+PD_COMMAND = true,               -- Police command
+SAFD_HIGH_COMMAND = true,        -- Fire/EMS high command
+impound = true,                  -- Impound vehicles
+impound_police = true,           -- Impound to police lot
+```
+
+### Permission Hierarchy Example
+
+```lua
+-- Entry Level: Minimal permissions
+{
+    Id = 'cadet',
+    Name = 'Cadet',
+    Level = 1,
+    Permissions = {
+        police_alerts = true,          -- Receive alerts
+        FLEET_VEHICLES_0 = true,       -- Basic vehicles only
+        MDT_INCIDENT_REPORT_VIEW = true,  -- View reports
+        JOB_STORAGE = true,            -- Access storage
+    }
+}
+
+-- Mid Level: Standard duties
+{
+    Id = 'officer',
+    Name = 'Officer',
+    Level = 10,
+    Permissions = {
+        police_alerts = true,
+        FLEET_VEHICLES_0 = true,
+        FLEET_VEHICLES_1 = true,       -- More vehicles
+        MDT_INCIDENT_REPORT_VIEW = true,
+        MDT_INCIDENT_REPORT_CREATE = true,  -- Create reports
+        MDT_CIVILIAN_REPORT_VIEW = true,
+        MDT_CIVILIAN_REPORT_CREATE = true,
+        JOB_STORAGE = true,
+        impound = true,                -- Can impound
+        impound_police = true,
+    }
+}
+
+-- Leadership: Management permissions
+{
+    Id = 'sergeant',
+    Name = 'Sergeant',
+    Level = 50,
+    Permissions = {
+        police_alerts = true,
+        FLEET_VEHICLES_0 = true,
+        FLEET_VEHICLES_1 = true,
+        FLEET_VEHICLES_2 = true,       -- Advanced vehicles
+        PD_COMMAND = true,             -- Command access
+        MDT_HIRE = true,               -- Hiring power
+        MDT_FIRE = true,               -- Firing power
+        MDT_PROMOTE = true,            -- Promotion power
+        MDT_EDIT_EMPLOYEE = true,      -- Edit employees
+        MDT_INCIDENT_REPORT_VIEW = true,
+        MDT_INCIDENT_REPORT_CREATE = true,
+        MDT_CIVILIAN_REPORT_VIEW = true,
+        MDT_CIVILIAN_REPORT_CREATE = true,
+        MDT_POLICE_DISCIPLINARY_REPORTS = true,
+        MDT_POLICE_FTO_REPORTS = true,
+        JOB_STORAGE = true,
+        impound = true,
+        impound_police = true,
+    }
+}
+
+-- Command: Full control
+{
+    Id = 'chief',
+    Name = 'Chief',
+    Level = 99,
+    Permissions = {
+        -- All permissions from lower ranks, plus:
+        FLEET_VEHICLES_3 = true,
+        FLEET_VEHICLES_4 = true,       -- All vehicles
+        FLEET_MANAGEMENT = true,       -- Manage fleet
+        PD_HIGH_COMMAND = true,        -- High command
+        BANK_ACCOUNT_MANAGE = true,    -- Full banking
+        BANK_ACCOUNT_DEPOSIT = true,
+        BANK_ACCOUNT_WITHDRAW = true,
+        BANK_ACCOUNT_TRANSACTIONS = true,
+        BANK_ACCOUNT_BALANCE = true,
+    }
+}
+```
+
+### Custom Permissions
+
+You can create custom permissions for your resources:
+
+```lua
+Permissions = {
+    -- Custom permission
+    CUSTOM_SPECIAL_EQUIPMENT = true,
+
+    -- Check in your resource
+    if char.job == 'police' and char.jobPermissions.CUSTOM_SPECIAL_EQUIPMENT then
+        -- Give special equipment
+    end
+}
+```
+
+---
+
+## Creating Custom Jobs
+
+### Step 1: Create Job Configuration File
+
+Create a new file in `mythic-jobs/config/defaultJobs/`:
+
+```lua
+-- mythic-jobs/config/defaultJobs/my_business.lua
+
+table.insert(_defaultJobData, {
+    Type = 'Company',
+    LastUpdated = os.time(),
+    Id = 'my_business',
+    Name = 'My Business',
+    Salary = 300,
+    SalaryTier = 1,
+
+    Grades = {
+        {
+            Id = 'employee',
+            Name = 'Employee',
+            Level = 1,
+            Permissions = {
+                JOB_STORAGE = true,
+            },
+        },
+        {
+            Id = 'supervisor',
+            Name = 'Supervisor',
+            Level = 25,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_HIRE = true,
+            },
+        },
+        {
+            Id = 'manager',
+            Name = 'Manager',
+            Level = 50,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_HIRE = true,
+                JOB_FIRE = true,
+            },
+        },
+        {
+            Id = 'owner',
+            Name = 'Owner',
+            Level = 99,
+            Permissions = {
+                JOB_MANAGEMENT = true,
+                JOB_MANAGE_EMPLOYEES = true,
+                JOB_HIRE = true,
+                JOB_FIRE = true,
+                JOB_STORAGE = true,
+                BANK_ACCOUNT_MANAGE = true,
+                BANK_ACCOUNT_DEPOSIT = true,
+                BANK_ACCOUNT_WITHDRAW = true,
+                BANK_ACCOUNT_TRANSACTIONS = true,
+                BANK_ACCOUNT_BALANCE = true,
+            },
+        },
+    }
+})
+```
+
+### Step 2: Add to fxmanifest.lua
+
+Ensure your job file is loaded:
+
+```lua
+-- mythic-jobs/fxmanifest.lua
+
+server_scripts {
+    -- ... other files ...
+    'config/defaultJobs/my_business.lua',
+}
+```
+
+### Step 3: Restart Resource
+
+```bash
+# In server console
+restart mythic-jobs
+```
+
+### Step 4: Assign Job to Players
+
+```lua
+-- Via command
+/setjob [player_id] my_business owner
+
+-- Via code
+COMPONENTS.Jobs:SetJob(characterId, 'my_business', 99) -- 99 = owner level
+```
+
+---
+
+## Complete Job Examples
+
+### Restaurant Example
+
+```lua
+table.insert(_defaultJobData, {
+    Type = 'Company',
+    LastUpdated = 1645547610,
+    Id = 'pizzathis',
+    Name = 'Pizza This',
+    Salary = 275,
+    SalaryTier = 1,
+
+    Grades = {
+        {
+            Id = 'delivery',
+            Name = 'Delivery Driver',
+            Level = 1,
+            Permissions = {
+                JOB_STORAGE = true,
+            },
+        },
+        {
+            Id = 'cook',
+            Name = 'Cook',
+            Level = 5,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_CRAFTING = true,
+            },
+        },
+        {
+            Id = 'headchef',
+            Name = 'Head Chef',
+            Level = 25,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_CRAFTING = true,
+                JOB_HIRE = true,
+            },
+        },
+        {
+            Id = 'manager',
+            Name = 'Manager',
+            Level = 50,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_CRAFTING = true,
+                JOB_HIRE = true,
+                JOB_FIRE = true,
+                BANK_ACCOUNT_DEPOSIT = true,
+                BANK_ACCOUNT_BALANCE = true,
+            },
+        },
+        {
+            Id = 'owner',
+            Name = 'Owner',
+            Level = 99,
+            Permissions = {
+                JOB_MANAGEMENT = true,
+                JOB_MANAGE_EMPLOYEES = true,
+                JOB_HIRE = true,
+                JOB_FIRE = true,
+                JOB_STORAGE = true,
+                JOB_CRAFTING = true,
+                BANK_ACCOUNT_MANAGE = true,
+                BANK_ACCOUNT_DEPOSIT = true,
+                BANK_ACCOUNT_WITHDRAW = true,
+                BANK_ACCOUNT_TRANSACTIONS = true,
+                BANK_ACCOUNT_BALANCE = true,
+            },
+        },
+    }
+})
+```
+
+### Mechanic Shop Example
+
+```lua
+table.insert(_defaultJobData, {
+    Type = 'Company',
+    LastUpdated = 1649778246,
+    Id = 'auto_exotics',
+    Name = 'Auto Exotics',
+    Salary = 400,
+    SalaryTier = 1,
+
+    Grades = {
+        {
+            Id = 'apprentice',
+            Name = 'Apprentice',
+            Level = 1,
+            Permissions = {
+                JOB_STORAGE = true,
+            },
+        },
+        {
+            Id = 'mechanic',
+            Name = 'Mechanic',
+            Level = 10,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_CRAFTING = true,
+                FLEET_VEHICLES_0 = true,
+            },
+        },
+        {
+            Id = 'smechanic',
+            Name = 'Senior Mechanic',
+            Level = 25,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_CRAFTING = true,
+                FLEET_VEHICLES_0 = true,
+                FLEET_VEHICLES_1 = true,
+            },
+        },
+        {
+            Id = 'foreman',
+            Name = 'Foreman',
+            Level = 50,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_CRAFTING = true,
+                JOB_HIRE = true,
+                JOB_FIRE = true,
+                FLEET_VEHICLES_0 = true,
+                FLEET_VEHICLES_1 = true,
+                FLEET_MANAGEMENT = true,
+            },
+        },
+        {
+            Id = 'owner',
+            Name = 'Owner',
+            Level = 99,
+            Permissions = {
+                JOB_MANAGEMENT = true,
+                JOB_MANAGE_EMPLOYEES = true,
+                JOB_HIRE = true,
+                JOB_FIRE = true,
+                JOB_STORAGE = true,
+                JOB_CRAFTING = true,
+                FLEET_VEHICLES_0 = true,
+                FLEET_VEHICLES_1 = true,
+                FLEET_VEHICLES_2 = true,
+                FLEET_MANAGEMENT = true,
+                BANK_ACCOUNT_MANAGE = true,
+                BANK_ACCOUNT_DEPOSIT = true,
+                BANK_ACCOUNT_WITHDRAW = true,
+                BANK_ACCOUNT_TRANSACTIONS = true,
+                BANK_ACCOUNT_BALANCE = true,
+            },
+        },
+    }
+})
+```
+
+### Security Company Example
+
+```lua
+table.insert(_defaultJobData, {
+    Type = 'Company',
+    LastUpdated = os.time(),
+    Id = 'securoserv',
+    Name = 'SecuroServ',
+    Salary = 500,
+    SalaryTier = 1,
+
+    Grades = {
+        {
+            Id = 'guard',
+            Name = 'Security Guard',
+            Level = 1,
+            Permissions = {
+                JOB_STORAGE = true,
+                FLEET_VEHICLES_0 = true,
+            },
+        },
+        {
+            Id = 'sguard',
+            Name = 'Senior Guard',
+            Level = 15,
+            Permissions = {
+                JOB_STORAGE = true,
+                FLEET_VEHICLES_0 = true,
+                FLEET_VEHICLES_1 = true,
+            },
+        },
+        {
+            Id = 'supervisor',
+            Name = 'Supervisor',
+            Level = 30,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_HIRE = true,
+                FLEET_VEHICLES_0 = true,
+                FLEET_VEHICLES_1 = true,
+            },
+        },
+        {
+            Id = 'manager',
+            Name = 'Operations Manager',
+            Level = 60,
+            Permissions = {
+                JOB_STORAGE = true,
+                JOB_HIRE = true,
+                JOB_FIRE = true,
+                FLEET_VEHICLES_0 = true,
+                FLEET_VEHICLES_1 = true,
+                FLEET_VEHICLES_2 = true,
+                FLEET_MANAGEMENT = true,
+                BANK_ACCOUNT_DEPOSIT = true,
+                BANK_ACCOUNT_BALANCE = true,
+            },
+        },
+        {
+            Id = 'ceo',
+            Name = 'CEO',
+            Level = 99,
+            Permissions = {
+                JOB_MANAGEMENT = true,
+                JOB_MANAGE_EMPLOYEES = true,
+                JOB_HIRE = true,
+                JOB_FIRE = true,
+                JOB_STORAGE = true,
+                FLEET_VEHICLES_0 = true,
+                FLEET_VEHICLES_1 = true,
+                FLEET_VEHICLES_2 = true,
+                FLEET_VEHICLES_3 = true,
+                FLEET_MANAGEMENT = true,
+                BANK_ACCOUNT_MANAGE = true,
+                BANK_ACCOUNT_DEPOSIT = true,
+                BANK_ACCOUNT_WITHDRAW = true,
+                BANK_ACCOUNT_TRANSACTIONS = true,
+                BANK_ACCOUNT_BALANCE = true,
+            },
+        },
+    }
+})
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Meaningful Grade Levels" icon="layer-group">
+    **Space out grade levels to allow for expansion:**
+
+    ```lua
+    -- ✅ Good - Room for growth
+    Trainee    = 1
+    Employee   = 10
+    Senior     = 25
+    Supervisor = 50
+    Manager    = 75
+    Owner      = 99
+
+    -- ❌ Bad - No room between grades
+    Trainee    = 1
+    Employee   = 2
+    Senior     = 3
+    Supervisor = 4
+    Manager    = 5
+    Owner      = 6
+    ```
+  </Accordion>
+
+  <Accordion title="Progressive Permissions" icon="shield-check">
+    **Higher grades should include lower grade permissions:**
+
+    ```lua
+    -- ✅ Good - Builds on previous grade
+    {
+        Id = 'manager',
+        Level = 50,
+        Permissions = {
+            JOB_STORAGE = true,      -- From employee
+            JOB_CRAFTING = true,     -- From employee
+            JOB_HIRE = true,         -- New permission
+            JOB_FIRE = true,         -- New permission
+        }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Salary Balance" icon="dollar-sign">
+    **Balance salaries across jobs:**
+
+    ```lua
+    -- Entry-level jobs
+    Fast Food Worker = 200-250
+
+    -- Skilled labor
+    Mechanic = 300-400
+
+    -- Professional
+    Doctor = 600-800
+
+    -- Government
+    Police Officer = 800-1200
+
+    -- Use SalaryTier to differentiate:
+    Entry Business = Salary 250, Tier 1
+    Premium Business = Salary 250, Tier 2  -- Pays 1.5x
+    ```
+  </Accordion>
+
+  <Accordion title="Clear Permission Names" icon="tag">
+    **Use descriptive, consistent permission names:**
+
+    ```lua
+    -- ✅ Good
+    JOB_STORAGE = true
+    JOB_CRAFTING = true
+    MDT_HIRE = true
+
+    -- ❌ Bad
+    storage = true
+    craft = true
+    canHire = true
+    ```
+  </Accordion>
+
+  <Accordion title="Workplace Organization" icon="building">
+    **Only use workplaces when necessary:**
+
+    **Use workplaces for:**
+    - Multiple departments (LSPD, BCSO, SASP)
+    - Different locations with separate management
+    - Jobs where workplace assignment matters
+
+    **Don't use workplaces for:**
+    - Single-location businesses
+    - Jobs with one hierarchy
+    - Simple employee structure
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Checking Permissions in Code
+
+### Server-Side Permission Checks
+
+```lua
+-- Get character job data
+local player = Fetch:Source(source)
+
+if not player then
+    return
+end
+
+local char = player:GetData('Character')
+if not char then
+    return
+end
+
+-- Check specific permission
+if char.jobPermissions and char.jobPermissions.JOB_HIRE then
+    -- Employee can hire
+end
+
+-- Check job and permission
+if char.job == 'police' and char.jobPermissions.MDT_INCIDENT_REPORT_CREATE then
+    -- Police officer can create reports
+end
+
+-- Check grade level
+if char.job == 'police' and char.jobGrade >= 50 then
+    -- Sergeant or higher
+end
+```
+
+### Client-Side Permission Checks
+
+```lua
+-- Get local player character
+local char = LocalPlayer.state.Character
+
+-- Check permission
+if char.jobPermissions.JOB_STORAGE then
+    -- Show storage menu
+end
+
+-- Check on-duty and permission
+if char.jobDuty and char.jobPermissions.FLEET_VEHICLES_1 then
+    -- Can spawn tier 1 vehicles
+end
+```
+
+### Callback Permission Check
+
+```lua
+-- Server callback
+COMPONENTS.Callbacks:RegisterServerCallback('myresource:checkPermission', function(source, data, cb)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return cb(false)
+    end
+
+    local char = player:GetData('Character')
+    if not char then
+        return cb(false)
+    end
+
+    if char.jobPermissions and char.jobPermissions[data.permission] then
+        cb(true)
+    else
+        cb(false)
+    end
+end)
+
+-- Client request
+COMPONENTS.Callbacks:ServerCallback('myresource:checkPermission', {
+    permission = 'JOB_HIRE'
+}, function(hasPermission)
+    if hasPermission then
+        -- Show hire menu
+    end
+end)
+```
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Job not appearing in game" icon="circle-question">
+    **Possible causes:**
+
+    1. **Job file not loaded in fxmanifest.lua**
+       ```lua
+       -- Add to server_scripts
+       'config/defaultJobs/my_job.lua',
+       ```
+
+    2. **Syntax error in job definition**
+       - Check server console for Lua errors
+       - Validate Lua syntax
+
+    3. **Resource not restarted**
+       ```bash
+       restart mythic-jobs
+       ```
+
+    4. **Duplicate job ID**
+       - Ensure job ID is unique
+       - Check for conflicts with existing jobs
+  </Accordion>
+
+  <Accordion title="Permissions not working" icon="lock">
+    **Check:**
+
+    1. **Permission spelling** - Must match exactly
+       ```lua
+       -- Correct
+       JOB_STORAGE = true
+
+       -- Wrong (won't work)
+       job_storage = true
+       Job_Storage = true
+       ```
+
+    2. **Permission assigned to grade**
+       ```lua
+       Permissions = {
+           JOB_STORAGE = true,  -- Must be true
+       }
+       ```
+
+    3. **Character has correct job and grade**
+       ```lua
+       local player = Fetch:Source(source)
+       if player then
+           local char = player:GetData('Character')
+           if char then
+               print(char.job, char.jobGrade, json.encode(char.jobPermissions))
+           end
+       end
+       ```
+
+    4. **On-duty requirement** - Some features require being on duty
+       ```lua
+       if char.jobDuty and char.jobPermissions.PERMISSION then
+           -- Works only when on duty
+       end
+       ```
+  </Accordion>
+
+  <Accordion title="Salary not paying correctly" icon="money-bill">
+    **Verify:**
+
+    1. **Salary configuration**
+       ```lua
+       Salary = 500,      -- Base amount
+       SalaryTier = 1,    -- Multiplier tier
+       ```
+
+    2. **Paycheck interval** - Check server configuration
+    3. **On-duty requirement** - Paychecks only when clocked in
+    4. **Bank account setup** - Ensure character has bank account
+
+    **Formula:**
+    ```
+    Paycheck = Salary * SalaryTier * (GradeLevel / 100)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Jobs - Exports" icon="cube" href="/api/jobs/exports">
+    Job management methods
+  </Card>
+  <Card title="Jobs - Events" icon="bolt" href="/api/jobs/events">
+    Job-related events
+  </Card>
+  <Card title="Jobs Feature Guide" icon="briefcase" href="/features/jobs">
+    Using the job system
+  </Card>
+  <Card title="Characters API" icon="user" href="/api/characters/exports">
+    Character management
+  </Card>
+</CardGroup>
+
+<Tip>
+**Permission Testing:** Use `/jobinfo` command (if available) or check the F8 console to view your current job, grade, and permissions while testing.
+</Tip>
+
+<Warning>
+**Database Changes:** After modifying job configurations, existing characters may need to be reassigned to their jobs or have their data migrated. Always backup your database before making significant job changes.
+</Warning>

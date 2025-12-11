@@ -1,0 +1,527 @@
+---
+title: Framework Architecture
+description: Understanding the architectural design of Mythic Framework
+icon: 'diagram-project'
+---
+
+Mythic Framework uses a sophisticated, modular architecture designed for scalability, maintainability, and extensibility. This guide explains how all the pieces fit together.
+
+## High-Level Overview
+
+At its core, Mythic Framework is built on four architectural pillars:
+
+<CardGroup cols={2}>
+  <Card title="Component-Based Design" icon="cubes">
+    Modular components that can be registered, fetched, extended, and composed
+  </Card>
+  <Card title="Event-Driven Communication" icon="bolt">
+    Asynchronous event system with middleware for inter-resource communication
+  </Card>
+  <Card title="Dual-Database Architecture" icon="database">
+    MongoDB for flexible game data, MySQL for relational data and compatibility
+  </Card>
+  <Card title="Modern UI Stack" icon="browser">
+    React + Redux for all user interfaces with NUI bridge
+  </Card>
+</CardGroup>
+
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         FiveM Server                             │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                    Server-Side (Lua)                        │ │
+│  │  ┌──────────────────────────────────────────────────────┐  │ │
+│  │  │              mythic-base (Core)                       │  │
+│  │  │  • Component Proxy System                             │  │
+│  │  │  • Event Middleware                                   │  │
+│  │  │  • Database Wrapper (Node.js)                         │  │
+│  │  │  • Logger & Error Handling                            │  │
+│  │  └──────────────────────────────────────────────────────┘  │ │
+│  │              ↓ Depends On ↓                                │ │
+│  │  ┌──────────────────────────────────────────────────────┐  │ │
+│  │  │         Feature Resources (60+ modules)               │  │
+│  │  │  mythic-characters | mythic-inventory | mythic-jobs   │  │
+│  │  │  mythic-police | mythic-vehicles | mythic-phone       │  │
+│  │  │  ... and 50+ more resources                           │  │
+│  │  └──────────────────────────────────────────────────────┘  │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                            ↕                                     │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                   Client-Side (Lua)                         │ │
+│  │  • Game Logic                                               │ │
+│  │  • Event Handlers                                           │ │
+│  │  • NUI Communication                                        │ │
+│  │  • Native Function Calls                                    │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                            ↕                                     │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                    NUI Layer (Browser)                      │ │
+│  │  ┌──────────────────────────────────────────────────────┐  │ │
+│  │  │         React UIs (10+ interfaces)                    │  │
+│  │  │  • HUD (health, status, vehicle info)                 │  │
+│  │  │  • Inventory (items, crafting, looting)               │  │
+│  │  │  • Phone (apps, calls, messages)                      │  │
+│  │  │  • MDT (police terminal)                              │  │
+│  │  │  • Character Creator                                  │  │
+│  │  │  • Admin Panel                                        │  │
+│  │  │  ... and more                                         │  │
+│  │  └──────────────────────────────────────────────────────┘  │ │
+│  └────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                            ↕
+        ┌───────────────────────────────────────┐
+        │         Database Layer                 │
+        │  ┌─────────────┐    ┌──────────────┐  │
+        │  │   MongoDB   │    │    MySQL     │  │
+        │  │             │    │              │  │
+        │  │ • Auth DB   │    │ • Persistent │  │
+        │  │ • Game DB   │    │   Data       │  │
+        │  │ • Flexible  │    │ • Relational │  │
+        │  │   Schema    │    │   Data       │  │
+        │  └─────────────┘    └──────────────┘  │
+        └───────────────────────────────────────┘
+```
+
+## Core Layer: mythic-base
+
+**Location:** `resources/[mythic]/mythic-base/`
+
+The heart of the framework. Every other resource depends on mythic-base.
+
+### Responsibilities
+
+<AccordionGroup>
+  <Accordion title="Component Proxy System" icon="cubes">
+    **File:** `core/sh_proxy.lua`
+
+    Provides the component registration and dependency injection system:
+    - `RegisterComponent()` - Register new components
+    - `FetchComponent()` - Retrieve components
+    - `ExtendComponent()` - Extend existing components
+    - `RequestDependencies()` - Async dependency loading
+
+    This is what makes Mythic modular. See [Proxy Pattern](/concepts/proxy-pattern) for details.
+  </Accordion>
+
+  <Accordion title="Database Wrapper" icon="database">
+    **Files:** `core/sv_database.js`, `core/sh_datastore.lua`
+
+    - MongoDB connection management (Node.js)
+    - MySQL integration via oxmysql
+    - Query abstraction layer
+    - Connection pooling
+    - Error handling
+
+    Provides unified database access across all resources.
+  </Accordion>
+
+  <Accordion title="Event System" icon="bolt">
+    **Files:** `core/sv_events.lua`, `core/cl_events.lua`, `core/sv_middleware.lua`
+
+    - Event registration and handling
+    - Middleware support (pre/post processing)
+    - Network event routing
+    - Event prioritization
+    - Callback management
+
+    See [Event System](/concepts/event-system) for details.
+  </Accordion>
+
+  <Accordion title="Logging & Error Handling" icon="file-lines">
+    **Files:** `core/sv_logger.lua`, `core/cl_logger.lua`
+
+    - Centralized logging
+    - Discord webhook integration
+    - Error tracking
+    - Debug information
+    - Log levels (trace, info, warn, error)
+  </Accordion>
+
+  <Accordion title="Player Management" icon="users">
+    **Files:** `core/sv_player.lua`, `core/cl_player.lua`
+
+    - Player data caching
+    - Character loading
+    - Permission management
+    - Player state synchronization
+  </Accordion>
+
+  <Accordion title="Utilities" icon="wrench">
+    **Files:** `core/sh_utils.lua`, `core/sh_core.lua`
+
+    - Common utility functions
+    - Data validation
+    - String manipulation
+    - Table operations
+    - Math helpers
+  </Accordion>
+</AccordionGroup>
+
+### mythic-base File Structure
+
+```
+mythic-base/
+├── fxmanifest.lua              # Resource manifest
+├── sh_init.lua                 # Shared initialization
+├── cl_init.lua                 # Client initialization
+├── sv_init.lua                 # Server initialization
+├── sv_config.lua               # Server configuration
+├── cl_config.lua               # Client configuration
+├── core/
+│   ├── sh_proxy.lua            # Component proxy system ⭐
+│   ├── sh_core.lua             # Core shared functions
+│   ├── sh_utils.lua            # Utility functions
+│   ├── sh_datastore.lua        # Data storage abstraction
+│   ├── sv_database.js          # MongoDB wrapper (Node.js) ⭐
+│   ├── sv_core.lua             # Core server functions
+│   ├── sv_player.lua           # Player management
+│   ├── sv_events.lua           # Server event handling
+│   ├── sv_middleware.lua       # Event middleware ⭐
+│   ├── sv_callback.lua         # Callback system
+│   ├── sv_logger.lua           # Server logging
+│   ├── sv_punishment.lua       # Ban/punishment system
+│   ├── cl_core.lua             # Core client functions
+│   ├── cl_player.lua           # Client player data
+│   ├── cl_events.lua           # Client event handling
+│   └── cl_logger.lua           # Client logging
+└── components/
+    ├── sv_*.lua                # Server-side components
+    └── cl_*.lua                # Client-side components
+```
+
+## Resource Layer
+
+**Location:** `resources/[mythic]/`
+
+All feature resources depend on mythic-base and follow a consistent structure.
+
+### Resource Categories
+
+<Tabs>
+  <Tab title="Core Systems">
+    **Essential framework resources:**
+    - `mythic-pwnzor` - Anti-cheat
+    - `mythic-queue` - Server queue
+    - `mythic-characters` - Character system
+    - `mythic-loadscreen` - Loading screen
+  </Tab>
+  <Tab title="Gameplay">
+    **Main gameplay features:**
+    - `mythic-inventory` - Items & crafting
+    - `mythic-jobs` - Job framework
+    - `mythic-vehicles` - Vehicle system
+    - `mythic-finance` - Banking
+    - `mythic-properties` - Housing
+    - `mythic-police` - Law enforcement
+  </Tab>
+  <Tab title="UI">
+    **User interface resources:**
+    - `mythic-hud` - Heads-up display
+    - `mythic-phone` - Smartphone
+    - `mythic-laptop` - Laptop interface
+    - `mythic-mdt` - Mobile Data Terminal
+    - `mythic-menu` - Context menus
+    - `mythic-chat` - Chat system
+  </Tab>
+  <Tab title="Utilities">
+    **Supporting systems:**
+    - `mythic-targeting` - Interaction system
+    - `mythic-polyzone` - Area zones
+    - `mythic-animations` - Emotes/animations
+    - `mythic-sounds` - Sound effects
+    - `mythic-sync` - Time/weather
+  </Tab>
+</Tabs>
+
+### Standard Resource Structure
+
+Every Mythic resource follows this pattern:
+
+```
+mythic-[name]/
+├── fxmanifest.lua          # Resource manifest
+├── README.md               # Resource documentation
+├── client/                 # Client-side Lua
+│   ├── component.lua       # Component registration
+│   ├── events.lua          # Event handlers
+│   └── main.lua            # Main logic
+├── server/                 # Server-side Lua
+│   ├── component.lua       # Component registration
+│   ├── events.lua          # Event handlers
+│   ├── callbacks.lua       # Server callbacks
+│   └── main.lua            # Main logic
+├── shared/                 # Shared code (optional)
+│   ├── config.lua          # Shared configuration
+│   └── utils.lua           # Shared utilities
+├── config/                 # Configuration files
+│   └── config.lua          # Resource-specific config
+└── ui/                     # React UI (if applicable)
+    ├── src/                # React source
+    │   ├── components/
+    │   ├── reducers/
+    │   ├── actions/
+    │   └── App.jsx
+    ├── dist/               # Built UI files
+    │   ├── index.html
+    │   └── main.js
+    ├── package.json
+    └── webpack.config.js
+```
+
+See [Resource Structure](/concepts/resource-structure) for detailed explanation.
+
+## Communication Patterns
+
+### 1. Component Communication
+
+Resources communicate via the component proxy system:
+
+```lua
+-- Resource A registers a component
+exports['mythic-base']:RegisterComponent('Inventory', {
+    AddItem = function(self, player, item, count)
+        -- Add item logic
+        return true
+    end
+})
+
+-- Resource B uses the component
+local Inventory = exports['mythic-base']:FetchComponent('Inventory')
+local success = Inventory:AddItem(source, 'water', 5)
+```
+
+### 2. Event Communication
+
+Resources trigger and listen to events:
+
+```lua
+-- Server-side: Trigger event
+TriggerClientEvent('mythic-inventory:client:UpdateInventory', source, inventory)
+
+-- Client-side: Listen to event
+AddEventHandler('mythic-inventory:client:UpdateInventory', function(inventory)
+    -- Update UI
+end)
+```
+
+### 3. Callback Communication
+
+Server-client callbacks for request/response patterns:
+
+```lua
+-- Client requests data from server
+COMPONENTS.Callback:DoCallback('mythic-characters:GetCharacter', {}, function(character)
+    print('Got character:', character.name)
+end)
+
+-- Server responds
+COMPONENTS.Callback:RegisterCallback('mythic-characters:GetCharacter', function(source, data, cb)
+    local character = GetPlayerCharacter(source)
+    cb(character)
+end)
+```
+
+### 4. NUI Communication
+
+Client Lua ↔ React UI:
+
+```lua
+-- Client sends to NUI
+SendNUIMessage({
+    type = 'OPEN_INVENTORY',
+    data = inventoryData
+})
+
+-- NUI sends to client
+RegisterNUICallback('closeInventory', function(data, cb)
+    -- Handle close
+    cb('ok')
+end)
+```
+
+## Data Flow Example: Opening Inventory
+
+Let's trace what happens when a player opens their inventory:
+
+<Steps>
+  <Step title="Player Presses Keybind">
+    Client detects keypress (configured in mythic-keybinds)
+  </Step>
+  <Step title="Client Requests Inventory">
+    ```lua
+    -- mythic-inventory/client/main.lua
+    RegisterKeyMapping('inventory', 'Open Inventory', 'keyboard', 'I')
+    RegisterCommand('inventory', function()
+        TriggerServerEvent('mythic-inventory:server:GetInventory')
+    end)
+    ```
+  </Step>
+  <Step title="Server Fetches from Database">
+    ```lua
+    -- mythic-inventory/server/callbacks.lua
+    AddEventHandler('mythic-inventory:server:GetInventory', function()
+        local src = source
+        local char = COMPONENTS.Characters:GetCharacter(src)
+        local inventory = COMPONENTS.Inventory:Get(char.SID)
+        TriggerClientEvent('mythic-inventory:client:Show', src, inventory)
+    end)
+    ```
+  </Step>
+  <Step title="Client Receives Inventory Data">
+    ```lua
+    -- mythic-inventory/client/events.lua
+    AddEventHandler('mythic-inventory:client:Show', function(inventory)
+        SendNUIMessage({
+            type = 'SET_INVENTORY',
+            data = inventory
+        })
+        SetNuiFocus(true, true)
+    end)
+    ```
+  </Step>
+  <Step title="React UI Renders">
+    ```javascript
+    // mythic-inventory/ui/src/App.jsx
+    useEffect(() => {
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'SET_INVENTORY') {
+                dispatch(setInventory(event.data.data))
+            }
+        })
+    }, [])
+    ```
+  </Step>
+  <Step title="Player Interacts with UI">
+    Drag & drop items, use items, craft, etc.
+  </Step>
+  <Step title="UI Sends Actions Back">
+    ```javascript
+    // When player uses an item
+    fetch(`https://${GetParentResourceName()}/useItem`, {
+        method: 'POST',
+        body: JSON.stringify({ slot: 5 })
+    })
+    ```
+  </Step>
+  <Step title="Client Processes Action">
+    ```lua
+    RegisterNUICallback('useItem', function(data, cb)
+        TriggerServerEvent('mythic-inventory:server:UseItem', data.slot)
+        cb('ok')
+    end)
+    ```
+  </Step>
+  <Step title="Server Updates Database">
+    Server validates, updates database, triggers item effects
+  </Step>
+</Steps>
+
+This demonstrates how all layers work together: keybinds → client events → server processing → database → client update → NUI rendering.
+
+## Load Order & Dependencies
+
+Resources must load in the correct order:
+
+```bash
+# configs/resources.cfg
+
+# 1. External dependencies
+ensure oxmysql
+
+# 2. Core framework (MUST be first)
+ensure mythic-base
+
+# 3. Anti-cheat (should be early)
+ensure mythic-pwnzor
+
+# 4. Core systems
+ensure mythic-queue
+ensure mythic-loadscreen
+ensure mythic-characters
+
+# 5. Feature resources (can be in any order after core)
+ensure mythic-inventory
+ensure mythic-jobs
+ensure mythic-finance
+# ... etc
+
+# 6. UI resources (depend on feature resources)
+ensure mythic-hud
+ensure mythic-phone
+ensure mythic-menu
+```
+
+**Dependency Resolution:**
+
+```lua
+-- Resources declare dependencies via RequestDependencies
+exports['mythic-base']:RequestDependencies('mythic-inventory', {
+    'Inventory',
+    'Items',
+    'Crafting'
+}, function(errors)
+    if #errors > 0 then
+        print('Failed to load dependencies:', json.encode(errors))
+    else
+        print('All dependencies loaded')
+        -- Initialize resource
+    end
+end)
+```
+
+## Architectural Benefits
+
+<CardGroup cols={2}>
+  <Card title="Modularity" icon="puzzle-piece">
+    Each resource is independent. Add, remove, or replace resources without affecting others.
+  </Card>
+  <Card title="Scalability" icon="chart-line">
+    Component system allows easy scaling. Add new features by creating new components.
+  </Card>
+  <Card title="Maintainability" icon="wrench">
+    Clear separation of concerns. Each resource has a specific purpose and structure.
+  </Card>
+  <Card title="Extensibility" icon="plus">
+    ExtendComponent allows adding functionality without modifying core code.
+  </Card>
+  <Card title="Testability" icon="vial">
+    Components can be tested independently. Mock dependencies easily.
+  </Card>
+  <Card title="Performance" icon="gauge-high">
+    Lazy loading, dependency injection, and efficient event handling optimize performance.
+  </Card>
+</CardGroup>
+
+## Design Principles
+
+The architecture follows these principles:
+
+1. **Separation of Concerns** - Each resource has a single, well-defined purpose
+2. **Don't Repeat Yourself (DRY)** - Common functionality in mythic-base, reused everywhere
+3. **Single Source of Truth** - Database is the source of truth, components cache appropriately
+4. **Fail Fast** - Errors are caught early, logged, and handled gracefully
+5. **Convention over Configuration** - Standard structure reduces configuration needs
+6. **Progressive Enhancement** - Core features work without optional resources
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Component System" icon="cubes" href="/concepts/component-system">
+    Deep dive into the component-based architecture
+  </Card>
+  <Card title="Proxy Pattern" icon="diagram-project" href="/concepts/proxy-pattern">
+    Learn the proxy system that powers Mythic
+  </Card>
+  <Card title="Event System" icon="bolt" href="/concepts/event-system">
+    Understand event-driven communication
+  </Card>
+  <Card title="Resource Structure" icon="folder-tree" href="/concepts/resource-structure">
+    Standard resource organization patterns
+  </Card>
+</CardGroup>
+
+<Tip>
+Understanding the architecture is crucial before developing custom resources. Take time to study the component proxy system and event patterns.
+</Tip>

@@ -1,0 +1,736 @@
+---
+title: Database Architecture
+description: Understanding Mythic Framework's dual-database system
+icon: 'database'
+---
+
+Mythic Framework uses a dual-database architecture: MongoDB as the primary database for game data, and MySQL for compatibility and relational data. This approach combines the flexibility of NoSQL with the structure of SQL.
+
+## Why Two Databases?
+
+<CardGroup cols={2}>
+  <Card title="MongoDB (Primary)" icon="leaf">
+    **Best for:**
+    - Flexible schemas
+    - Nested data (inventory, character stats)
+    - Fast reads/writes
+    - JSON-like documents
+    - Scalability
+  </Card>
+  <Card title="MySQL (Secondary)" icon="table">
+    **Best for:**
+    - Structured data
+    - Complex queries
+    - Relationships/joins
+    - Compatibility with other resources
+    - SQL familiarity
+  </Card>
+</CardGroup>
+
+## Database Usage
+
+### MongoDB Databases
+
+Mythic Framework uses two MongoDB databases:
+
+```javascript
+// Auth Database - User authentication and permissions
+{
+    database: "auth",
+    collections: [
+        "users",          // User accounts
+        "roles",          // Permission roles
+        "bans",           // Ban records
+        "whitelist"       // Whitelist entries
+    ]
+}
+
+// Game Database - All game-related data
+{
+    database: "fivem",
+    collections: [
+        "characters",     // Player characters
+        "inventory",      // Character inventories
+        "vehicles",       // Player vehicles
+        "properties",     // Owned properties
+        "jobs",           // Job data
+        "businesses",     // Business data
+        "logs",           // Game logs
+        // ... many more
+    ]
+}
+```
+
+### MySQL Database
+
+```sql
+-- Single database: MythicFramework_345AE9
+-- Tables:
+- persistent_data      -- Long-term persistent data
+- vehicle_ownership    -- Vehicle records
+- property_ownership   -- Property records
+- transaction_logs     -- Financial transactions
+-- And more based on resource needs
+```
+
+## MongoDB Usage
+
+### Accessing MongoDB
+
+MongoDB operations are handled through the Node.js wrapper in mythic-base:
+
+**Location:** `mythic-base/core/sv_database.js`
+
+```lua
+-- Access MongoDB via Database component
+local Database = COMPONENTS.Database
+
+-- Find one document
+local character = Database:findOne('characters', {
+    SID = 1
+})
+
+-- Find multiple documents
+local vehicles = Database:find('vehicles', {
+    owner = characterId,
+    stored = false
+}, {
+    limit = 10,
+    sort = { purchaseDate = -1 }
+})
+
+-- Insert document
+Database:insertOne('logs', {
+    type = 'admin_action',
+    action = 'teleport',
+    admin = adminId,
+    target = targetId,
+    timestamp = os.time()
+})
+
+-- Update document
+Database:updateOne('characters', {
+    SID = characterId
+}, {
+    ['$set'] = {
+        money = newMoney
+    }
+})
+
+-- Delete document
+Database:deleteOne('bans', {
+    identifier = 'steam:110000...'
+})
+```
+
+### MongoDB Methods
+
+<AccordionGroup>
+  <Accordion title="findOne(collection, query)" icon="magnifying-glass">
+    Find a single document matching query.
+
+    ```lua
+    local char = Database:findOne('characters', { SID = 1 })
+
+    if char then
+        print('Found character:', char.First, char.Last)
+    end
+    ```
+
+    **Returns:** Document object or `nil`
+  </Accordion>
+
+  <Accordion title="find(collection, query, options)" icon="magnifying-glass-plus">
+    Find multiple documents.
+
+    ```lua
+    local chars = Database:find('characters', {
+        Owner = 'license:abc123'
+    }, {
+        limit = 5,
+        sort = { created = -1 }
+    })
+
+    for _, char in ipairs(chars) do
+        print(char.First, char.Last)
+    end
+    ```
+
+    **Returns:** Array of documents
+  </Accordion>
+
+  <Accordion title="insertOne(collection, document)" icon="plus">
+    Insert a single document.
+
+    ```lua
+    Database:insertOne('characters', {
+        SID = GetNextSID(),
+        Owner = 'license:abc123',
+        First = 'John',
+        Last = 'Doe',
+        Gender = 'Male',
+        DOB = '1990-01-01',
+        Phone = '555-1234',
+        Created = os.time()
+    })
+    ```
+
+    **Returns:** Inserted document with `_id`
+  </Accordion>
+
+  <Accordion title="updateOne(collection, query, update)" icon="pen">
+    Update a single document.
+
+    ```lua
+    -- Set fields
+    Database:updateOne('characters', {
+        SID = 1
+    }, {
+        ['$set'] = {
+            Phone = '555-9999',
+            LastSeen = os.time()
+        }
+    })
+
+    -- Increment field
+    Database:updateOne('characters', {
+        SID = 1
+    }, {
+        ['$inc'] = {
+            cash = 500
+        }
+    })
+
+    -- Push to array
+    Database:updateOne('characters', {
+        SID = 1
+    }, {
+        ['$push'] = {
+            licenses = 'weapon'
+        }
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="deleteOne(collection, query)" icon="trash">
+    Delete a single document.
+
+    ```lua
+    Database:deleteOne('vehicles', {
+        _id = vehicleId
+    })
+    ```
+
+    **Returns:** Boolean success
+  </Accordion>
+
+  <Accordion title="count(collection, query)" icon="hashtag">
+    Count documents matching query.
+
+    ```lua
+    local vehicleCount = Database:count('vehicles', {
+        owner = characterId
+    })
+
+    print('Player owns', vehicleCount, 'vehicles')
+    ```
+
+    **Returns:** Number
+  </Accordion>
+
+  <Accordion title="aggregate(collection, pipeline)" icon="filter">
+    Advanced aggregation queries.
+
+    ```lua
+    local stats = Database:aggregate('characters', {
+        {
+            ['$group'] = {
+                _id = '$Gender',
+                count = { ['$sum'] = 1 },
+                avgCash = { ['$avg'] = '$cash' }
+            }
+        }
+    })
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### MongoDB Query Operators
+
+```lua
+-- Comparison
+{ cash = { ['$gt'] = 1000 } }              -- Greater than
+{ cash = { ['$gte'] = 1000 } }             -- Greater than or equal
+{ cash = { ['$lt'] = 1000 } }              -- Less than
+{ cash = { ['$lte'] = 1000 } }             -- Less than or equal
+{ cash = { ['$ne'] = 0 } }                 -- Not equal
+
+-- Logical
+{ ['$or'] = {                               -- OR
+    { cash = { ['$gt'] = 10000 } },
+    { bank = { ['$gt'] = 50000 } }
+}}
+
+{ ['$and'] = {...} }                        -- AND
+{ ['$not'] = {...} }                        -- NOT
+
+-- Array
+{ licenses = { ['$in'] = { 'driver', 'weapon' } } }  -- In array
+{ licenses = 'weapon' }                     -- Has element
+
+-- Update operators
+{ ['$set'] = { cash = 5000 } }             -- Set field
+{ ['$inc'] = { cash = 100 } }              -- Increment
+{ ['$push'] = { licenses = 'fishing' } }   -- Add to array
+{ ['$pull'] = { licenses = 'weapon' } }    -- Remove from array
+```
+
+## MySQL Usage
+
+### Accessing MySQL
+
+MySQL operations use oxmysql resource:
+
+```lua
+-- Execute query
+exports.oxmysql:execute('UPDATE users SET money = ? WHERE id = ?', {
+    newMoney,
+    userId
+})
+
+-- Fetch single row
+local user = exports.oxmysql:single('SELECT * FROM users WHERE id = ?', { userId })
+
+-- Fetch multiple rows
+local users = exports.oxmysql:query('SELECT * FROM users WHERE banned = ?', { false })
+
+-- Insert and get ID
+local insertId = exports.oxmysql:insert('INSERT INTO logs (action, player) VALUES (?, ?)', {
+    'login',
+    playerId
+})
+
+-- Prepared statements (safer)
+local result = exports.oxmysql:prepare('SELECT * FROM vehicles WHERE owner = ?', { characterId })
+```
+
+### Common MySQL Queries
+
+<AccordionGroup>
+  <Accordion title="SELECT Queries" icon="magnifying-glass">
+    ```lua
+    -- Select all
+    local vehicles = exports.oxmysql:query('SELECT * FROM vehicles WHERE owner = ?', {
+        characterId
+    })
+
+    -- Select specific columns
+    local names = exports.oxmysql:query('SELECT first_name, last_name FROM characters WHERE id = ?', {
+        charId
+    })
+
+    -- With JOIN
+    local data = exports.oxmysql:query([[
+        SELECT c.*, v.plate, v.model
+        FROM characters c
+        LEFT JOIN vehicles v ON v.owner = c.id
+        WHERE c.id = ?
+    ]], { charId })
+    ```
+  </Accordion>
+
+  <Accordion title="INSERT Queries" icon="plus">
+    ```lua
+    -- Simple insert
+    exports.oxmysql:insert('INSERT INTO logs (action, player, timestamp) VALUES (?, ?, ?)', {
+        'purchase',
+        playerId,
+        os.time()
+    })
+
+    -- Insert and get ID
+    local vehicleId = exports.oxmysql:insert([[
+        INSERT INTO vehicles (owner, model, plate)
+        VALUES (?, ?, ?)
+    ]], {
+        characterId,
+        'adder',
+        'ABC123'
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="UPDATE Queries" icon="pen">
+    ```lua
+    -- Update single field
+    exports.oxmysql:execute('UPDATE characters SET cash = ? WHERE id = ?', {
+        newCash,
+        charId
+    })
+
+    -- Update multiple fields
+    exports.oxmysql:execute([[
+        UPDATE characters
+        SET cash = ?, bank = ?, last_login = ?
+        WHERE id = ?
+    ]], {
+        cash,
+        bank,
+        os.time(),
+        charId
+    })
+
+    -- Increment field
+    exports.oxmysql:execute('UPDATE characters SET cash = cash + ? WHERE id = ?', {
+        amount,
+        charId
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="DELETE Queries" icon="trash">
+    ```lua
+    -- Delete record
+    exports.oxmysql:execute('DELETE FROM vehicles WHERE id = ?', { vehicleId })
+
+    -- Delete with condition
+    exports.oxmysql:execute('DELETE FROM logs WHERE timestamp < ?', {
+        os.time() - (30 * 24 * 60 * 60)  -- Older than 30 days
+    })
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Data Models
+
+### Character Document (MongoDB)
+
+```javascript
+{
+    _id: ObjectId("..."),
+    SID: 1,                              // Character ID
+    Owner: "license:abc123",             // Player identifier
+    First: "John",
+    Last: "Doe",
+    Phone: "555-1234",
+    Gender: "Male",
+    DOB: "1990-01-01",
+    cash: 5000,
+    bank: 25000,
+    job: {
+        id: "police",
+        name: "Los Santos Police Department",
+        grade: {
+            id: "officer",
+            name: "Officer",
+            level: 1,
+            salary: 2500
+        }
+    },
+    licenses: ["driver", "weapon", "fishing"],
+    metadata: {
+        hunger: 80,
+        thirst: 60,
+        stress: 20
+    },
+    appearance: {
+        model: "mp_m_freemode_01",
+        customization: {...}
+    },
+    position: {
+        x: 215.3,
+        y: -810.1,
+        z: 30.7,
+        heading: 180.0
+    },
+    created: 1234567890,
+    lastSeen: 1234567890
+}
+```
+
+### Inventory Document (MongoDB)
+
+```javascript
+{
+    _id: ObjectId("..."),
+    owner: 1,                            // Character SID
+    type: "player",                      // player, vehicle, property, etc.
+    maxSlots: 50,
+    maxWeight: 100.0,
+    items: [
+        {
+            slot: 1,
+            name: "water_bottle",
+            label: "Water Bottle",
+            count: 5,
+            weight: 0.5,
+            quality: 100,
+            metadata: {
+                durability: 100
+            }
+        },
+        {
+            slot: 2,
+            name: "weapon_pistol",
+            label: "Pistol",
+            count: 1,
+            weight: 2.0,
+            quality: 95,
+            metadata: {
+                serial: "ABC123",
+                ammo: 12,
+                attachments: ["suppressor", "flashlight"]
+            }
+        }
+    ]
+}
+```
+
+### Vehicle Record (MySQL)
+
+```sql
+CREATE TABLE vehicles (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    owner INT NOT NULL,                  -- Character SID
+    model VARCHAR(50) NOT NULL,
+    plate VARCHAR(8) UNIQUE NOT NULL,
+    garage VARCHAR(50) DEFAULT 'pillbox',
+    state INT DEFAULT 0,                 -- 0=out, 1=garaged
+    fuel INT DEFAULT 100,
+    engine FLOAT DEFAULT 1000.0,
+    body FLOAT DEFAULT 1000.0,
+    mods TEXT,                           -- JSON customization
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_owner (owner),
+    INDEX idx_plate (plate)
+);
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="1. Use MongoDB for Game Data" icon="leaf">
+    Store dynamic, frequently-changing data in MongoDB:
+
+    ```lua
+    // ✅ GOOD - MongoDB
+    - Character stats
+    - Inventory items
+    - Player positions
+    - Logs and events
+
+    // ❌ BAD - MySQL for this
+    - Constantly updating data requires many UPDATE queries
+    ```
+  </Accordion>
+
+  <Accordion title="2. Use MySQL for Relational Data" icon="link">
+    Use MySQL when you need complex relationships:
+
+    ```lua
+    // ✅ GOOD - MySQL
+    - Vehicle ownership with joins to characters
+    - Transaction history requiring aggregation
+    - Property relationships
+
+    // Use JOIN queries
+    SELECT v.*, c.first_name, c.last_name
+    FROM vehicles v
+    JOIN characters c ON v.owner = c.id
+    WHERE v.plate = ?
+    ```
+  </Accordion>
+
+  <Accordion title="3. Index Your Collections" icon="magnifying-glass-chart">
+    Add indexes for frequently queried fields:
+
+    ```javascript
+    // MongoDB - Create indexes
+    db.characters.createIndex({ Owner: 1 })
+    db.characters.createIndex({ SID: 1 }, { unique: true })
+    db.inventory.createIndex({ owner: 1 })
+    db.vehicles.createIndex({ owner: 1, stored: 1 })
+    ```
+
+    ```sql
+    -- MySQL - Create indexes
+    CREATE INDEX idx_owner ON vehicles(owner);
+    CREATE INDEX idx_character ON inventory(character_id);
+    ```
+  </Accordion>
+
+  <Accordion title="4. Sanitize User Input" icon="shield">
+    Always use parameterized queries:
+
+    ```lua
+    // ✅ GOOD - Parameterized
+    Database:findOne('characters', { SID = userInput })
+    exports.oxmysql:single('SELECT * FROM users WHERE id = ?', { userInput })
+
+    // ❌ BAD - SQL injection risk
+    exports.oxmysql:single('SELECT * FROM users WHERE id = ' .. userInput)
+    ```
+  </Accordion>
+
+  <Accordion title="5. Handle Errors" icon="triangle-exclamation">
+    Database operations can fail. Handle errors:
+
+    ```lua
+    local success, result = pcall(function()
+        return Database:findOne('characters', { SID = charId })
+    end)
+
+    if not success then
+        COMPONENTS.Logger:Error('Database', 'Failed to fetch character', {
+            error = result,
+            charId = charId
+        })
+        return nil
+    end
+
+    return result
+    ```
+  </Accordion>
+
+  <Accordion title="6. Batch Operations" icon="layer-group">
+    When possible, batch database operations:
+
+    ```lua
+    // ❌ BAD - Multiple queries in loop
+    for i = 1, 100 do
+        Database:insertOne('logs', { action = 'test_' .. i })
+    end
+
+    // ✅ GOOD - Single batch insert
+    local documents = {}
+    for i = 1, 100 do
+        table.insert(documents, { action = 'test_' .. i })
+    end
+    Database:insertMany('logs', documents)
+    ```
+  </Accordion>
+
+  <Accordion title="7. Cache When Appropriate" icon="database">
+    Cache frequently accessed, rarely changing data:
+
+    ```lua
+    -- Cache example
+    local itemCache = {}
+
+    function GetItem(itemId)
+        if itemCache[itemId] then
+            return itemCache[itemId]
+        end
+
+        local item = Database:findOne('items', { id = itemId })
+        itemCache[itemId] = item
+        return item
+    end
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Optimization
+
+### MongoDB Optimization
+
+```javascript
+// 1. Use projection to limit returned fields
+Database:findOne('characters', { SID = 1 }, {
+    projection = { First = 1, Last = 1, cash = 1 }
+})
+
+// 2. Limit results
+Database:find('logs', { player = playerId }, {
+    limit = 100,
+    sort = { timestamp = -1 }
+})
+
+// 3. Use indexes (create once)
+db.characters.createIndex({ SID: 1 }, { unique: true })
+db.inventory.createIndex({ owner: 1 })
+
+// 4. Use aggregation for complex queries
+Database:aggregate('vehicles', {
+    {
+        ['$group'] = {
+            _id = '$model',
+            count = { ['$sum'] = 1 }
+        }
+    },
+    {
+        ['$sort'] = { count = -1 }
+    },
+    {
+        ['$limit'] = 10
+    }
+})
+```
+
+### MySQL Optimization
+
+```sql
+-- 1. Use prepared statements
+exports.oxmysql:prepare('SELECT * FROM vehicles WHERE owner = ?', { charId })
+
+-- 2. Add indexes
+CREATE INDEX idx_owner ON vehicles(owner);
+CREATE INDEX idx_compound ON vehicles(owner, state);
+
+-- 3. Optimize queries
+-- Use EXPLAIN to check query performance
+EXPLAIN SELECT * FROM vehicles WHERE owner = 1;
+
+-- 4. Limit results
+SELECT * FROM logs WHERE player = ? ORDER BY timestamp DESC LIMIT 100;
+```
+
+## Database Migration
+
+When updating schemas:
+
+```lua
+-- MongoDB migration example
+function MigrateCharacterSchema()
+    local chars = Database:find('characters', {})
+
+    for _, char in ipairs(chars) do
+        if not char.metadata then
+            Database:updateOne('characters', {
+                _id = char._id
+            }, {
+                ['$set'] = {
+                    metadata = {
+                        hunger = 100,
+                        thirst = 100,
+                        stress = 0
+                    }
+                }
+            })
+        end
+    end
+
+    print('Migration complete')
+end
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/installation/database-setup">
+    Initial database configuration
+  </Card>
+  <Card title="Data Models" icon="table" href="/development/database/data-models">
+    Complete data model reference
+  </Card>
+  <Card title="MongoDB Guide" icon="leaf" href="/development/database/mongodb-guide">
+    MongoDB development guide
+  </Card>
+  <Card title="MySQL Guide" icon="table" href="/development/database/mysql-guide">
+    MySQL development guide
+  </Card>
+</CardGroup>
+
+<Tip>
+**When in doubt, use MongoDB** for game data. It's more flexible and handles nested/changing data better. Use MySQL when you specifically need relational queries or compatibility with other resources.
+</Tip>

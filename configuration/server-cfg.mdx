@@ -1,0 +1,490 @@
+---
+title: Server Configuration
+description: Complete breakdown of server.cfg settings for Mythic Framework
+icon: 'server'
+---
+
+The `server.cfg` file is the heart of your FiveM server configuration. This guide breaks down every setting and explains how to configure your Mythic Framework server for optimal performance and security.
+
+## File Location
+
+```
+MythicFramework/
+└── server.cfg
+```
+
+## Basic Settings
+
+### Server Identity
+
+```bash
+# Server name as it appears in the server browser
+sv_hostname "^5Mythic ^7Roleplay Server"
+
+# Tags for server browser filtering
+sets tags "roleplay, mythic, economy, jobs"
+
+# Server description
+sets sv_projectName "Mythic Framework"
+sets sv_projectDesc "Professional FiveM Roleplay Server"
+
+# Server language
+sets locale "en-US"
+```
+
+<AccordionGroup>
+  <Accordion title="sv_hostname" icon="tag">
+    **Purpose:** Display name in the FiveM server browser
+
+    **Format:** Supports FiveM color codes (^0-^9)
+
+    **Example:**
+    ```bash
+    sv_hostname "^5Mythic ^7Roleplay ^3[EU]"
+    ```
+
+    **Best Practices:**
+    - Keep it concise (under 50 characters)
+    - Use color codes sparingly for readability
+    - Include region if applicable [EU], [NA], [OCE]
+  </Accordion>
+
+  <Accordion title="tags" icon="tags">
+    **Purpose:** Help players find your server through filters
+
+    **Format:** Comma-separated list
+
+    **Common Tags:**
+    - `roleplay` - RP server
+    - `economy` - Economy system
+    - `whitelist` - Whitelisted server
+    - `serious` - Serious RP
+    - `new` - New server
+
+    **Example:**
+    ```bash
+    sets tags "roleplay, whitelist, economy, jobs, police"
+    ```
+  </Accordion>
+
+  <Accordion title="locale" icon="language">
+    **Purpose:** Server language/region
+
+    **Common Values:**
+    - `en-US` - English (United States)
+    - `en-GB` - English (United Kingdom)
+    - `de-DE` - German
+    - `fr-FR` - French
+    - `es-ES` - Spanish
+  </Accordion>
+</AccordionGroup>
+
+## License and API Keys
+
+```bash
+# FiveM license key (REQUIRED)
+sv_licenseKey "your_license_key_here"
+
+# Steam Web API key (REQUIRED for Steam auth)
+set steam_webApiKey "your_steam_api_key_here"
+
+# Discord Guild ID (for Discord integration)
+set discord_guild_id "your_discord_guild_id"
+```
+
+<Warning>
+**Never share your license or API keys publicly!** Store them securely and never commit them to public repositories.
+</Warning>
+
+<Steps>
+  <Step title="Get FiveM License Key">
+    1. Visit [https://keymaster.fivem.net](https://keymaster.fivem.net)
+    2. Log in with your FiveM account
+    3. Click "New Server"
+    4. Generate a key for your server IP
+    5. Copy the key to `sv_licenseKey`
+  </Step>
+
+  <Step title="Get Steam API Key">
+    1. Visit [https://steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey)
+    2. Enter your domain (can use localhost for testing)
+    3. Agree to terms and generate key
+    4. Copy to `steam_webApiKey`
+  </Step>
+
+  <Step title="Get Discord Guild ID">
+    1. Enable Developer Mode in Discord (User Settings → Advanced)
+    2. Right-click your Discord server
+    3. Click "Copy ID"
+    4. Paste into `discord_guild_id`
+  </Step>
+</Steps>
+
+## Network Configuration
+
+```bash
+# Server endpoint (IP:Port)
+endpoint_add_tcp "0.0.0.0:30120"
+endpoint_add_udp "0.0.0.0:30120"
+
+# Maximum players
+sv_maxclients 48
+
+# Enforce GameBuild (prevents version mismatches)
+sv_enforceGameBuild 2802
+```
+
+<CardGroup cols={2}>
+  <Card title="endpoint_add_tcp/udp" icon="network-wired">
+    Defines the IP and port your server listens on.
+
+    **0.0.0.0** = Listen on all network interfaces
+
+    **30120** = Default FiveM port (can be changed)
+  </Card>
+
+  <Card title="sv_maxclients" icon="users">
+    Maximum concurrent players.
+
+    **Recommendation:** Start with 32-48 for testing. Scale up to 64-128 for production based on server resources.
+  </Card>
+
+  <Card title="sv_enforceGameBuild" icon="shield-check">
+    Enforces specific GTA V game build.
+
+    **2802** = Current recommended build
+
+    Prevents players with outdated game versions from joining.
+  </Card>
+</CardGroup>
+
+## Database Configuration
+
+```bash
+# MongoDB connection string
+set mongodb_url "mongodb://username:password@localhost:27017/mythic"
+set mongodb_database "mythic"
+
+# MySQL connection string (oxmysql)
+set mysql_connection_string "mysql://username:password@localhost:3306/mythic?charset=utf8mb4"
+```
+
+<Tip>
+For detailed database setup instructions, see [Database Connections](/configuration/database-connections).
+</Tip>
+
+## Discord Webhooks
+
+```bash
+# Admin logs webhook
+set discord_admin_webhook "https://discord.com/api/webhooks/..."
+
+# Connection logs webhook
+set discord_connection_webhook "https://discord.com/api/webhooks/..."
+
+# Kill logs webhook
+set discord_kill_webhook "https://discord.com/api/webhooks/..."
+
+# Error logs webhook
+set discord_error_webhook "https://discord.com/api/webhooks/..."
+
+# Anti-cheat logs webhook
+set discord_pwnzor_webhook "https://discord.com/api/webhooks/..."
+```
+
+<Info>
+Learn how to create and configure Discord webhooks in [Discord Webhooks Guide](/configuration/discord-webhooks).
+</Info>
+
+## Environment Configuration
+
+```bash
+# Environment (dev/prod/test)
+set environment "prod"
+
+# Debug mode (verbose logging)
+set debug_mode "false"
+
+# Enable OneSync (REQUIRED for Mythic Framework)
+set onesync on
+
+# OneSync population (enables OneSync Infinity)
+set onesync_enabled true
+set onesync_population true
+```
+
+<AccordionGroup>
+  <Accordion title="environment" icon="flask">
+    **Options:**
+    - `dev` - Development (verbose logging, hot reload)
+    - `prod` - Production (optimized, minimal logging)
+    - `test` - Testing (feature flags enabled)
+
+    **Effect:** Controls logging verbosity and feature flags throughout the framework.
+  </Accordion>
+
+  <Accordion title="OneSync" icon="sync">
+    **Required:** YES - Mythic Framework requires OneSync Infinity
+
+    **Purpose:** Enables server-side entity management and increased player slots
+
+    **Configuration:**
+    ```bash
+    set onesync on
+    set onesync_enabled true
+    set onesync_population true
+    ```
+
+    **Never disable OneSync** - the framework depends on it.
+  </Accordion>
+
+  <Accordion title="debug_mode" icon="bug">
+    **Options:** `true` or `false`
+
+    **When Enabled:**
+    - Verbose console logging
+    - Database query logging
+    - Event monitoring
+    - Performance profiling
+
+    **Use Cases:**
+    - Troubleshooting issues
+    - Development and testing
+    - Performance optimization
+
+    **Disable in production** for performance.
+  </Accordion>
+</AccordionGroup>
+
+## Performance Tuning
+
+```bash
+# Server thread management
+set sv_threadSleep 0
+
+# Script runtime budget (ms per tick)
+set sv_scriptHookAllowed 0
+
+# Enable server profiling
+set sv_enableProfiling true
+```
+
+<CardGroup cols={2}>
+  <Card title="sv_threadSleep" icon="gauge">
+    **Default:** 0 (no sleep)
+
+    Controls server tick rate. Lower = higher performance but more CPU usage.
+
+    **Recommendation:** Keep at 0 for production servers.
+  </Card>
+
+  <Card title="sv_scriptHookAllowed" icon="code">
+    **Default:** 0 (disabled)
+
+    Allows ScriptHook (modding tool). Should be **disabled** on production servers for security.
+  </Card>
+
+  <Card title="sv_enableProfiling" icon="chart-line">
+    **Default:** false
+
+    Enables performance profiling. Useful for diagnosing performance issues.
+
+    Enable when troubleshooting, disable in production.
+  </Card>
+</CardGroup>
+
+## Security Settings
+
+```bash
+# Disable script hook (security)
+set sv_scriptHookAllowed 0
+
+# Enable ACE permission system
+add_ace resource.mythic-admin command allow
+
+# Require Steam authentication
+sv_authMaxVariance 1
+sv_authMinTrust 1
+
+# Rate limiting
+set sv_filterRequestControl 4
+```
+
+<Warning>
+**Critical Security Settings:**
+
+1. **Never enable script hook** (`sv_scriptHookAllowed 0`)
+2. **Require Steam auth** for player identity verification
+3. **Enable rate limiting** to prevent spam/DoS
+4. **Use ACE permissions** for admin access control
+</Warning>
+
+## Admin Permissions
+
+```bash
+# Add admins by identifier
+add_ace identifier.steam:110000XXXXXXXX admin allow
+add_ace identifier.license:XXXXXXXXXXXXXXXX admin allow
+
+# Create admin group
+add_ace group.admin command allow
+add_ace group.admin admin allow
+
+# Add principals to groups
+add_principal identifier.steam:110000XXXXXXXX group.admin
+```
+
+<Note>
+For complete permission configuration, see [Permissions Guide](/configuration/permissions).
+</Note>
+
+## Resource Loading
+
+```bash
+# Ensure core resources in order
+ensure mythic-base
+ensure mythic-pwnzor
+ensure mythic-queue
+ensure mythic-loadscreen
+ensure mythic-characters
+
+# ... (all other resources)
+```
+
+<Tip>
+Resource load order is **critical**. See [Resource Management](/configuration/resource-management) for proper ordering.
+</Tip>
+
+## Complete Example
+
+<Accordion title="View Full server.cfg Example">
+```bash
+# ====================================
+# MYTHIC FRAMEWORK - SERVER CONFIG
+# ====================================
+
+# === BASIC SETTINGS ===
+sv_hostname "^5Mythic ^7Roleplay Server"
+sets tags "roleplay, mythic, economy, jobs"
+sets locale "en-US"
+sv_maxclients 48
+
+# === AUTHENTICATION ===
+sv_licenseKey "your_license_key_here"
+set steam_webApiKey "your_steam_api_key_here"
+set discord_guild_id "your_discord_guild_id"
+
+# === NETWORK ===
+endpoint_add_tcp "0.0.0.0:30120"
+endpoint_add_udp "0.0.0.0:30120"
+sv_enforceGameBuild 2802
+
+# === DATABASE ===
+set mongodb_url "mongodb://username:password@localhost:27017/mythic"
+set mongodb_database "mythic"
+set mysql_connection_string "mysql://username:password@localhost:3306/mythic?charset=utf8mb4"
+
+# === DISCORD WEBHOOKS ===
+set discord_admin_webhook "https://discord.com/api/webhooks/..."
+set discord_connection_webhook "https://discord.com/api/webhooks/..."
+set discord_kill_webhook "https://discord.com/api/webhooks/..."
+set discord_error_webhook "https://discord.com/api/webhooks/..."
+set discord_pwnzor_webhook "https://discord.com/api/webhooks/..."
+
+# === ENVIRONMENT ===
+set environment "prod"
+set debug_mode "false"
+
+# === ONESYNC (REQUIRED) ===
+set onesync on
+set onesync_enabled true
+set onesync_population true
+
+# === PERFORMANCE ===
+set sv_threadSleep 0
+set sv_scriptHookAllowed 0
+set sv_enableProfiling false
+
+# === SECURITY ===
+sv_authMaxVariance 1
+sv_authMinTrust 1
+set sv_filterRequestControl 4
+
+# === PERMISSIONS ===
+add_ace resource.mythic-admin command allow
+add_ace group.admin command allow
+add_ace group.admin admin allow
+
+# Add your admin identifier here
+add_principal identifier.steam:YOUR_STEAM_ID group.admin
+
+# === RESOURCES ===
+# Database (MUST load first)
+ensure oxmysql
+
+# Core Framework
+ensure mythic-base
+ensure mythic-pwnzor
+
+# ... (additional resources)
+```
+</Accordion>
+
+## Validation Checklist
+
+Before starting your server, verify:
+
+<Steps>
+  <Step title="License Keys">
+    ✅ FiveM license key added
+    ✅ Steam API key added
+    ✅ Keys are valid and not expired
+  </Step>
+
+  <Step title="Database">
+    ✅ MongoDB connection string correct
+    ✅ MySQL connection string correct
+    ✅ Databases created and accessible
+    ✅ Authentication credentials valid
+  </Step>
+
+  <Step title="Network">
+    ✅ Correct IP and port configured
+    ✅ Firewall allows traffic on port
+    ✅ Port forwarding configured (if needed)
+  </Step>
+
+  <Step title="Security">
+    ✅ Script hook disabled
+    ✅ Steam auth required
+    ✅ Admin permissions configured
+    ✅ Discord webhooks use HTTPS
+  </Step>
+
+  <Step title="OneSync">
+    ✅ OneSync enabled
+    ✅ OneSync population enabled
+    ✅ onesync_enabled set to true
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Connections" icon="database" href="/configuration/database-connections">
+    Configure MongoDB and MySQL connections
+  </Card>
+  <Card title="Discord Webhooks" icon="discord" href="/configuration/discord-webhooks">
+    Set up Discord logging webhooks
+  </Card>
+  <Card title="Resource Management" icon="boxes-stacked" href="/configuration/resource-management">
+    Understand resource load order
+  </Card>
+  <Card title="Permissions" icon="shield-check" href="/configuration/permissions">
+    Configure ACE permissions system
+  </Card>
+</CardGroup>
+
+<Warning>
+**Important:** After making changes to `server.cfg`, you must restart the server for them to take effect. Some settings cannot be changed while the server is running.
+</Warning>

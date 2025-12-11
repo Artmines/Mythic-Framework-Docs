@@ -1,0 +1,431 @@
+---
+title: Prerequisites
+description: System requirements and dependencies needed to run Mythic Framework
+icon: 'list-check'
+---
+
+Before installing Mythic Framework, ensure you have all the required software and meet the minimum system requirements. This guide covers everything you need to prepare before installation.
+
+## System Requirements
+
+<CardGroup cols={2}>
+  <Card title="Minimum Requirements" icon="server">
+    - **OS**: Windows 10/11 or Linux (Ubuntu 20.04+)
+    - **RAM**: 4GB
+    - **CPU**: 2 cores @ 2.5GHz
+    - **Storage**: 10GB free space
+    - **Network**: 100 Mbps upload (for 32 players)
+  </Card>
+  <Card title="Recommended Requirements" icon="rocket">
+    - **OS**: Windows Server 2019+ or Linux
+    - **RAM**: 8GB+ (16GB for 48+ players)
+    - **CPU**: 4+ cores @ 3.0GHz+
+    - **Storage**: 20GB+ SSD
+    - **Network**: 1 Gbps upload (for 48+ players)
+  </Card>
+</CardGroup>
+
+<Note>
+Server performance heavily depends on player count and resource usage. The recommended specs are for a 48-player server running all Mythic Framework resources.
+</Note>
+
+## Required Software
+
+### 1. FiveM Server License
+
+You need a valid FiveM server license key to run a FiveM server.
+
+<Steps>
+  <Step title="Create Cfx.re Account">
+    Visit [forum.cfx.re](https://forum.cfx.re) and create an account if you don't have one
+  </Step>
+  <Step title="Generate License Key">
+    Go to [keymaster.fivem.net](https://keymaster.fivem.net) and generate a new server license key
+  </Step>
+  <Step title="Save Your Key">
+    Save the license key - you'll need it during server configuration
+  </Step>
+</Steps>
+
+<Warning>
+Each license key is tied to a specific IP address. If your server IP changes, you'll need to generate a new license key.
+</Warning>
+
+### 2. MongoDB (Required)
+
+MongoDB is the primary database for Mythic Framework, storing authentication data and game data.
+
+<Tabs>
+  <Tab title="Windows">
+    **Download & Install:**
+    1. Visit [mongodb.com/try/download/community](https://www.mongodb.com/try/download/community)
+    2. Download MongoDB Community Server 4.4+ (6.0+ recommended)
+    3. Run the installer with default settings
+    4. Enable "Install MongoDB as a Service"
+    5. Install MongoDB Compass (GUI tool) when prompted
+
+    **Verify Installation:**
+    ```bash
+    # Open Command Prompt and run:
+    mongo --version
+    # Should show: MongoDB shell version v4.4.x or higher
+    ```
+
+    **Start MongoDB Service:**
+    ```bash
+    # MongoDB should start automatically as a service
+    # To manually start/stop:
+    net start MongoDB
+    net stop MongoDB
+    ```
+  </Tab>
+  <Tab title="Linux (Ubuntu/Debian)">
+    **Install MongoDB:**
+    ```bash
+    # Import MongoDB public GPG key
+    wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo apt-key add -
+
+    # Create list file for MongoDB
+    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+
+    # Update packages and install
+    sudo apt-get update
+    sudo apt-get install -y mongodb-org
+
+    # Start MongoDB
+    sudo systemctl start mongod
+    sudo systemctl enable mongod
+    ```
+
+    **Verify Installation:**
+    ```bash
+    mongo --version
+    # Should show: MongoDB shell version v6.0.x or higher
+    ```
+  </Tab>
+  <Tab title="Docker">
+    **Run MongoDB in Docker:**
+    ```bash
+    # Pull and run MongoDB container
+    docker run -d \
+      --name mythic-mongodb \
+      -p 27017:27017 \
+      -v mongodb_data:/data/db \
+      -e MONGO_INITDB_ROOT_USERNAME=admin \
+      -e MONGO_INITDB_ROOT_PASSWORD=your_secure_password \
+      mongo:6.0
+
+    # Verify it's running
+    docker ps | grep mythic-mongodb
+    ```
+
+    <Note>
+    Remember to update your connection string with the username/password if using authentication.
+    </Note>
+  </Tab>
+</Tabs>
+
+<Accordion title="MongoDB Configuration Tips">
+  **For Production Servers:**
+  - Enable authentication (create admin user)
+  - Configure firewall to restrict MongoDB port (27017) access
+  - Set up regular backups
+  - Monitor memory usage
+
+  **Connection String Format:**
+  ```
+  mongodb://username:password@localhost:27017/?authSource=admin
+  ```
+</Accordion>
+
+### 3. MySQL/MariaDB (Required)
+
+MySQL provides compatibility with existing FiveM resources and handles relational data.
+
+<Tabs>
+  <Tab title="Windows">
+    **Option 1: MySQL Community Server**
+    1. Download from [dev.mysql.com/downloads/mysql](https://dev.mysql.com/downloads/mysql/)
+    2. Run installer and select "Server only" or "Full" installation
+    3. Configure root password during setup
+    4. Leave default port (3306)
+
+    **Option 2: XAMPP (Easier for Beginners)**
+    1. Download from [apachefriends.org](https://www.apachefriends.org/)
+    2. Install XAMPP
+    3. Start MySQL from XAMPP Control Panel
+    4. Access phpMyAdmin at http://localhost/phpmyadmin
+
+    **Verify Installation:**
+    ```bash
+    mysql --version
+    # Should show: mysql  Ver 8.0.x or higher
+    ```
+  </Tab>
+  <Tab title="Linux (Ubuntu/Debian)">
+    **Install MariaDB:**
+    ```bash
+    # Update packages
+    sudo apt-get update
+
+    # Install MariaDB
+    sudo apt-get install -y mariadb-server
+
+    # Secure installation
+    sudo mysql_secure_installation
+
+    # Start and enable service
+    sudo systemctl start mariadb
+    sudo systemctl enable mariadb
+    ```
+
+    **Create Database User:**
+    ```bash
+    sudo mysql -u root -p
+
+    # In MySQL prompt:
+    CREATE USER 'mythic'@'localhost' IDENTIFIED BY 'secure_password';
+    GRANT ALL PRIVILEGES ON *.* TO 'mythic'@'localhost';
+    FLUSH PRIVILEGES;
+    EXIT;
+    ```
+  </Tab>
+  <Tab title="Docker">
+    **Run MySQL in Docker:**
+    ```bash
+    docker run -d \
+      --name mythic-mysql \
+      -p 3306:3306 \
+      -v mysql_data:/var/lib/mysql \
+      -e MYSQL_ROOT_PASSWORD=your_secure_password \
+      mysql:8.0
+
+    # Verify it's running
+    docker ps | grep mythic-mysql
+    ```
+  </Tab>
+</Tabs>
+
+### 4. Node.js (Required for Database Operations)
+
+Node.js is required for the JavaScript database wrapper used by mythic-base.
+
+<Tabs>
+  <Tab title="Windows">
+    1. Download LTS version from [nodejs.org](https://nodejs.org/)
+    2. Run installer with default settings
+    3. Verify installation:
+    ```bash
+    node --version
+    # Should show: v18.x.x or higher
+
+    npm --version
+    # Should show: 9.x.x or higher
+    ```
+  </Tab>
+  <Tab title="Linux">
+    ```bash
+    # Install Node.js 18.x LTS
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+
+    # Verify installation
+    node --version
+    npm --version
+    ```
+  </Tab>
+</Tabs>
+
+### 5. Steam Web API Key (Required)
+
+Required for Steam integration and player authentication.
+
+<Steps>
+  <Step title="Visit Steam API Page">
+    Go to [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey)
+  </Step>
+  <Step title="Register API Key">
+    - Enter your server domain (or IP address)
+    - Agree to terms of use
+    - Click "Register"
+  </Step>
+  <Step title="Save Your Key">
+    Copy the generated API key - you'll need it in server.cfg
+  </Step>
+</Steps>
+
+## Optional Software
+
+### MongoDB Compass (Recommended)
+
+GUI tool for managing MongoDB databases - makes database management much easier.
+
+- **Download**: [mongodb.com/products/compass](https://www.mongodb.com/products/compass)
+- **Features**: Visual query builder, schema analysis, performance monitoring
+- **Usage**: Useful for viewing character data, items, and debugging
+
+### HeidiSQL or MySQL Workbench (Recommended)
+
+GUI tools for managing MySQL databases.
+
+<Tabs>
+  <Tab title="HeidiSQL">
+    - **Download**: [heidisql.com](https://www.heidisql.com/)
+    - **Platform**: Windows only
+    - **Features**: Lightweight, easy to use
+  </Tab>
+  <Tab title="MySQL Workbench">
+    - **Download**: [mysql.com/products/workbench](https://www.mysql.com/products/workbench/)
+    - **Platform**: Windows, Linux, macOS
+    - **Features**: Advanced features, schema designer
+  </Tab>
+</Tabs>
+
+### Git (Recommended for Developers)
+
+Version control for managing your server files and custom resources.
+
+- **Windows**: Download from [git-scm.com](https://git-scm.com/)
+- **Linux**: `sudo apt-get install git`
+
+### Code Editor (Recommended for Developers)
+
+<CardGroup cols={2}>
+  <Card title="Visual Studio Code" icon="code">
+    **Recommended for most developers**
+    - Download: [code.visualstudio.com](https://code.visualstudio.com/)
+    - Install extensions: Lua, React, ESLint
+  </Card>
+  <Card title="Sublime Text" icon="file-code">
+    **Lightweight alternative**
+    - Download: [sublimetext.com](https://www.sublimetext.com/)
+    - Good for quick edits
+  </Card>
+</CardGroup>
+
+## Network Requirements
+
+### Ports to Open
+
+Ensure these ports are open in your firewall:
+
+| Port | Protocol | Purpose |
+|------|----------|---------|
+| 30120 | TCP/UDP | FiveM game server (default) |
+| 40120 | TCP | FiveM HTTP server (optional) |
+| 27017 | TCP | MongoDB (if remote access needed) |
+| 3306 | TCP | MySQL (if remote access needed) |
+
+<Warning>
+**Security**: Only open MongoDB (27017) and MySQL (3306) ports if you need remote access. For local development, keep them closed to external access.
+</Warning>
+
+### Firewall Configuration
+
+<Tabs>
+  <Tab title="Windows Firewall">
+    ```bash
+    # Allow FiveM through Windows Firewall
+    netsh advfirewall firewall add rule name="FiveM Server" dir=in action=allow protocol=TCP localport=30120
+    netsh advfirewall firewall add rule name="FiveM Server UDP" dir=in action=allow protocol=UDP localport=30120
+    ```
+  </Tab>
+  <Tab title="Linux (UFW)">
+    ```bash
+    # Allow FiveM through UFW
+    sudo ufw allow 30120/tcp
+    sudo ufw allow 30120/udp
+    sudo ufw enable
+    ```
+  </Tab>
+  <Tab title="Cloud/VPS">
+    If using cloud providers (AWS, DigitalOcean, etc.), configure security groups/firewall rules:
+    - Allow inbound TCP/UDP on port 30120 from 0.0.0.0/0
+    - Optionally allow TCP 40120 for txAdmin
+  </Tab>
+</Tabs>
+
+## Verification Checklist
+
+Before proceeding to installation, verify you have:
+
+<AccordionGroup>
+  <Accordion title="✅ Server Requirements Met" icon="check">
+    - [ ] Adequate RAM (4GB minimum, 8GB+ recommended)
+    - [ ] Sufficient storage (10GB+ free space)
+    - [ ] Stable internet connection
+  </Accordion>
+
+  <Accordion title="✅ Required Software Installed" icon="check">
+    - [ ] MongoDB installed and running
+    - [ ] MySQL/MariaDB installed and running
+    - [ ] Node.js installed (v16+)
+    - [ ] FiveM license key generated
+    - [ ] Steam Web API key generated
+  </Accordion>
+
+  <Accordion title="✅ Network Configuration" icon="check">
+    - [ ] Port 30120 open in firewall
+    - [ ] Static IP or DDNS configured (if hosting publicly)
+    - [ ] Port forwarding configured (if behind router)
+  </Accordion>
+
+  <Accordion title="✅ Optional Tools" icon="check">
+    - [ ] MongoDB Compass installed (recommended)
+    - [ ] MySQL GUI tool installed (recommended)
+    - [ ] Code editor installed (for customization)
+    - [ ] Git installed (for version control)
+  </Accordion>
+</AccordionGroup>
+
+## Common Pre-Installation Issues
+
+<AccordionGroup>
+  <Accordion title="MongoDB won't start" icon="database">
+    **Solutions:**
+    - Check if port 27017 is already in use: `netstat -ano | findstr :27017` (Windows) or `lsof -i :27017` (Linux)
+    - Check MongoDB logs for errors
+    - Ensure data directory has proper permissions
+    - Try reinstalling MongoDB
+  </Accordion>
+
+  <Accordion title="MySQL connection refused" icon="database">
+    **Solutions:**
+    - Verify MySQL service is running
+    - Check if port 3306 is open
+    - Verify MySQL root password is correct
+    - Check bind-address in my.cnf (should be 127.0.0.1 for local or 0.0.0.0 for remote)
+  </Accordion>
+
+  <Accordion title="Can't generate FiveM license" icon="key">
+    **Solutions:**
+    - Ensure you're logged into Cfx.re forum
+    - Use your actual server IP (not 127.0.0.1)
+    - If testing locally, use 127.0.0.1 specifically
+    - Check you haven't exceeded license limit per account
+  </Accordion>
+
+  <Accordion title="Node.js not found after install" icon="code">
+    **Solutions:**
+    - Restart your terminal/command prompt
+    - Check PATH environment variable includes Node.js
+    - Reinstall Node.js with "Add to PATH" option checked
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Once you have all prerequisites installed and verified:
+
+<CardGroup cols={2}>
+  <Card title="Server Setup" icon="server" href="/installation/server-setup">
+    Download and configure FiveM server files
+  </Card>
+  <Card title="Database Setup" icon="database" href="/installation/database-setup">
+    Create databases and configure connections
+  </Card>
+</CardGroup>
+
+<Tip>
+**First Time Installing?** Follow this guide carefully and verify each step. Having all prerequisites properly configured will prevent 90% of installation issues.
+</Tip>

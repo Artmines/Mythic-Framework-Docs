@@ -1,0 +1,798 @@
+---
+title: Troubleshooting
+description: Solutions to common Mythic Framework installation and server issues
+icon: 'wrench'
+---
+
+This guide covers common issues encountered during installation and server operation, with step-by-step solutions.
+
+## Quick Diagnostics
+
+Before diving into specific issues, run these quick checks:
+
+<Steps>
+  <Step title="Check Prerequisites Running">
+    ```bash
+    # Windows - Check services
+    net start | findstr "MongoDB"
+    net start | findstr "MySQL"
+
+    # Linux - Check services
+    systemctl status mongod
+    systemctl status mysql
+    ```
+  </Step>
+  <Step title="Verify Server Console">
+    Look for the exact error message in server console - most errors are self-explanatory
+  </Step>
+  <Step title="Check F8 Console">
+    In-game, press F8 to see client-side errors (JavaScript errors, network issues)
+  </Step>
+  <Step title="Review Logs">
+    Check server logs for detailed error information
+  </Step>
+</Steps>
+
+## Installation Issues
+
+### Server Won't Start
+
+<AccordionGroup>
+  <Accordion title="Invalid License Key" icon="key">
+    **Error:**
+    ```
+    [Error] Invalid license key
+    [Error] License key validation failed
+    ```
+
+    **Solutions:**
+    1. Verify license key in server.cfg is correct
+    2. Check key matches your server IP
+    3. Generate new key if IP changed: [keymaster.fivem.net](https://keymaster.fivem.net)
+    4. For localhost testing, use `127.0.0.1` as the IP when generating
+
+    **Test:**
+    ```bash
+    # Check what IP server thinks it has
+    curl ifconfig.me
+    ```
+  </Accordion>
+
+  <Accordion title="Port Already in Use" icon="plug">
+    **Error:**
+    ```
+    [Error] Couldn't bind port 30120
+    [Error] Address already in use
+    ```
+
+    **Solutions:**
+
+    **Windows:**
+    ```bash
+    # Find what's using port 30120
+    netstat -ano | findstr :30120
+
+    # Kill the process (replace PID with actual process ID)
+    taskkill /PID [PID] /F
+
+    # Or use different port in server.cfg
+    endpoint_add_tcp "0.0.0.0:30121"
+    endpoint_add_udp "0.0.0.0:30121"
+    ```
+
+    **Linux:**
+    ```bash
+    # Find what's using port 30120
+    lsof -i :30120
+
+    # Kill the process
+    kill -9 [PID]
+
+    # Or use different port
+    ```
+  </Accordion>
+
+  <Accordion title="Missing Dependencies (Windows)" icon="windows">
+    **Error:**
+    ```
+    FXServer.exe is not a valid Win32 application
+    Missing MSVCP140.dll
+    ```
+
+    **Solutions:**
+    1. Install Visual C++ Redistributables:
+       - [VC++ 2015-2022 x64](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+       - Download and install
+       - Restart computer
+    2. Install .NET Framework 4.7.2 or higher
+    3. Run as Administrator
+  </Accordion>
+
+  <Accordion title="Permission Denied (Linux)" icon="linux">
+    **Error:**
+    ```
+    bash: ./FXServer: Permission denied
+    cannot execute binary file
+    ```
+
+    **Solutions:**
+    ```bash
+    # Make executable
+    chmod +x FXServer
+    chmod +x run.sh
+
+    # Fix ownership
+    sudo chown -R $USER:$USER .
+
+    # Verify architecture (should be x86_64)
+    uname -m
+
+    # If wrong architecture, download correct build
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Database Connection Issues
+
+<AccordionGroup>
+  <Accordion title="MongoDB Connection Failed" icon="database">
+    **Error:**
+    ```
+    [mythic-base] Failed to connect to MongoDB
+    [Error] MongoNetworkError: connect ECONNREFUSED 127.0.0.1:27017
+    ```
+
+    **Solutions:**
+
+    **Step 1: Verify MongoDB is Running**
+    ```bash
+    # Windows
+    net start | findstr MongoDB
+    # If not running:
+    net start MongoDB
+
+    # Linux
+    systemctl status mongod
+    # If not running:
+    sudo systemctl start mongod
+    ```
+
+    **Step 2: Test Connection**
+    ```bash
+    # Test MongoDB connection
+    mongo
+
+    # If using authentication:
+    mongo -u mythic -p your_password --authenticationDatabase admin
+    ```
+
+    **Step 3: Check Connection String**
+    - Verify format in server.cfg:
+      ```
+      mongodb://[username:password@]host:port/[?options]
+      ```
+    - Common mistakes:
+      - Missing `authSource=admin` with authentication
+      - Wrong username/password
+      - Wrong port (default is 27017)
+
+    **Step 4: Check Firewall**
+    ```bash
+    # Windows - Allow MongoDB through firewall
+    netsh advfirewall firewall add rule name="MongoDB" dir=in action=allow protocol=TCP localport=27017
+
+    # Linux - Allow in UFW
+    sudo ufw allow 27017/tcp
+    ```
+
+    **Step 5: Check MongoDB Logs**
+    - Windows: `C:\Program Files\MongoDB\Server\6.0\log\mongod.log`
+    - Linux: `/var/log/mongodb/mongod.log`
+  </Accordion>
+
+  <Accordion title="MySQL Connection Failed" icon="database">
+    **Error:**
+    ```
+    [oxmysql] Connection failed
+    [Error] Access denied for user 'mythic'@'localhost'
+    [Error] Unknown database 'MythicFramework_345AE9'
+    ```
+
+    **Solutions:**
+
+    **Issue: Wrong Credentials**
+    ```bash
+    # Test credentials
+    mysql -u mythic -p
+    # Enter password from connection string
+
+    # If fails, create user:
+    mysql -u root -p
+    CREATE USER 'mythic'@'localhost' IDENTIFIED BY 'your_password';
+    GRANT ALL PRIVILEGES ON *.* TO 'mythic'@'localhost';
+    FLUSH PRIVILEGES;
+    ```
+
+    **Issue: Database Doesn't Exist**
+    ```sql
+    # Connect as root
+    mysql -u root -p
+
+    # Check if database exists
+    SHOW DATABASES;
+
+    # Create if missing
+    CREATE DATABASE MythicFramework_345AE9 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    ```
+
+    **Issue: Connection String Format**
+    Verify format:
+    ```
+    mysql://user:password@host:port/database?charset=utf8mb4
+    ```
+
+    Common mistakes:
+    - Special characters in password not URL-encoded
+    - Missing database name
+    - Wrong port (default is 3306)
+
+    **Issue: MySQL Not Running**
+    ```bash
+    # Windows (XAMPP)
+    # Start from XAMPP Control Panel
+
+    # Linux
+    sudo systemctl start mysql
+    # or
+    sudo systemctl start mariadb
+    ```
+  </Accordion>
+
+  <Accordion title="Database Timeout" icon="clock">
+    **Error:**
+    ```
+    [Error] Connection timeout
+    [Error] Pool connection timeout
+    ```
+
+    **Solutions:**
+    1. **Increase timeout** in connection string:
+       ```
+       mongodb://.../?connectTimeoutMS=30000&socketTimeoutMS=30000
+       mysql://...?connectTimeout=30000
+       ```
+
+    2. **Check database load:**
+       ```bash
+       # MongoDB
+       mongo
+       db.currentOp()
+
+       # MySQL
+       mysql -u root -p
+       SHOW PROCESSLIST;
+       ```
+
+    3. **Restart databases:**
+       ```bash
+       # Windows
+       net stop MongoDB && net start MongoDB
+       # MySQL via XAMPP Control Panel
+
+       # Linux
+       sudo systemctl restart mongod
+       sudo systemctl restart mysql
+       ```
+  </Accordion>
+</AccordionGroup>
+
+### Resource Loading Issues
+
+<AccordionGroup>
+  <Accordion title="mythic-base Failed to Start" icon="box-open">
+    **Error:**
+    ```
+    [Error] Failed to start resource mythic-base
+    [Error] Couldn't load resource mythic-base
+    ```
+
+    **Critical:** mythic-base MUST start successfully. All other Mythic resources depend on it.
+
+    **Solutions:**
+    1. **Verify folder exists:**
+       ```
+       resources/[mythic]/mythic-base/
+       ```
+
+    2. **Check fxmanifest.lua exists:**
+       ```
+       resources/[mythic]/mythic-base/fxmanifest.lua
+       ```
+
+    3. **Review console for specific error:**
+       - Lua syntax errors
+       - Missing files
+       - Database connection issues
+
+    4. **Check Node.js installed:**
+       ```bash
+       node --version
+       # Should show v16+ or v18+
+       ```
+
+    5. **Try manual start:**
+       ```bash
+       # In server console
+       refresh
+       start mythic-base
+       # Watch for specific error
+       ```
+  </Accordion>
+
+  <Accordion title="Dependency Not Found" icon="link-slash">
+    **Error:**
+    ```
+    [Error] Dependency 'mythic-base' not found for 'mythic-inventory'
+    [Error] Couldn't start resource - dependency failed
+    ```
+
+    **Solutions:**
+    1. **Check load order** in configs/resources.cfg:
+       ```bash
+       # Correct order:
+       ensure oxmysql          # First
+       ensure mythic-base      # Second
+       ensure mythic-pwnzor    # Third
+       ensure mythic-characters
+       ensure mythic-inventory
+       # etc.
+       ```
+
+    2. **Verify dependency exists:**
+       - Check if the dependency resource folder exists
+       - Verify it's not commented out in resources.cfg
+
+    3. **Restart in order:**
+       ```bash
+       refresh
+       start oxmysql
+       start mythic-base
+       start mythic-inventory
+       ```
+  </Accordion>
+
+  <Accordion title="UI Resources Not Loading" icon="display">
+    **Error:**
+    - HUD not showing
+    - Inventory UI blank
+    - Phone not appearing
+
+    **Solutions:**
+    1. **Check resource is started:**
+       ```bash
+       # In server console
+       status mythic-hud
+       status mythic-inventory
+       status mythic-phone
+       ```
+
+    2. **Check for JavaScript errors:**
+       - In-game, press F8
+       - Look for red JavaScript errors
+       - Screenshot and analyze
+
+    3. **Clear FiveM cache:**
+       ```bash
+       # Windows
+       %localappdata%\FiveM\FiveM.app\cache
+       # Delete entire cache folder
+
+       # Restart FiveM client
+       ```
+
+    4. **Verify UI build files exist:**
+       ```
+       resources/[mythic]/mythic-hud/ui/dist/
+       resources/[mythic]/mythic-inventory/ui/dist/
+       # Should contain index.html, main.js, etc.
+       ```
+
+    5. **Check NUI devtools (F8 in-game):**
+       ```
+       # Type in F8 console:
+       nui_devtools
+       # Opens Chrome DevTools for UI debugging
+       ```
+  </Accordion>
+</AccordionGroup>
+
+## Runtime Issues
+
+### Performance Problems
+
+<AccordionGroup>
+  <Accordion title="Server Lag / High CPU" icon="gauge-high">
+    **Symptoms:**
+    - Server FPS drops below 30
+    - Player desync
+    - Delayed interactions
+
+    **Diagnosis:**
+    ```bash
+    # In server console or F8
+    resmon
+
+    # Check which resources using most CPU
+    ```
+
+    **Solutions:**
+    1. **Optimize problem resources:**
+       - Restart high-CPU resources
+       - Check for infinite loops in custom scripts
+       - Update to latest versions
+
+    2. **Reduce player count:**
+       - Lower `sv_maxclients` if server can't handle load
+
+    3. **Database optimization:**
+       ```javascript
+       # MongoDB - Add indexes
+       db.characters.createIndex({ "owner": 1 })
+       db.inventory.createIndex({ "owner": 1, "item_id": 1 })
+       ```
+
+    4. **Check system resources:**
+       ```bash
+       # CPU and RAM usage
+       # Windows: Task Manager
+       # Linux: htop or top
+       ```
+  </Accordion>
+
+  <Accordion title="Memory Leak" icon="memory">
+    **Symptoms:**
+    - Server RAM usage constantly increasing
+    - Server crashes after hours of uptime
+    - `Out of memory` errors
+
+    **Solutions:**
+    1. **Monitor with resmon:**
+       Track which resources grow over time
+
+    2. **Schedule restarts:**
+       ```bash
+       # Linux cron - restart daily at 4 AM
+       0 4 * * * systemctl restart mythic-fivem
+       ```
+
+    3. **Check for leaks in custom resources:**
+       - Remove event listeners properly
+       - Clear timers and intervals
+       - Avoid global table growth
+
+    4. **Update resources:**
+       - Ensure all resources are latest versions
+       - Check for known memory leak fixes
+  </Accordion>
+
+  <Accordion title="Database Performance" icon="database">
+    **Symptoms:**
+    - Slow inventory loading
+    - Character selection lag
+    - Transaction delays
+
+    **Solutions:**
+    1. **Add database indexes:**
+       ```javascript
+       # MongoDB
+       use fivem
+       db.characters.createIndex({ "owner": 1 })
+       db.inventory.createIndex({ "owner": 1, "item_id": 1 })
+       db.vehicles.createIndex({ "owner": 1 })
+       ```
+
+    2. **Monitor slow queries:**
+       ```bash
+       # In server.cfg
+       set mysql_slow_query_warning 100
+       # Logs queries taking >100ms
+       ```
+
+    3. **Optimize MongoDB:**
+       ```bash
+       # Connect to MongoDB
+       mongo
+
+       # Check database stats
+       use fivem
+       db.stats()
+
+       # Compact collections
+       db.runCommand({ compact: 'characters' })
+       ```
+
+    4. **Increase connection pool:**
+       ```bash
+       # In connection string
+       mongodb://.../?maxPoolSize=50
+       mysql://...?connectionLimit=50
+       ```
+  </Accordion>
+</AccordionGroup>
+
+### Player Connection Issues
+
+<AccordionGroup>
+  <Accordion title="Players Can't Connect" icon="wifi-slash">
+    **Error (Client):**
+    ```
+    Connection timed out
+    Server is not responding
+    ```
+
+    **Solutions:**
+    1. **Verify server is running:**
+       - Check console shows "Server is ready"
+       - No crash errors in console
+
+    2. **Check firewall:**
+       ```bash
+       # Windows - Open port 30120
+       netsh advfirewall firewall add rule name="FiveM" dir=in action=allow protocol=TCP localport=30120
+       netsh advfirewall firewall add rule name="FiveM UDP" dir=in action=allow protocol=UDP localport=30120
+
+       # Linux
+       sudo ufw allow 30120/tcp
+       sudo ufw allow 30120/udp
+       ```
+
+    3. **Check router port forwarding:**
+       - Forward port 30120 TCP/UDP to server local IP
+       - Test with [canyouseeme.org](https://canyouseeme.org/)
+
+    4. **Test connection:**
+       ```bash
+       # From another computer
+       telnet YOUR_SERVER_IP 30120
+       # Should connect
+
+       # Or use netcat
+       nc -zv YOUR_SERVER_IP 30120
+       ```
+
+    5. **Check sv_maxclients not full:**
+       ```bash
+       # In server console
+       status
+       # Shows current players vs max
+       ```
+  </Accordion>
+
+  <Accordion title="Connection Rejected" icon="ban">
+    **Error:**
+    ```
+    Connection rejected by server
+    You have been kicked
+    You are banned from this server
+    ```
+
+    **Solutions:**
+    1. **Check ban list:**
+       ```bash
+       # In mythic-base database
+       mongo
+       use fivem
+       db.bans.find()
+
+       # Remove ban
+       db.bans.deleteOne({ "identifier": "steam:11000..." })
+       ```
+
+    2. **Check whitelist:**
+       - If queue/whitelist enabled, verify player is whitelisted
+
+    3. **Check anti-cheat:**
+       - mythic-pwnzor may be blocking player
+       - Check console for anti-cheat messages
+       - Temporarily disable to test: `stop mythic-pwnzor`
+
+    4. **Review connection logs:**
+       - Check Discord connection webhook
+       - Look for specific rejection reason
+  </Accordion>
+
+  <Accordion title="Character Not Loading" icon="user-xmark">
+    **Symptoms:**
+    - Stuck at character selection
+    - Infinite loading
+    - Spawn but can't move
+
+    **Solutions:**
+    1. **Check mythic-characters started:**
+       ```bash
+       status mythic-characters
+       ```
+
+    2. **Check database for character:**
+       ```javascript
+       mongo
+       use fivem
+       db.characters.find({ "SID": 1 })
+       // Or search by player identifier
+       ```
+
+    3. **Check F8 console (client):**
+       - Look for JavaScript errors
+       - Network errors
+       - Missing resources
+
+    4. **Try `/logout` command:**
+       ```bash
+       # Forces character selection again
+       /logout
+       ```
+
+    5. **Delete character cache:**
+       ```bash
+       # Windows (client)
+       %localappdata%\FiveM\FiveM.app\cache
+       # Delete contents
+
+       # Server-side
+       restart mythic-characters
+       ```
+  </Accordion>
+</AccordionGroup>
+
+### Common Gameplay Issues
+
+<AccordionGroup>
+  <Accordion title="Inventory Not Opening" icon="box">
+    **Solutions:**
+    1. Check keybind: Default is `I`
+    2. Verify mythic-inventory started: `status mythic-inventory`
+    3. F8 console - check for errors
+    4. Try: `restart mythic-inventory`
+    5. Clear cache and reconnect
+  </Accordion>
+
+  <Accordion title="HUD Not Showing" icon="display">
+    **Solutions:**
+    1. Verify mythic-hud started
+    2. F8 console - check for JavaScript errors
+    3. Try: `restart mythic-hud`
+    4. Check if HUD is hidden: Some resources can hide HUD
+    5. Clear FiveM cache
+  </Accordion>
+
+  <Accordion title="Phone Not Working" icon="mobile">
+    **Solutions:**
+    1. Check keybind: Default is `P`
+    2. Verify mythic-phone started
+    3. Check if you have phone item in inventory
+    4. F8 console - JavaScript errors
+    5. Try: `restart mythic-phone`
+  </Accordion>
+
+  <Accordion title="Commands Not Working" icon="terminal">
+    **Solutions:**
+    1. Verify mythic-commands started
+    2. Check permissions (for admin commands)
+    3. Verify syntax: `/command arguments`
+    4. Check console for command errors
+    5. Some commands require specific resources running
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Troubleshooting
+
+### Enable Debug Mode
+
+```bash server.cfg
+# Enable verbose logging
+set sv_environment dev
+setr log_level 2
+
+# Enable SQL debugging
+set mysql_debug true
+
+# Enable resource monitoring
+set resmon 1
+```
+
+### Check Logs
+
+**Server Logs:**
+- Console output (save with logging software)
+- Discord webhooks (if configured)
+- Custom log files (if logging resource installed)
+
+**Database Logs:**
+- MongoDB: `/var/log/mongodb/mongod.log` (Linux)
+- MySQL: Check error log location in MySQL config
+
+**FiveM Client Logs:**
+- Windows: `%localappdata%\FiveM\FiveM.app\logs`
+- Look for `CitizenFX_log_*.txt`
+
+### Test Individual Resources
+
+```bash
+# Stop all and test one by one
+stop mythic-hud
+stop mythic-inventory
+# etc.
+
+# Start individually
+start mythic-hud
+# Test if works
+
+start mythic-inventory
+# Test if works
+```
+
+### Network Diagnostics
+
+```bash
+# Check network stats
+net_stats
+
+# Check player connections
+status
+
+# Monitor bandwidth
+# Windows: Resource Monitor > Network
+# Linux: iftop or nethogs
+```
+
+## Getting Help
+
+If you can't resolve the issue:
+
+<Steps>
+  <Step title="Gather Information">
+    - Exact error message
+    - Server console output
+    - F8 console output (screenshot)
+    - server.cfg (remove sensitive data)
+    - Steps to reproduce
+  </Step>
+  <Step title="Check Documentation">
+    - Search this documentation
+    - Check [Core Concepts](/concepts/architecture)
+    - Review [API Reference](/api/core/base)
+  </Step>
+  <Step title="Community Support">
+    - Join [Discord](https://discord.gg/mythicframework)
+    - Post in #support channel
+    - Provide all info from Step 1
+  </Step>
+</Steps>
+
+<Warning>
+**Before asking for help:**
+- Try solutions in this guide
+- Search Discord for similar issues
+- Provide complete information (partial info = longer resolution time)
+</Warning>
+
+## Prevention Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Regular Backups" icon="floppy-disk">
+    Backup databases daily. Test restore procedures monthly.
+  </Card>
+  <Card title="Monitor Resources" icon="chart-line">
+    Use resmon regularly. Watch for unusual CPU/RAM usage.
+  </Card>
+  <Card title="Update Carefully" icon="arrow-up">
+    Test updates on dev server before production. Always backup first.
+  </Card>
+  <Card title="Document Changes" icon="file-lines">
+    Keep notes on configuration changes. Makes troubleshooting easier.
+  </Card>
+</CardGroup>
+
+<Note>
+Most issues are configuration-related. Double-check server.cfg, database connections, and resource load order before assuming code issues.
+</Note>

@@ -1,0 +1,684 @@
+---
+title: Resource Management
+description: Understanding resource load order, dependencies, and management in Mythic Framework
+icon: 'boxes-stacked'
+---
+
+Proper resource loading order is **critical** for Mythic Framework to function correctly. Resources have dependencies on each other, and loading them in the wrong order will cause failures.
+
+## Why Load Order Matters
+
+Mythic Framework uses a component-based architecture where resources register components that other resources depend on. If a resource tries to use a component before it's registered, it will fail.
+
+<CardGroup cols={2}>
+  <Card title="Dependency Chain" icon="link">
+    Resources depend on components from other resources. Load dependencies first.
+  </Card>
+  <Card title="Component Registration" icon="cubes">
+    Components must be registered before other resources can fetch them.
+  </Card>
+  <Card title="Database Access" icon="database">
+    Core resources need database connection established early.
+  </Card>
+  <Card title="Event Handlers" icon="bolt">
+    Event handlers registered in load order - later resources can override earlier ones.
+  </Card>
+</CardGroup>
+
+## Resource Load Order
+
+The correct load order is defined in `configs/resources.cfg`:
+
+### 1. Database Layer (FIRST)
+
+```bash
+# Database MUST load before anything else
+ensure oxmysql
+```
+
+<Warning>
+**Critical:** oxmysql MUST be the first resource loaded. All other resources depend on database connectivity.
+</Warning>
+
+### 2. Core Framework
+
+```bash
+# mythic-base: Core framework - MUST load second
+ensure mythic-base
+
+# mythic-pwnzor: Anti-cheat - Load early for protection
+ensure mythic-pwnzor
+```
+
+<Note>
+**mythic-base** contains the proxy system, logger, database wrapper, and all core components. Nothing works without it.
+</Note>
+
+### 3. Queue and Loadscreen
+
+```bash
+# Player queue system
+ensure mythic-queue
+
+# Loading screen shown to connecting players
+ensure mythic-loadscreen
+```
+
+These handle the connection flow before players enter the game.
+
+### 4. Character System
+
+```bash
+# Character creation and management - Required by most features
+ensure mythic-characters
+```
+
+<Info>
+**Dependency Alert:** Almost ALL gameplay resources depend on the Characters component. Load this before any gameplay features.
+</Info>
+
+### 5. Core Systems
+
+```bash
+# Core gameplay systems in dependency order
+ensure mythic-inventory    # Required by: shops, crafting, jobs
+ensure mythic-finance      # Required by: economy features
+ensure mythic-businesses   # Depends on: finance
+ensure mythic-jobs         # Required by: job-specific resources
+ensure mythic-labor        # Depends on: jobs, inventory
+```
+
+### 6. UI Resources
+
+```bash
+# User interface resources
+ensure mythic-hud          # Main HUD
+ensure mythic-menu         # Interaction menus
+ensure mythic-targeting    # Entity targeting
+ensure mythic-notifications
+ensure mythic-chat
+ensure mythic-phone
+ensure mythic-laptop
+```
+
+UI resources can generally load in any order relative to each other, but should load after core systems.
+
+### 7. Vehicle Systems
+
+```bash
+# Vehicle-related resources
+ensure mythic-vehicles     # Core vehicle system
+ensure mythic-fuel         # Depends on: vehicles
+ensure mythic-customs      # Depends on: vehicles, inventory
+ensure mythic-fitment      # Depends on: vehicles
+ensure mythic-damage       # Depends on: vehicles
+ensure mythic-dealerships  # Depends on: vehicles, finance
+```
+
+### 8. Job Resources
+
+```bash
+# Job-specific features
+ensure mythic-police       # Depends on: jobs, inventory, vehicles
+ensure mythic-ems          # Depends on: jobs, inventory
+ensure mythic-mechanic     # Depends on: jobs, inventory, vehicles
+ensure mythic-tow          # Depends on: jobs, vehicles
+ensure mythic-taxi         # Depends on: jobs, vehicles
+ensure mythic-restaurant   # Depends on: jobs, inventory, businesses
+```
+
+### 9. Property Systems
+
+```bash
+# Property and housing
+ensure mythic-properties   # Depends on: finance, characters
+ensure mythic-apartments   # Depends on: properties
+ensure mythic-doors        # Access control system
+```
+
+### 10. Criminal Activities
+
+```bash
+# Criminal gameplay features
+ensure mythic-robbery      # Depends on: police, inventory
+ensure mythic-drugs        # Depends on: inventory, jobs
+ensure mythic-weed         # Depends on: drugs, inventory
+ensure mythic-casino       # Depends on: finance
+ensure mythic-jail         # Depends on: police, characters
+```
+
+### 11. World Systems
+
+```bash
+# World enhancement resources
+ensure mythic-locations    # Named locations
+ensure mythic-blips        # Map blips
+ensure mythic-polyzone     # Zone management
+ensure mythic-ipl          # Interior loading
+ensure mythic-objects      # Object spawning
+ensure mythic-scenes       # Crime scenes
+```
+
+### 12. Utility Resources
+
+```bash
+# Utility and helper resources
+ensure mythic-animations
+ensure mythic-sounds
+ensure mythic-visuals
+ensure mythic-sync
+ensure mythic-ped
+ensure mythic-weapons
+ensure mythic-status
+ensure mythic-escort
+```
+
+### 13. Admin and Developer Tools (LAST)
+
+```bash
+# Admin and development tools - Load last
+ensure mythic-admin
+ensure mythic-commands
+ensure mythic-keybinds
+ensure mythic-dev-tools    # Only in development
+```
+
+<Tip>
+Admin resources load last so they can access all components from other resources.
+</Tip>
+
+## Complete Resource Load Order
+
+<Accordion title="View Complete resources.cfg">
+```bash
+# ====================================
+# MYTHIC FRAMEWORK - RESOURCE LOADING
+# ====================================
+
+# === DATABASE (MUST BE FIRST) ===
+ensure oxmysql
+
+# === CORE FRAMEWORK ===
+ensure mythic-base
+ensure mythic-pwnzor
+
+# === CONNECTION FLOW ===
+ensure mythic-queue
+ensure mythic-loadscreen
+
+# === CHARACTER SYSTEM ===
+ensure mythic-characters
+
+# === CORE SYSTEMS ===
+ensure mythic-inventory
+ensure mythic-finance
+ensure mythic-businesses
+ensure mythic-jobs
+ensure mythic-labor
+
+# === UI RESOURCES ===
+ensure mythic-hud
+ensure mythic-menu
+ensure mythic-targeting
+ensure mythic-notifications
+ensure mythic-chat
+ensure mythic-phone
+ensure mythic-laptop
+ensure mythic-mdt
+ensure mythic-radar
+
+# === VEHICLE SYSTEMS ===
+ensure mythic-vehicles
+ensure mythic-fuel
+ensure mythic-customs
+ensure mythic-fitment
+ensure mythic-damage
+ensure mythic-dealerships
+
+# === EMERGENCY SERVICES ===
+ensure mythic-police
+ensure mythic-ems
+ensure mythic-dispatch
+
+# === CIVILIAN JOBS ===
+ensure mythic-mechanic
+ensure mythic-tow
+ensure mythic-taxi
+ensure mythic-restaurant
+ensure mythic-garbage
+ensure mythic-hunting
+ensure mythic-fishing
+ensure mythic-mining
+ensure mythic-logging
+
+# === PROPERTY SYSTEMS ===
+ensure mythic-properties
+ensure mythic-apartments
+ensure mythic-doors
+ensure mythic-furniture
+
+# === CRIMINAL ACTIVITIES ===
+ensure mythic-robbery
+ensure mythic-drugs
+ensure mythic-weed
+ensure mythic-meth
+ensure mythic-casino
+ensure mythic-racing
+ensure mythic-jail
+
+# === WORLD SYSTEMS ===
+ensure mythic-locations
+ensure mythic-blips
+ensure mythic-polyzone
+ensure mythic-ipl
+ensure mythic-objects
+ensure mythic-scenes
+ensure mythic-weather
+
+# === INTERACTION SYSTEMS ===
+ensure mythic-animations
+ensure mythic-sounds
+ensure mythic-visuals
+ensure mythic-sync
+ensure mythic-ped
+ensure mythic-weapons
+ensure mythic-status
+ensure mythic-needs
+ensure mythic-escort
+ensure mythic-emotes
+
+# === COMMUNICATION ===
+ensure mythic-radio
+ensure mythic-voip
+
+# === ADMIN & TOOLS (LOAD LAST) ===
+ensure mythic-admin
+ensure mythic-commands
+ensure mythic-keybinds
+ensure mythic-logs
+
+# === DEVELOPMENT (DEV ONLY) ===
+# Uncomment in development environment
+# ensure mythic-dev-tools
+# ensure mythic-debug
+```
+</Accordion>
+
+## Dependency Relationships
+
+Understanding which resources depend on which:
+
+<Tabs>
+  <Tab title="Core Dependencies">
+    **Everything depends on:**
+    - `oxmysql` - Database access
+    - `mythic-base` - Core components (Logger, Database, Proxy, Callback, Middleware)
+
+    **Most gameplay features depend on:**
+    - `mythic-characters` - Character data and management
+
+    **Economy features depend on:**
+    - `mythic-inventory` - Item management
+    - `mythic-finance` - Money and banking
+  </Tab>
+
+  <Tab title="Vehicle Dependencies">
+    ```
+    mythic-vehicles (base vehicle system)
+    ├── mythic-fuel (needs vehicle component)
+    ├── mythic-customs (needs vehicle + inventory)
+    ├── mythic-fitment (needs vehicle)
+    ├── mythic-damage (needs vehicle)
+    └── mythic-dealerships (needs vehicle + finance)
+    ```
+  </Tab>
+
+  <Tab title="Job Dependencies">
+    ```
+    mythic-jobs (job management system)
+    ├── mythic-police (needs jobs + inventory + vehicles)
+    ├── mythic-ems (needs jobs + inventory)
+    ├── mythic-mechanic (needs jobs + inventory + vehicles)
+    ├── mythic-tow (needs jobs + vehicles)
+    ├── mythic-taxi (needs jobs + vehicles)
+    └── mythic-restaurant (needs jobs + inventory + businesses)
+    ```
+  </Tab>
+
+  <Tab title="Property Dependencies">
+    ```
+    mythic-finance (banking/money)
+    └── mythic-properties (needs finance + characters)
+        ├── mythic-apartments (needs properties)
+        ├── mythic-furniture (needs properties + inventory)
+        └── mythic-doors (needs properties for access control)
+    ```
+  </Tab>
+
+  <Tab title="Criminal Dependencies">
+    ```
+    mythic-inventory + mythic-finance
+    └── mythic-robbery (needs inventory + police)
+        └── mythic-jail (needs police + characters)
+
+    mythic-inventory
+    └── mythic-drugs
+        ├── mythic-weed (needs drugs + inventory)
+        └── mythic-meth (needs drugs + inventory)
+    ```
+  </Tab>
+</Tabs>
+
+## Checking Resource Dependencies
+
+Each resource declares its dependencies in `fxmanifest.lua`:
+
+```lua
+-- mythic-inventory/fxmanifest.lua
+dependencies {
+    'mythic-base',      -- Core framework required
+    'mythic-characters' -- Character system required
+}
+
+-- Optional dependencies (works without, but enhanced with)
+optional_dependencies {
+    'mythic-phone'      -- Can send notifications to phone
+}
+```
+
+<Note>
+FiveM will **automatically wait** for `dependencies` to load before starting the resource. If a dependency fails to load, the resource won't start.
+</Note>
+
+## Manual Dependency Management
+
+Resources can also manually wait for dependencies using `RequestDependencies`:
+
+```lua
+-- mythic-shops/server/component.lua
+exports['mythic-base']:RequestDependencies('Shops', {
+    'Inventory',
+    'Finance',
+    'Logger'
+}, function(errors)
+    if #errors > 0 then
+        -- Dependencies failed to load
+        print('[ERROR] Shops failed to load dependencies:', json.encode(errors))
+        return
+    end
+
+    -- All dependencies loaded, safe to register component
+    exports['mythic-base']:RegisterComponent('Shops', {
+        -- Component methods here
+    })
+end)
+```
+
+This ensures components are available before use, even if fxmanifest dependencies are satisfied.
+
+## Resource Management Commands
+
+### Start/Stop/Restart Resources
+
+```bash
+# Start a resource
+start mythic-inventory
+
+# Stop a resource
+stop mythic-inventory
+
+# Restart a resource (stop + start)
+restart mythic-inventory
+
+# Ensure a resource (start if not running)
+ensure mythic-inventory
+
+# Refresh resource (reload files without restart)
+refresh mythic-inventory
+```
+
+<Warning>
+**Restarting Core Resources:** Restarting `mythic-base` or `mythic-characters` while server is live will likely crash dependent resources. Avoid unless necessary.
+</Warning>
+
+### Check Resource Status
+
+```bash
+# List all resources and their status
+status
+
+# List only running resources
+resmon
+
+# Show resource information
+# (Use in server console or F8 client console)
+```
+
+## Adding Custom Resources
+
+When adding your own resources to the framework:
+
+<Steps>
+  <Step title="Determine Dependencies">
+    - Does it need database access? → Depends on `mythic-base`
+    - Does it need character data? → Depends on `mythic-characters`
+    - Does it need inventory? → Depends on `mythic-inventory`
+    - Does it need money? → Depends on `mythic-finance`
+  </Step>
+
+  <Step title="Add Dependencies to fxmanifest.lua">
+    ```lua
+    dependencies {
+        'mythic-base',
+        'mythic-characters',
+        'mythic-inventory'
+    }
+    ```
+  </Step>
+
+  <Step title="Add to resources.cfg">
+    Place your resource **after** its dependencies:
+    ```bash
+    ensure mythic-inventory  # Dependency
+    ensure my-custom-shop    # Your resource (after dependency)
+    ```
+  </Step>
+
+  <Step title="Use RequestDependencies">
+    ```lua
+    exports['mythic-base']:RequestDependencies('MyShop', {
+        'Inventory',
+        'Finance'
+    }, function(errors)
+        if #errors == 0 then
+            -- Register your component
+        end
+    end)
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting Load Order Issues
+
+<AccordionGroup>
+  <Accordion title="Component Not Found Error" icon="circle-exclamation">
+    **Error:** `attempt to index field 'ComponentName' (a nil value)`
+
+    **Cause:** Trying to use a component before it's registered
+
+    **Solution:**
+    1. Check the resource that provides the component is loaded first
+    2. Verify it's in `resources.cfg` before the resource using it
+    3. Use `RequestDependencies` to wait for component:
+    ```lua
+    exports['mythic-base']:RequestDependencies('MyResource', {
+        'MissingComponent'
+    }, function(errors)
+        -- Component now available
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Database Connection Failed" icon="database">
+    **Error:** `Database connection not established`
+
+    **Cause:** Resource trying to access database before oxmysql/mythic-base loaded
+
+    **Solution:**
+    - Ensure `oxmysql` is **first** in resources.cfg
+    - Ensure `mythic-base` is **second**
+    - Wait for `Core:Shared:Ready` event:
+    ```lua
+    AddEventHandler('Core:Shared:Ready', function()
+        -- Database now available
+        COMPONENTS.Database:findOne(...)
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Resource Won't Start" icon="xmark">
+    **Error:** `Failed to start resource mythic-xyz`
+
+    **Causes:**
+    - Dependency not loaded
+    - Syntax error in resource
+    - Missing files
+
+    **Solutions:**
+    1. Check console for error messages
+    2. Verify all dependencies in fxmanifest.lua are loaded
+    3. Check resource files exist
+    4. Look for Lua syntax errors
+    5. Try `refresh` then `ensure`:
+    ```bash
+    refresh mythic-xyz
+    ensure mythic-xyz
+    ```
+  </Accordion>
+
+  <Accordion title="Circular Dependency" icon="arrows-rotate">
+    **Error:** Resources won't load, waiting on each other
+
+    **Cause:** Resource A depends on B, but B also depends on A
+
+    **Solution:**
+    - Restructure to remove circular dependency
+    - Move shared functionality to a third resource
+    - Use events instead of direct component calls
+    - Delay initialization until both are loaded
+  </Accordion>
+
+  <Accordion title="Random Component Errors After Restart" icon="shuffle">
+    **Problem:** Components work initially but fail after resource restart
+
+    **Cause:** Component registration not idempotent (doesn't clean up old registrations)
+
+    **Solution:**
+    - Ensure `RegisterComponent` is called on every start
+    - Don't use persistent state in components without cleanup
+    - Implement proper cleanup in `onResourceStop`:
+    ```lua
+    AddEventHandler('onResourceStop', function(resourceName)
+        if resourceName == GetCurrentResourceName() then
+            -- Cleanup logic here
+        end
+    end)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Document Dependencies" icon="book">
+    Always document what your resource depends on in:
+    - README.md
+    - fxmanifest.lua dependencies
+    - Code comments
+  </Card>
+
+  <Card title="Fail Fast" icon="bolt">
+    Check for dependencies early and fail with clear error messages if missing:
+    ```lua
+    if not COMPONENTS.Inventory then
+        error('mythic-inventory required!')
+    end
+    ```
+  </Card>
+
+  <Card title="Use RequestDependencies" icon="check">
+    Always use `RequestDependencies` for components you need:
+    ```lua
+    RequestDependencies('MyResource', {
+        'Database',
+        'Logger',
+        'Inventory'
+    }, callback)
+    ```
+  </Card>
+
+  <Card title="Test Load Order" icon="vial">
+    When adding resources:
+    - Test on fresh server start
+    - Test resource restart
+    - Test with dependencies stopped
+    - Verify error messages are clear
+  </Card>
+
+  <Card title="Minimize Dependencies" icon="minus">
+    Only depend on what you actually need. Fewer dependencies = more flexible resource.
+  </Card>
+
+  <Card title="Version Dependencies" icon="code-branch">
+    If you require specific versions, document it:
+    ```lua
+    -- Requires mythic-base >= 2.0.0
+    ```
+  </Card>
+</CardGroup>
+
+## Development vs Production
+
+Different resource loading for different environments:
+
+```bash
+# resources.cfg with environment checks
+
+# Core (always loaded)
+ensure mythic-base
+ensure mythic-characters
+
+# Production resources
+if [[ "${environment}" == "prod" ]]; then
+    ensure mythic-anticheat-extra
+    ensure mythic-monitoring
+fi
+
+# Development resources
+if [[ "${environment}" == "dev" ]]; then
+    ensure mythic-dev-tools
+    ensure mythic-debug
+    ensure mythic-test-framework
+fi
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Component System" icon="cubes" href="/concepts/component-system">
+    Understand how components work
+  </Card>
+  <Card title="Proxy Pattern" icon="circle-nodes" href="/concepts/proxy-pattern">
+    Learn dependency injection
+  </Card>
+  <Card title="Creating Resources" icon="plus" href="/development/creating-resources/overview">
+    Build your own resources
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/installation/troubleshooting">
+    Common issues and fixes
+  </Card>
+</CardGroup>
+
+<Tip>
+**Golden Rule:** If you're unsure about load order, put your resource **last** in resources.cfg. It's safer to load after everything else than to load too early.
+</Tip>

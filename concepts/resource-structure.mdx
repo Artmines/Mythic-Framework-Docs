@@ -1,0 +1,710 @@
+---
+title: Resource Structure
+description: Standard organization and structure of Mythic Framework resources
+icon: 'folder-tree'
+---
+
+Mythic Framework resources follow a consistent structure that promotes organization, maintainability, and scalability. Understanding this structure is essential for both using and developing Mythic resources.
+
+## Standard Resource Structure
+
+Every Mythic resource follows this pattern:
+
+```
+mythic-[name]/
+├── fxmanifest.lua          # Resource manifest (required)
+├── README.md               # Resource documentation
+├── client/                 # Client-side Lua scripts
+│   ├── component.lua       # Component registration
+│   ├── events.lua          # Event handlers
+│   ├── main.lua            # Main client logic
+│   └── ...                 # Additional client files
+├── server/                 # Server-side Lua scripts
+│   ├── component.lua       # Component registration
+│   ├── events.lua          # Event handlers
+│   ├── callbacks.lua       # Server callbacks
+│   ├── main.lua            # Main server logic
+│   └── ...                 # Additional server files
+├── shared/                 # Shared Lua scripts (optional)
+│   ├── config.lua          # Shared configuration
+│   └── utils.lua           # Shared utilities
+├── config/                 # Configuration files
+│   └── config.lua          # Resource-specific config
+└── ui/                     # React UI (if applicable)
+    ├── src/                # React source code
+    │   ├── components/
+    │   ├── reducers/
+    │   ├── actions/
+    │   └── App.jsx
+    ├── dist/               # Built UI files
+    │   ├── index.html
+    │   └── main.js
+    ├── package.json
+    └── webpack.config.js
+```
+
+<Note>
+Not all resources have all folders. Simple resources may only have `fxmanifest.lua` and `server/` or `client/`. Complex resources with UIs will have the full structure.
+</Note>
+
+## The fxmanifest.lua File
+
+The manifest file is required for all FiveM resources. It defines metadata, dependencies, and files to load.
+
+### Basic Manifest
+
+```lua
+-- fxmanifest.lua
+fx_version 'cerulean'
+games { 'gta5' }
+lua54 'yes'
+
+author 'Your Name'
+description 'Resource description'
+version '1.0.0'
+
+-- Client scripts
+client_scripts {
+    'client/main.lua'
+}
+
+-- Server scripts
+server_scripts {
+    'server/main.lua'
+}
+
+-- Shared scripts (loaded on both sides)
+shared_scripts {
+    'shared/config.lua'
+}
+```
+
+### Mythic Resource Manifest
+
+Mythic resources typically include anti-cheat and organized file loading:
+
+```lua
+-- mythic-inventory/fxmanifest.lua
+fx_version 'cerulean'
+games { 'gta5' }
+lua54 'yes'
+
+-- Anti-cheat client check
+client_script '@mythic-pwnzor/client/check.lua'
+
+-- Shared scripts (loaded first on both sides)
+shared_scripts {
+    'shared/config.lua',
+    'shared/items.lua'
+}
+
+-- Client scripts (wildcard pattern)
+client_scripts {
+    'client/*.lua'
+}
+
+-- Server scripts
+server_scripts {
+    'server/*.lua'
+}
+
+-- UI files
+ui_page 'ui/dist/index.html'
+
+files {
+    'ui/dist/**/*'
+}
+```
+
+### Manifest Features
+
+<AccordionGroup>
+  <Accordion title="Dependencies" icon="link">
+    Declare resource dependencies:
+
+    ```lua
+    dependencies {
+        'mythic-base',     -- Required dependency
+        'oxmysql'
+    }
+
+    -- Or specify optional dependencies
+    optional_dependencies {
+        'mythic-phone'
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Exports" icon="share-nodes">
+    Define exports other resources can use:
+
+    ```lua
+    exports {
+        'GetInventory',
+        'AddItem',
+        'RemoveItem'
+    }
+
+    server_exports {
+        'GetPlayerInventory'
+    }
+
+    client_exports {
+        'OpenInventoryUI'
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="UI Pages" icon="browser">
+    For resources with NUI:
+
+    ```lua
+    ui_page 'ui/dist/index.html'
+
+    files {
+        'ui/dist/**/*',     -- All UI files
+        'ui/assets/**/*'     -- Assets
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Data Files" icon="file">
+    For resources that add game data:
+
+    ```lua
+    data_file 'HANDLING_FILE' 'handling.meta'
+    data_file 'VEHICLE_LAYOUTS_FILE' 'vehiclelayouts.meta'
+    data_file 'CARCOLS_FILE' 'carcols.meta'
+
+    files {
+        'handling.meta',
+        'vehiclelayouts.meta',
+        'carcols.meta'
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Directory Breakdown
+
+### client/ Directory
+
+Contains all client-side Lua scripts.
+
+**Common Files:**
+
+```lua
+client/
+├── component.lua       # Component registration
+├── events.lua          # Event handlers
+├── main.lua           # Main initialization
+├── ui.lua             # NUI communication
+├── commands.lua       # Client commands
+├── threads.lua        # Client threads/loops
+└── helpers.lua        # Helper functions
+```
+
+**Example component.lua:**
+
+```lua
+-- client/component.lua
+
+-- Wait for framework ready
+AddEventHandler('Core:Shared:Ready', function()
+    -- Fetch required components
+    local Logger = exports['mythic-base']:FetchComponent('Logger')
+
+    -- Register client component
+    exports['mythic-base']:RegisterComponent('InventoryClient', {
+        Open = function(self)
+            SetNuiFocus(true, true)
+            SendNUIMessage({
+                type = 'OPEN_INVENTORY'
+            })
+        end,
+
+        Close = function(self)
+            SetNuiFocus(false, false)
+            SendNUIMessage({
+                type = 'CLOSE_INVENTORY'
+            })
+        end
+    })
+end)
+```
+
+**Example events.lua:**
+
+```lua
+-- client/events.lua
+
+-- Listen to server events
+RegisterNetEvent('mythic-inventory:client:UpdateInventory', function(inventory)
+    SendNUIMessage({
+        type = 'SET_INVENTORY',
+        inventory = inventory
+    })
+end)
+
+RegisterNetEvent('mythic-inventory:client:ItemUsed', function(item)
+    print('Used item:', item)
+end)
+
+-- Local events
+AddEventHandler('mythic-inventory:client:Open', function()
+    COMPONENTS.InventoryClient:Open()
+end)
+```
+
+### server/ Directory
+
+Contains all server-side Lua scripts.
+
+**Common Files:**
+
+```lua
+server/
+├── component.lua       # Component registration
+├── events.lua          # Event handlers
+├── callbacks.lua       # Server callbacks
+├── main.lua           # Main initialization
+├── commands.lua       # Server commands
+├── database.lua       # Database operations
+└── helpers.lua        # Helper functions
+```
+
+**Example component.lua:**
+
+```lua
+-- server/component.lua
+
+-- Request dependencies
+exports['mythic-base']:RequestDependencies('Inventory', {
+    'Database',
+    'Logger',
+    'Characters'
+}, function(errors)
+    if #errors > 0 then
+        print('Failed to load Inventory dependencies')
+        return
+    end
+
+    -- Register server component
+    exports['mythic-base']:RegisterComponent('Inventory', {
+        _protected = true,
+        _name = 'inventory',
+
+        Get = function(self, characterId)
+            return COMPONENTS.Database:findOne('inventory', {
+                owner = characterId
+            })
+        end,
+
+        AddItem = function(self, characterId, item, count, metadata)
+            -- Implementation
+            return true
+        end,
+
+        RemoveItem = function(self, characterId, slot, count)
+            -- Implementation
+            return true
+        end
+    })
+end)
+```
+
+**Example callbacks.lua:**
+
+```lua
+-- server/callbacks.lua
+
+-- Register callback for client requests
+COMPONENTS.Callback:RegisterCallback('mythic-inventory:GetInventory', function(source, data, cb)
+    local char = COMPONENTS.Characters:GetCharacter(source)
+    local inventory = COMPONENTS.Inventory:Get(char.SID)
+
+    cb(inventory)
+end)
+
+COMPONENTS.Callback:RegisterCallback('mythic-inventory:UseItem', function(source, data, cb)
+    local char = COMPONENTS.Characters:GetCharacter(source)
+    local success = COMPONENTS.Inventory:UseItem(char.SID, data.slot)
+
+    cb({ success = success })
+end)
+```
+
+### shared/ Directory
+
+Contains scripts loaded on both client and server.
+
+**Use Cases:**
+- Configuration that both sides need
+- Shared utility functions
+- Constants and enums
+- Data structures
+
+**Example config.lua:**
+
+```lua
+-- shared/config.lua
+
+Config = {}
+
+Config.MaxSlots = 50
+Config.MaxWeight = 100
+
+Config.ItemTypes = {
+    WEAPON = 1,
+    CONSUMABLE = 2,
+    TOOL = 3,
+    RESOURCE = 4
+}
+
+Config.Rarities = {
+    COMMON = { label = 'Common', color = '#FFFFFF' },
+    RARE = { label = 'Rare', color = '#0070DD' },
+    EPIC = { label = 'Epic', color = '#A335EE' },
+    LEGENDARY = { label = 'Legendary', color = '#FF8000' }
+}
+```
+
+### config/ Directory
+
+Resource-specific configuration files.
+
+**Example:**
+
+```lua
+-- config/config.lua
+
+Config = Config or {}
+
+-- Inventory configuration
+Config.Inventory = {
+    -- UI settings
+    UI = {
+        position = 'right',
+        theme = 'dark'
+    },
+
+    -- Gameplay settings
+    Gameplay = {
+        dropOnDeath = true,
+        losePercentage = 0.5,
+        allowTrade = true
+    },
+
+    -- Shop locations
+    Shops = {
+        {
+            name = '24/7 Supermarket',
+            coords = vector3(25.7, -1347.3, 29.5),
+            items = {
+                { item = 'water', price = 10 },
+                { item = 'sandwich', price = 15 }
+            }
+        }
+    }
+}
+```
+
+### ui/ Directory
+
+React-based user interfaces.
+
+**Structure:**
+
+```lua
+ui/
+├── src/                    # Source code
+│   ├── components/         # React components
+│   │   ├── Inventory.jsx
+│   │   ├── ItemSlot.jsx
+│   │   └── Tooltip.jsx
+│   ├── reducers/           # Redux reducers
+│   │   └── inventoryReducer.js
+│   ├── actions/            # Redux actions
+│   │   └── inventoryActions.js
+│   ├── hooks/              # Custom React hooks
+│   │   └── useNuiEvent.js
+│   ├── utils/              # Utilities
+│   │   └── fetchNui.js
+│   ├── App.jsx             # Main component
+│   └── index.jsx           # Entry point
+├── dist/                   # Built files (webpack output)
+│   ├── index.html
+│   └── main.js
+├── package.json
+├── webpack.config.js
+└── README.md
+```
+
+**Example App.jsx:**
+
+```jsx
+// ui/src/App.jsx
+import React, { useState, useEffect } from 'react';
+import { useNuiEvent } from './hooks/useNuiEvent';
+import { fetchNui } from './utils/fetchNui';
+import Inventory from './components/Inventory';
+
+function App() {
+    const [visible, setVisible] = useState(false);
+    const [inventory, setInventory] = useState([]);
+
+    // Listen to NUI messages from client
+    useNuiEvent('SET_INVENTORY', (data) => {
+        setInventory(data.inventory);
+    });
+
+    useNuiEvent('OPEN_INVENTORY', () => {
+        setVisible(true);
+    });
+
+    useNuiEvent('CLOSE_INVENTORY', () => {
+        setVisible(false);
+    });
+
+    // Handle ESC key
+    useEffect(() => {
+        const handleEscape = (e) => {
+            if (e.key === 'Escape' && visible) {
+                fetchNui('closeInventory');
+                setVisible(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [visible]);
+
+    if (!visible) return null;
+
+    return <Inventory items={inventory} />;
+}
+
+export default App;
+```
+
+## File Naming Conventions
+
+<AccordionGroup>
+  <Accordion title="Lua Files" icon="file-code">
+    **Naming Pattern:**
+    - Lowercase with underscores: `item_manager.lua`
+    - Or descriptive names: `component.lua`, `events.lua`, `main.lua`
+
+    **Prefixes (mythic-base pattern):**
+    - `sh_` = Shared (both sides)
+    - `sv_` = Server only
+    - `cl_` = Client only
+
+    ```
+    sh_config.lua
+    sv_database.lua
+    cl_ui.lua
+    ```
+  </Accordion>
+
+  <Accordion title="React Files" icon="react">
+    **Components:** PascalCase
+    ```
+    Inventory.jsx
+    ItemSlot.jsx
+    ContextMenu.jsx
+    ```
+
+    **Utilities:** camelCase
+    ```
+    fetchNui.js
+    formatMoney.js
+    ```
+
+    **Reducers:** Descriptive with suffix
+    ```
+    inventoryReducer.js
+    hudReducer.js
+    ```
+  </Accordion>
+
+  <Accordion title="Config Files" icon="gear">
+    Always named `config.lua` or descriptive of what they configure:
+    ```
+    config.lua
+    items.lua
+    shops.lua
+    jobs.lua
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Resource Load Order
+
+Order matters! Resources must load in the correct sequence.
+
+**Example from `configs/resources.cfg`:**
+
+```bash
+# 1. Database (required by everything)
+ensure oxmysql
+
+# 2. Core framework (MUST load first)
+ensure mythic-base
+
+# 3. Anti-cheat (early for protection)
+ensure mythic-pwnzor
+
+# 4. Core systems
+ensure mythic-queue
+ensure mythic-loadscreen
+
+# 5. Character system (required by most features)
+ensure mythic-characters
+
+# 6. Feature resources (order matters for dependencies)
+ensure mythic-inventory      # Required by shops
+ensure mythic-jobs           # Required by job-specific resources
+ensure mythic-economy        # Required by shops, properties
+
+# 7. Dependent features
+ensure mythic-shops          # Depends on inventory, economy
+ensure mythic-properties     # Depends on economy, characters
+
+# 8. UI resources (depend on features)
+ensure mythic-hud
+ensure mythic-phone
+ensure mythic-menu
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Consistent Structure" icon="folder-tree">
+    Follow the standard structure for all resources. Makes navigation and maintenance easier.
+  </Card>
+  <Card title="Separate Concerns" icon="layer-group">
+    Keep client, server, and UI code separate. Don't mix them in the same file.
+  </Card>
+  <Card title="Use Wildcards" icon="asterisk">
+    Use `client/*.lua` and `server/*.lua` in fxmanifest for easier file management.
+  </Card>
+  <Card title="Document Everything" icon="book">
+    Include README.md explaining what the resource does and how to configure it.
+  </Card>
+  <Card title="Config Files" icon="sliders">
+    Externalize configuration. Never hardcode values that might change.
+  </Card>
+  <Card title="Modular Code" icon="puzzle-piece">
+    Break large files into smaller, focused modules. Don't put everything in main.lua.
+  </Card>
+</CardGroup>
+
+## Example: Complete Resource
+
+Here's a simple but complete example resource following Mythic structure:
+
+<Accordion title="View mythic-example Resource">
+```
+mythic-example/
+├── fxmanifest.lua
+├── README.md
+├── client/
+│   ├── component.lua
+│   ├── events.lua
+│   └── main.lua
+├── server/
+│   ├── component.lua
+│   ├── events.lua
+│   ├── callbacks.lua
+│   └── main.lua
+├── shared/
+│   └── config.lua
+└── config/
+    └── config.lua
+```
+
+**fxmanifest.lua:**
+```lua
+fx_version 'cerulean'
+games { 'gta5' }
+lua54 'yes'
+
+client_script '@mythic-pwnzor/client/check.lua'
+
+shared_scripts {
+    'shared/config.lua'
+}
+
+client_scripts {
+    'client/*.lua'
+}
+
+server_scripts {
+    'server/*.lua'
+}
+```
+
+**shared/config.lua:**
+```lua
+Config = {}
+Config.Debug = false
+Config.Feature = {
+    enabled = true,
+    cooldown = 60000
+}
+```
+
+**server/component.lua:**
+```lua
+exports['mythic-base']:RequestDependencies('Example', {
+    'Logger',
+    'Database'
+}, function(errors)
+    if #errors > 0 then return end
+
+    exports['mythic-base']:RegisterComponent('Example', {
+        DoSomething = function(self, player)
+            COMPONENTS.Logger:Info('Example', 'Doing something')
+            return true
+        end
+    })
+end)
+```
+
+**server/events.lua:**
+```lua
+RegisterNetEvent('mythic-example:server:DoAction', function()
+    local src = source
+    COMPONENTS.Example:DoSomething(src)
+end)
+```
+
+**client/events.lua:**
+```lua
+AddEventHandler('mythic-example:client:Notify', function(message)
+    print('Notification:', message)
+end)
+```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Resources" icon="plus" href="/development/creating-resources/overview">
+    Learn to create your first Mythic resource
+  </Card>
+  <Card title="Component System" icon="cubes" href="/concepts/component-system">
+    Understand components for resource development
+  </Card>
+  <Card title="UI Development" icon="browser" href="/concepts/ui-framework">
+    Learn React UI development for Mythic
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/core/base">
+    Complete API documentation
+  </Card>
+</CardGroup>
+
+<Tip>
+**Start simple:** When creating a new resource, start with the minimal structure (fxmanifest.lua + one server or client file) and expand as needed. Don't create empty folders.
+</Tip>

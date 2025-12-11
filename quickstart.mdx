@@ -1,80 +1,331 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start Guide
+description: Get Mythic Framework up and running in 5 minutes
+icon: 'rocket-launch'
 ---
 
-## Get started in three steps
-
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This quick start guide will help you get Mythic Framework installed and running as quickly as possible. For detailed explanations, see the [full installation guide](/installation/prerequisites).
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+This guide assumes you have basic familiarity with FiveM server setup and database administration. If you're new to FiveM, please follow the [detailed installation guide](/installation/prerequisites) instead.
+</Note>
+
+## Prerequisites Checklist
+
+Before starting, ensure you have:
+
+<Steps>
+  <Step title="FiveM Server License">
+    A valid FiveM server license key from [keymaster.fivem.net](https://keymaster.fivem.net)
+  </Step>
+  <Step title="MongoDB Installed">
+    MongoDB 3.6.6 or higher installed and running
+  </Step>
+  <Step title="MySQL Installed">
+    MySQL 5.7+ or MariaDB 10.2+ installed and running
+  </Step>
+  <Step title="System Requirements">
+    - **OS**: Windows or Linux
+    - **RAM**: 4GB minimum (8GB+ recommended)
+    - **Storage**: 10GB free space
+    - **CPU**: 2+ cores recommended
+  </Step>
+</Steps>
+
+## Installation Steps
+
+### 1. Download FiveM Server
+
+Download the latest FiveM server artifacts for your platform:
+
+<CodeGroup>
+```bash Windows
+# Download latest Windows server build
+# Visit https://runtime.fivem.net/artifacts/fivem/build_server_windows/master/
+```
+
+```bash Linux
+# Download latest Linux server build
+wget https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/[BUILD]/fx.tar.xz
+tar xf fx.tar.xz
+```
+</CodeGroup>
+
+### 2. Extract Mythic Framework
+
+Extract the Mythic Framework files to your server directory:
+
+```bash
+MythicServer/
+├── cache/
+├── configs/
+│   └── resources.cfg
+├── resources/
+│   ├── [cfx-default]/
+│   └── [mythic]/
+├── server.cfg
+└── logo96.png
+```
+
+### 3. Configure Databases
+
+#### MongoDB Setup
+
+Create the required databases in MongoDB:
+
+```bash
+# Connect to MongoDB
+mongo
+
+# Create auth database
+use auth
+
+# Create game database
+use fivem
+```
+
+#### MySQL Setup
+
+Create the MySQL database:
+
+```sql
+CREATE DATABASE MythicFramework_345AE9 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+### 4. Configure server.cfg
+
+Edit `server.cfg` and update the critical settings:
+
+```bash server.cfg
+# Your FiveM license key
+sv_licenseKey "YOUR_LICENSE_KEY_HERE"
+
+# Steam Web API Key (get from https://steamcommunity.com/dev/apikey)
+set steam_webApiKey "YOUR_STEAM_API_KEY_HERE"
+
+# MongoDB Connections
+set mongodb_auth_url "mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false"
+set mongodb_auth_database "auth"
+set mongodb_game_url "mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false"
+set mongodb_game_database "fivem"
+
+# MySQL Connection
+set mysql_connection_string "mysql://root:YOUR_PASSWORD@localhost/MythicFramework_345AE9?charset=utf8mb4"
+
+# Server Settings
+sv_hostname "Your Mythic Server"
+sv_maxclients 48
+
+# Environment (dev/prod/test)
+set sv_environment dev
+```
+
+<Warning>
+**Important**: Replace `YOUR_LICENSE_KEY_HERE`, `YOUR_STEAM_API_KEY_HERE`, and `YOUR_PASSWORD` with your actual credentials.
+</Warning>
+
+### 5. Set Admin Permissions
+
+Add yourself as an admin by adding your identifiers to `server.cfg`:
+
+```bash server.cfg
+# Find your FiveM identifier by joining the server and checking console
+# Then add it to server.cfg:
+
+add_principal identifier.fivem:YOUR_FIVEM_ID group.admin
+add_principal identifier.discord:YOUR_DISCORD_ID group.admin
+```
+
+<Tip>
+To find your identifiers, join the server and type `status` in the F8 console. Look for your identifiers in the output.
+</Tip>
+
+### 6. Start the Server
+
+Start your FiveM server:
+
+<CodeGroup>
+```bash Windows
+run.cmd
+# or
+FXServer.exe +exec server.cfg
+```
+
+```bash Linux
+./run.sh
+# or
+./FXServer +exec server.cfg
+```
+</CodeGroup>
+
+### 7. Verify Installation
+
+Watch the console output for successful startup:
+
+<Steps>
+  <Step title="Database Connections">
+    Look for successful MongoDB and MySQL connection messages
+  </Step>
+  <Step title="Resources Loading">
+    All Mythic resources should load without errors (60+ resources)
+  </Step>
+  <Step title="Server Ready">
+    Console should show "Server started" or similar message
+  </Step>
+</Steps>
+
+### 8. Connect to Your Server
+
+1. Open FiveM client
+2. Press `F8` to open console
+3. Type: `connect localhost:30120` (or your server IP)
+4. Create your first character
+
+<Note>
+Default port is `30120`. If you changed it in server.cfg, use that port instead.
+</Note>
+
+## First Login
+
+Once connected, you should see:
+
+<Steps>
+  <Step title="Loading Screen">
+    Mythic Framework custom loading screen with logo
+  </Step>
+  <Step title="Character Creation">
+    Character creation interface will appear
+  </Step>
+  <Step title="Spawn In">
+    After creating a character, you'll spawn in Los Santos
+  </Step>
+  <Step title="Tutorial" icon="info">
+    Follow the on-screen prompts to learn basic controls
+  </Step>
+</Steps>
+
+## Verification Checklist
+
+Verify everything is working:
+
+<Accordion title="✅ Database Connections">
+  Check console for:
+  ```
+  [mythic-base] MongoDB Connected
+  [oxmysql] MySQL Connected
+  ```
+</Accordion>
+
+<Accordion title="✅ All Resources Loaded">
+  Verify all Mythic resources started successfully (check for no errors in console)
+</Accordion>
+
+<Accordion title="✅ Character System">
+  You can create and save a character
+</Accordion>
+
+<Accordion title="✅ HUD Visible">
+  Health/armor bars and UI elements are visible
+</Accordion>
+
+<Accordion title="✅ Inventory Works">
+  Press `I` or configured key to open inventory
+</Accordion>
+
+<Accordion title="✅ Admin Access">
+  Type `/admin` to verify you have admin permissions
+</Accordion>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Server won't start" icon="triangle-exclamation">
+    **Solution**: Check that you have a valid license key and all paths in server.cfg are correct.
+  </Accordion>
+
+  <Accordion title="Database connection failed" icon="database">
+    **Solution**:
+    - Verify MongoDB and MySQL are running
+    - Check connection strings in server.cfg
+    - Ensure databases exist
+    - Check firewall isn't blocking connections
+  </Accordion>
+
+  <Accordion title="Resources failing to load" icon="box-open">
+    **Solution**:
+    - Check `configs/resources.cfg` for proper load order
+    - Verify all resource folders exist
+    - Check console for specific error messages
+  </Accordion>
+
+  <Accordion title="Can't connect to server" icon="wifi-slash">
+    **Solution**:
+    - Verify server is running (check console)
+    - Check firewall allows port 30120 (or your custom port)
+    - Try `connect 127.0.0.1:30120` if localhost doesn't work
+  </Accordion>
+
+  <Accordion title="No admin permissions" icon="shield">
+    **Solution**:
+    - Verify you added your correct identifiers to server.cfg
+    - Restart server after adding permissions
+    - Check console for "principal" related errors
+  </Accordion>
+</AccordionGroup>
+
+For more detailed troubleshooting, see the [Troubleshooting Guide](/installation/troubleshooting).
+
+## Next Steps
+
+Now that your server is running, explore the framework:
+
+<CardGroup cols={2}>
+  <Card title="Learn Core Concepts" icon="brain" href="/concepts/architecture">
+    Understand how Mythic Framework works under the hood
+  </Card>
+  <Card title="Configure Features" icon="sliders" href="/configuration/server-cfg">
+    Customize server settings and features
+  </Card>
+  <Card title="Add Custom Items" icon="box" href="/guides/server-owners/adding-custom-items">
+    Learn how to add items to the inventory system
+  </Card>
+  <Card title="Create Custom Jobs" icon="briefcase" href="/guides/server-owners/creating-jobs">
+    Set up custom jobs for your server
+  </Card>
+</CardGroup>
+
+## Development Quick Start
+
+If you're a developer looking to create custom resources:
+
+<Steps>
+  <Step title="Set up your development environment">
+    Install VSCode with Lua and React extensions
+  </Step>
+  <Step title="Read the architecture docs">
+    Understand the [component proxy system](/concepts/proxy-pattern)
+  </Step>
+  <Step title="Check out the API reference">
+    Browse the [Core API documentation](/api/core/base)
+  </Step>
+  <Step title="Create your first resource">
+    Follow the [First Resource guide](/guides/developers/first-resource)
+  </Step>
+</Steps>
+
+<Tip>
+**Pro Tip**: Enable `set sv_environment dev` in server.cfg for development. This provides more detailed logging and disables certain production optimizations.
+</Tip>
+
+## Get Help
+
+If you run into issues:
+
+- Check the [FAQ](/resources/reference/faq) for common questions
+- Read the [detailed installation guide](/installation/prerequisites)
+- Join our [Discord community](https://discord.gg/mythicframework)
+- Search the documentation using the search bar above
+
+<Note>
+Remember: Mythic Framework is designed for experienced developers. If you're new to FiveM development, take time to learn the [Core Concepts](/concepts/architecture) before diving into customization.
 </Note>

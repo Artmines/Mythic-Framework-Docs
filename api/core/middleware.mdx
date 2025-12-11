@@ -1,0 +1,658 @@
+---
+title: Middleware API
+description: Event middleware system for pre/post processing and validation
+icon: 'filter'
+---
+
+The Middleware component provides a middleware layer for intercepting and processing events before they reach their handlers, enabling validation, logging, modification, and blocking of events.
+
+## Overview
+
+Middleware sits between event triggers and event handlers, allowing you to:
+
+<CardGroup cols={2}>
+  <Card title="Intercept Events" icon="hand">
+    Catch events before handlers execute
+  </Card>
+  <Card title="Validate Data" icon="shield-check">
+    Validate event parameters and block invalid calls
+  </Card>
+  <Card title="Modify Data" icon="pen-to-square">
+    Transform event data before handlers receive it
+  </Card>
+  <Card title="Add Logging" icon="file-lines">
+    Log all event activity automatically
+  </Card>
+</CardGroup>
+
+---
+
+## How Middleware Works
+
+When an event fires, middleware processes it in priority order before passing to handlers:
+
+```
+Event Triggered
+     ↓
+Middleware 1 (priority 1)
+     ↓
+Middleware 2 (priority 10)
+     ↓
+Middleware 3 (priority 100)
+     ↓
+Event Handlers
+```
+
+Each middleware can:
+- Allow the event to continue
+- Block the event from reaching handlers
+- Modify event parameters
+- Add logging/metrics
+
+---
+
+## Methods
+
+### Add
+
+Register middleware for a specific event.
+
+```lua
+COMPONENTS.Middleware:Add(eventName, handler, priority)
+```
+
+<ParamField path="eventName" type="string" required>
+  Name of the event to intercept (e.g., 'playerConnecting', 'mythic-inventory:server:AddItem')
+</ParamField>
+
+<ParamField path="handler" type="function" required>
+  Middleware function to execute
+
+  **Parameters:**
+  - `source` (number) - Player who triggered event (if applicable)
+  - `...` - Event parameters
+
+  **Returns:**
+  - `allow` (boolean) - `true` to continue, `false` to block
+  - `...` - Modified parameters to pass to handlers (or block reason if blocking)
+</ParamField>
+
+<ParamField path="priority" type="number" optional default="100">
+  Execution priority (lower numbers execute first)
+</ParamField>
+
+### Examples
+
+**Basic Middleware:**
+
+```lua
+-- Log all player connections
+COMPONENTS.Middleware:Add('playerConnecting', function(source, name, setKickReason, deferrals)
+    COMPONENTS.Logger:Info('Connections', 'Player connecting', {
+        source = source,
+        name = name
+    })
+
+    -- Allow connection to continue
+    return true, name, setKickReason, deferrals
+end, 50)
+```
+
+**Validation Middleware:**
+
+```lua
+-- Validate item additions to inventory
+COMPONENTS.Middleware:Add('mythic-inventory:server:AddItem', function(source, item, count)
+    -- Validate count
+    if count <= 0 or count > 1000 then
+        COMPONENTS.Logger:Warn('AntiCheat', 'Suspicious item count', {
+            source = source,
+            item = item,
+            count = count
+        })
+
+        -- Block the event
+        return false, 'Invalid item count'
+    end
+
+    -- Validate item exists
+    if not COMPONENTS.Items:Exists(item) then
+        COMPONENTS.Logger:Warn('Inventory', 'Invalid item', {
+            item = item
+        })
+        return false, 'Item does not exist'
+    end
+
+    -- Allow and pass through original parameters
+    return true, item, count
+end, 1)  -- High priority - validate first
+```
+
+**Modification Middleware:**
+
+```lua
+-- Cap money amounts to prevent exploits
+COMPONENTS.Middleware:Add('mythic-finance:server:AddMoney', function(source, amount)
+    local maxAmount = 1000000  -- $1M cap
+
+    if amount > maxAmount then
+        COMPONENTS.Logger:Warn('Economy', 'Large money amount capped', {
+            source = source,
+            requested = amount,
+            capped = maxAmount
+        })
+
+        -- Allow but modify amount
+        return true, maxAmount
+    end
+
+    -- Allow with original amount
+    return true, amount
+end, 10)
+```
+
+---
+
+## Priority System
+
+Lower priority numbers execute first:
+
+```lua
+-- Priority 1 - Executes FIRST
+COMPONENTS.Middleware:Add('event', function(source, ...)
+    print('Middleware 1')
+    return true, ...
+end, 1)
+
+-- Priority 10 - Executes SECOND
+COMPONENTS.Middleware:Add('event', function(source, ...)
+    print('Middleware 2')
+    return true, ...
+end, 10)
+
+-- Priority 100 - Executes THIRD
+COMPONENTS.Middleware:Add('event', function(source, ...)
+    print('Middleware 3')
+    return true, ...
+end, 100)
+```
+
+**Recommended Priorities:**
+
+| Priority | Use Case | Example |
+|----------|----------|---------|
+| 1-10 | Anti-cheat, critical validation | Prevent exploits |
+| 11-50 | Security checks, permissions | Check player permissions |
+| 51-100 | Logging, metrics | Log event activity |
+| 101-200 | Data transformation | Modify event data |
+| 201+ | Low-priority processing | Analytics |
+
+---
+
+## Common Use Cases
+
+### Anti-Cheat Middleware
+
+```lua
+-- Detect suspicious event triggers
+COMPONENTS.Middleware:Add('mythic-admin:server:GiveMoney', function(source, target, amount)
+    -- Check if source has admin permission
+    if not IsPlayerAceAllowed(source, 'admin') then
+        COMPONENTS.Logger:Error('AntiCheat', 'Unauthorized admin command attempt', {
+            source = source,
+            event = 'GiveMoney',
+            target = target,
+            amount = amount
+        }, { discord = true })
+
+        -- Ban player
+        COMPONENTS.Punishment:Ban(source, 'Attempted exploit', 0)  -- Permanent
+
+        -- Block event
+        return false, 'Unauthorized'
+    end
+
+    return true, target, amount
+end, 1)  -- Highest priority
+```
+
+### Rate Limiting
+
+```lua
+local rateLimits = {}
+
+COMPONENTS.Middleware:Add('mythic-inventory:server:UseItem', function(source, slot)
+    local now = os.time()
+    local lastUse = rateLimits[source] or 0
+
+    if now - lastUse < 1 then  -- 1 second cooldown
+        COMPONENTS.Logger:Warn('RateLimit', 'Item use rate limit', {
+            source = source
+        })
+        return false, 'Rate limited'
+    end
+
+    rateLimits[source] = now
+    return true, slot
+end, 5)
+
+-- Clean up on disconnect
+AddEventHandler('playerDropped', function()
+    rateLimits[source] = nil
+end)
+```
+
+### Permission Checks
+
+```lua
+-- Require job for certain actions
+COMPONENTS.Middleware:Add('mythic-police:server:Arrest', function(source, targetId)
+    local char = COMPONENTS.Characters:GetCharacter(source)
+
+    if not char or char.job ~= 'police' then
+        COMPONENTS.Logger:Warn('Permissions', 'Non-police arrest attempt', {
+            source = source,
+            target = targetId
+        })
+        return false, 'Not a police officer'
+    end
+
+    -- Check on-duty
+    if not char.onDuty then
+        return false, 'You must be on duty'
+    end
+
+    return true, targetId
+end, 10)
+```
+
+### Logging Middleware
+
+```lua
+-- Log all economy transactions
+COMPONENTS.Middleware:Add('mythic-finance:server:Transfer', function(source, target, amount)
+    COMPONENTS.Logger:Info('Economy', 'Money transfer', {
+        from = source,
+        to = target,
+        amount = amount
+    }, { file = true })
+
+    return true, target, amount
+end, 100)
+
+-- Log admin actions
+local adminEvents = {
+    'mythic-admin:server:Teleport',
+    'mythic-admin:server:GiveItem',
+    'mythic-admin:server:SetJob',
+    'mythic-admin:server:Kick',
+    'mythic-admin:server:Ban'
+}
+
+for _, event in ipairs(adminEvents) do
+    COMPONENTS.Middleware:Add(event, function(source, ...)
+        COMPONENTS.Logger:Info('Admin', event, {
+            admin = source,
+            adminName = GetPlayerName(source),
+            params = {...}
+        }, { discord = true, file = true })
+
+        return true, ...
+    end, 100)
+end
+```
+
+### Data Sanitization
+
+```lua
+-- Sanitize chat messages
+COMPONENTS.Middleware:Add('chatMessage', function(source, name, message)
+    -- Remove HTML tags
+    message = message:gsub('<[^>]+>', '')
+
+    -- Remove excessive whitespace
+    message = message:gsub('%s+', ' '):trim()
+
+    -- Block empty messages
+    if message == '' then
+        return false, 'Empty message'
+    end
+
+    -- Length limit
+    if #message > 256 then
+        message = message:sub(1, 256)
+    end
+
+    return true, name, message
+end, 50)
+```
+
+### Performance Monitoring
+
+```lua
+-- Track event execution time
+COMPONENTS.Middleware:Add('mythic-inventory:server:AddItem', function(source, ...)
+    local startTime = os.clock()
+
+    -- Create wrapper to measure after handlers
+    CreateThread(function()
+        Wait(0)  -- Wait for handlers to complete
+        local duration = (os.clock() - startTime) * 1000
+
+        if duration > 100 then  -- Warn if >100ms
+            COMPONENTS.Logger:Warn('Performance', 'Slow event handler', {
+                event = 'AddItem',
+                duration = duration .. 'ms'
+            })
+        end
+    end)
+
+    return true, ...
+end, 200)
+```
+
+---
+
+## Blocking Events
+
+When middleware returns `false`, the event is blocked:
+
+```lua
+COMPONENTS.Middleware:Add('someEvent', function(source, data)
+    if not IsValid(data) then
+        -- Block event - won't reach handlers
+        return false, 'Validation failed'
+    end
+
+    return true, data
+end)
+```
+
+**What happens when blocked:**
+- Event handlers **do not execute**
+- Subsequent middleware **does not execute**
+- No error is thrown (silent block)
+- Optional: Return reason as second parameter for logging
+
+---
+
+## Middleware Chaining
+
+Multiple middleware functions execute in priority order:
+
+```lua
+-- Middleware 1: Anti-cheat (priority 1)
+COMPONENTS.Middleware:Add('giveItem', function(source, item, count)
+    if count > 1000 then
+        return false, 'Invalid count'  -- BLOCKS - chain stops here
+    end
+    return true, item, count
+end, 1)
+
+-- Middleware 2: Logging (priority 50)
+COMPONENTS.Middleware:Add('giveItem', function(source, item, count)
+    -- Only executes if Middleware 1 allowed it
+    COMPONENTS.Logger:Info('Items', 'Item given', { item = item, count = count })
+    return true, item, count
+end, 50)
+
+-- Middleware 3: Modification (priority 100)
+COMPONENTS.Middleware:Add('giveItem', function(source, item, count)
+    -- Only executes if previous middleware allowed it
+    -- Double the count
+    return true, item, count * 2
+end, 100)
+
+-- Event Handler
+AddEventHandler('giveItem', function(item, count)
+    -- Receives modified count (doubled)
+    print('Giving', count, 'of', item)
+end)
+```
+
+---
+
+## Built-In Middleware
+
+Mythic Framework includes built-in middleware for common events:
+
+### playerConnecting
+
+```lua
+-- Built-in: Check server capacity
+COMPONENTS.Middleware:Add('playerConnecting', function(source, name, setKickReason, deferrals)
+    local maxPlayers = GetConvarInt('sv_maxclients', 32)
+    local currentPlayers = #GetPlayers()
+
+    if currentPlayers >= maxPlayers then
+        deferrals.done('Server is full')
+        return false
+    end
+
+    return true, name, setKickReason, deferrals
+end, 10)
+
+-- Built-in: Ban check
+COMPONENTS.Middleware:Add('playerConnecting', function(source, name, setKickReason, deferrals)
+    local identifiers = GetPlayerIdentifiers(source)
+
+    -- Check if banned
+    local ban = COMPONENTS.Punishment:GetBan(identifiers)
+
+    if ban and ban.active then
+        deferrals.done('You are banned: ' .. ban.reason)
+        return false
+    end
+
+    return true, name, setKickReason, deferrals
+end, 5)
+```
+
+### playerDropped
+
+```lua
+-- Built-in: Save character on disconnect
+COMPONENTS.Middleware:Add('playerDropped', function(source, reason)
+    COMPONENTS.Characters:SaveCharacter(source)
+
+    COMPONENTS.Logger:Info('Connections', 'Player disconnected', {
+        source = source,
+        name = GetPlayerName(source),
+        reason = reason
+    })
+
+    return true, reason
+end, 50)
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Appropriate Priorities" icon="sort-numeric-down">
+    **Guidelines:**
+    - **1-10:** Critical validation (exploits, anti-cheat)
+    - **11-50:** Security (permissions, auth)
+    - **51-100:** Logging, monitoring
+    - **101-200:** Data transformation
+    - **201+:** Low-priority analytics
+
+    ```lua
+    -- ✅ Good: Validation before logging
+    COMPONENTS.Middleware:Add('event', validateData, 10)
+    COMPONENTS.Middleware:Add('event', logEvent, 50)
+
+    -- ❌ Bad: Logging before validation
+    COMPONENTS.Middleware:Add('event', logEvent, 10)
+    COMPONENTS.Middleware:Add('event', validateData, 50)
+    ```
+  </Accordion>
+
+  <Accordion title="Always Return Values" icon="reply">
+    **❌ Bad:**
+    ```lua
+    COMPONENTS.Middleware:Add('event', function(source, data)
+        if not IsValid(data) then
+            return false  -- Missing parameters!
+        }
+        -- Missing return statement!
+    end)
+    ```
+
+    **✅ Good:**
+    ```lua
+    COMPONENTS.Middleware:Add('event', function(source, data)
+        if not IsValid(data) then
+            return false, 'Invalid data'
+        end
+        return true, data  -- Always return params
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Don't Modify Unless Necessary" icon="pen">
+    **❌ Bad:**
+    ```lua
+    COMPONENTS.Middleware:Add('event', function(source, data)
+        -- Unnecessary modification
+        data.timestamp = os.time()
+        return true, data
+    end)
+    ```
+
+    **✅ Good:**
+    ```lua
+    COMPONENTS.Middleware:Add('event', function(source, data)
+        -- Only modify if needed
+        if not data.timestamp then
+            data.timestamp = os.time()
+        end
+        return true, data
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Log Blocked Events" icon="file-lines">
+    **Always log when blocking:**
+    ```lua
+    COMPONENTS.Middleware:Add('event', function(source, data)
+        if not IsValid(data) then
+            -- Log the block
+            COMPONENTS.Logger:Warn('Middleware', 'Event blocked', {
+                event = 'eventName',
+                source = source,
+                reason = 'Invalid data',
+                data = data
+            })
+
+            return false, 'Invalid data'
+        end
+
+        return true, data
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Avoid Heavy Operations" icon="gauge">
+    **❌ Bad (Slow):**
+    ```lua
+    COMPONENTS.Middleware:Add('event', function(source, data)
+        -- Heavy database query in middleware
+        local all = COMPONENTS.Database:find('collection', {})
+        -- ...process...
+        return true, data
+    end)
+    ```
+
+    **✅ Good (Fast):**
+    ```lua
+    COMPONENTS.Middleware:Add('event', function(source, data)
+        -- Quick validation only
+        if not data.id then
+            return false, 'Missing ID'
+        end
+        return true, data
+    end)
+    ```
+
+    Heavy operations should be in event handlers, not middleware.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Debugging Middleware
+
+Enable middleware debugging:
+
+```lua
+-- In development
+if GetConvar('debug_mode', 'false') == 'true' then
+    -- Log all middleware additions
+    local originalAdd = COMPONENTS.Middleware.Add
+    COMPONENTS.Middleware.Add = function(eventName, handler, priority)
+        print('[MIDDLEWARE] Registered:', eventName, 'Priority:', priority or 100)
+        return originalAdd(eventName, handler, priority)
+    end
+end
+```
+
+**View middleware execution:**
+
+```lua
+COMPONENTS.Middleware:Add('myEvent', function(source, ...)
+    print('[MIDDLEWARE] myEvent - Start')
+    local result = {...}
+    print('[MIDDLEWARE] myEvent - End, allowing:', true)
+    return true, ...
+end, 50)
+```
+
+---
+
+## Removing Middleware
+
+Currently, middleware cannot be removed after registration. Plan your middleware carefully:
+
+**Workaround with flags:**
+
+```lua
+local middlewareEnabled = true
+
+COMPONENTS.Middleware:Add('event', function(source, data)
+    if not middlewareEnabled then
+        -- Skip middleware
+        return true, data
+    end
+
+    -- Middleware logic
+    return true, data
+end)
+
+-- Later: disable middleware
+middlewareEnabled = false
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Event System" icon="bolt" href="/concepts/event-system">
+    Understanding the event system
+  </Card>
+  <Card title="Base API" icon="cube" href="/api/core/base">
+    Core framework exports
+  </Card>
+  <Card title="Logger API" icon="file-lines" href="/api/core/logger">
+    Logging component
+  </Card>
+  <Card title="Anti-Cheat Guide" icon="shield" href="/features/admin/anticheat">
+    Building anti-cheat with middleware
+  </Card>
+</CardGroup>
+
+<Tip>
+**Performance Tip:** Middleware adds overhead to every event. Keep middleware logic fast and lightweight. Use it for validation and logging, not heavy processing.
+</Tip>

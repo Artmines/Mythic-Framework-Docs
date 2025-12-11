@@ -1,0 +1,510 @@
+---
+title: Core - Logger
+description: Comprehensive logging system with console, file, database, and Discord integration
+icon: 'file-lines'
+---
+
+The Logger component provides a centralized logging system with multiple output targets: console, files, database, and Discord webhooks. It supports different log levels for filtering and categorizing log messages.
+
+## Log Levels
+
+The Logger supports 6 log levels with increasing severity:
+
+| Level | Method | Use Case | Console Color |
+|-------|--------|----------|---------------|
+| 0 | Log | Legacy/general | Default |
+| 1 | Trace | Detailed debugging | Default |
+| 2 | Info | General information | Blue |
+| 3 | Warn | Warnings | Yellow |
+| 4 | Error | Errors | Red |
+| 5 | Critical | Critical failures | Bright Red |
+
+---
+
+## Method Signature
+
+<Warning>
+**Important:** All logger methods use this signature (not the commonly assumed signature):
+```lua
+COMPONENTS.Logger:MethodName(component, log, flags, data)
+```
+</Warning>
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| component | string | Yes | Component/resource name |
+| log | string | Yes | Log message |
+| flags | table | No | Output flags {console, file, discord, database} |
+| data | any | No | Additional data to store (database only) |
+
+---
+
+## Logging Methods
+
+### Info
+
+Log informational message.
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Logger:Info('MyResource', 'Player joined server')
+
+-- With flags
+COMPONENTS.Logger:Info('MyResource', 'Important event occurred', {
+    console = true,
+    file = true,
+    discord = true
+})
+
+-- With data
+COMPONENTS.Logger:Info('MyResource', 'Transaction completed', {
+    console = true,
+    database = true
+}, {
+    amount = 5000,
+    from = 'player1',
+    to = 'player2'
+})
+```
+
+---
+
+### Warn
+
+Log warning message.
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Logger:Warn('AntiCheat', 'Suspicious activity detected', {
+    console = true,
+    discord = true
+})
+```
+
+---
+
+### Error
+
+Log error message.
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Logger:Error('Database', 'Failed to save player data', {
+    console = true,
+    file = true,
+    discord = true
+}, {
+    playerId = 123,
+    error = errorMessage
+})
+```
+
+---
+
+### Critical
+
+Log critical failure.
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Logger:Critical('Core', 'System failure detected', {
+    console = true,
+    file = true,
+    discord = {
+        embed = true,
+        type = 'error',
+        content = '@everyone Critical system failure!'
+    }
+}, {
+    system = 'database',
+    uptime = os.time()
+})
+```
+
+---
+
+### Trace
+
+Log detailed debugging information.
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Logger:Trace('Inventory', 'Item added to inventory', {
+    console = true
+}, {
+    item = 'water',
+    count = 5,
+    slot = 3
+})
+```
+
+---
+
+### Log (Legacy)
+
+General logging (retained for backward compatibility).
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Logger:Log('MyResource', 'Generic log message')
+```
+
+<Note>
+`Log()` method is legacy. Use `Info()`, `Warn()`, `Error()`, etc. instead for proper log level categorization.
+</Note>
+
+---
+
+## Output Flags
+
+The `flags` parameter controls where logs are output:
+
+### Console Output
+
+```lua
+flags = {
+    console = true  -- Print to server console
+}
+```
+
+**Console Format:**
+```
+[INFO]  [MyResource] Player joined server
+[WARN]  [AntiCheat] Suspicious activity
+[ERROR] [Database] Connection failed
+```
+
+**Log Level Filter:**
+- Controlled by `COMPONENTS.Convar.LOGGING.value`
+- Only logs >= this level will print to console
+- Configured in server.cfg
+
+---
+
+### File Output
+
+```lua
+flags = {
+    file = true  -- Write to log file
+}
+```
+
+**File Structure:**
+```
+logs/
+├── MyResource/
+│   ├── 2025-01-15.log
+│   └── 2025-01-16.log
+├── Database/
+│   └── 2025-01-15.log
+└── AntiCheat/
+    └── 2025-01-15.log
+```
+
+**File Format:**
+```
+[INFO]     [02:30:45 PM]    Player joined server
+[WARN]     [02:31:12 PM]    Suspicious activity detected
+[ERROR]    [02:32:00 PM]    Connection failed
+```
+
+<Note>
+Files are organized by component name and date. New file created daily.
+</Note>
+
+---
+
+### Discord Output
+
+```lua
+-- Simple Discord webhook
+flags = {
+    discord = true
+}
+
+-- Advanced Discord embed
+flags = {
+    discord = {
+        embed = true,
+        type = 'info',  -- or 'success', 'warning', 'error'
+        title = 'System Alert',
+        description = 'Optional description',
+        content = 'Message content',
+        webhook = 'https://discord.com/api/webhooks/...'  -- Optional custom webhook
+    }
+}
+```
+
+**Discord Webhook Configuration:**
+Set in server.cfg:
+```bash
+set discord_log_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
+```
+
+**Embed Colors:**
+- `trace` - Gray
+- `info` - Blue
+- `success` - Green
+- `warning` - Yellow
+- `error` - Red
+- `critical` - Bright Red
+
+**Example:**
+```lua
+COMPONENTS.Logger:Info('AntiCheat', 'Player banned', {
+    console = true,
+    discord = {
+        embed = true,
+        type = 'warning',
+        title = 'Player Banned',
+        description = 'Automatic ban for cheating',
+        content = '@here Cheater detected'
+    }
+}, {
+    player = 'PlayerName',
+    reason = 'Aimbot detected',
+    evidence = 'Screenshot URL'
+})
+```
+
+---
+
+### Database Output
+
+```lua
+flags = {
+    database = true
+}
+```
+
+**Database Storage:**
+- Collection: `logs`
+- Only in **production** environment
+- Must pass `data` parameter for context
+
+**Document Structure:**
+```lua
+{
+    date = 1705334400,      -- Unix timestamp
+    level = 2,               -- Log level (1-5)
+    component = 'MyResource',
+    log = 'Transaction completed',
+    data = {                 -- Your custom data
+        amount = 5000,
+        from = 'player1',
+        to = 'player2'
+    }
+}
+```
+
+<Warning>
+Database logging only works when `GlobalState.IsProduction` is true and requires `flags.database = true`.
+</Warning>
+
+---
+
+## Complete Examples
+
+### Basic Logging
+
+```lua
+-- Simple info log to console
+COMPONENTS.Logger:Info('MyResource', 'Server started')
+
+-- Warning with file logging
+COMPONENTS.Logger:Warn('Security', 'Failed login attempt', {
+    console = true,
+    file = true
+})
+
+-- Error with all outputs
+COMPONENTS.Logger:Error('Database', 'Connection lost', {
+    console = true,
+    file = true,
+    discord = true,
+    database = true
+}, {
+    host = 'localhost',
+    port = 27017,
+    error = errorMessage
+})
+```
+
+---
+
+### Player Action Logging
+
+```lua
+-- Log player purchase
+AddEventHandler('shop:server:Purchase', function(itemName, price)
+    local src = source
+    local player = Fetch:Source(src)
+    local char = player:GetData('Character')
+
+    COMPONENTS.Logger:Info('Shop', string.format(
+        '%s %s purchased %s for $%d',
+        char:GetData('First'),
+        char:GetData('Last'),
+        itemName,
+        price
+    ), {
+        console = true,
+        file = true,
+        database = true
+    }, {
+        characterSID = char:GetData('SID'),
+        accountID = player:GetData('AccountID'),
+        item = itemName,
+        price = price,
+        timestamp = os.time()
+    })
+end)
+```
+
+---
+
+### Anti-Cheat Detection
+
+```lua
+-- Detect and log cheating
+AddEventHandler('anticheat:detection', function(source, cheatType, details)
+    local player = Fetch:Source(source)
+    local char = player:GetData('Character')
+
+    COMPONENTS.Logger:Critical('AntiCheat', string.format(
+        'CHEAT DETECTED: %s by %s %s (SID: %d)',
+        cheatType,
+        char:GetData('First'),
+        char:GetData('Last'),
+        char:GetData('SID')
+    ), {
+        console = true,
+        file = true,
+        discord = {
+            embed = true,
+            type = 'critical',
+            title = '🚨 Cheat Detection',
+            content = '@here Immediate action required',
+            description = string.format('**Type:** %s\n**Player:** %s %s\n**Details:** %s',
+                cheatType,
+                char:GetData('First'),
+                char:GetData('Last'),
+                details
+            )
+        },
+        database = true
+    }, {
+        characterSID = char:GetData('SID'),
+        accountID = player:GetData('AccountID'),
+        cheatType = cheatType,
+        details = details,
+        playerCoords = GetEntityCoords(GetPlayerPed(source))
+    })
+
+    -- Ban player
+    DropPlayer(source, 'Banned for cheating: ' .. cheatType)
+end)
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Choose Appropriate Log Levels" icon="layer-group">
+    **Use the right level for the right situation:**
+
+    ```lua
+    -- ✅ Good
+    COMPONENTS.Logger:Info('Shop', 'Purchase completed')
+    COMPONENTS.Logger:Warn('Security', 'Multiple failed login attempts')
+    COMPONENTS.Logger:Error('Database', 'Connection failed')
+    COMPONENTS.Logger:Critical('Core', 'System shutdown imminent')
+
+    -- ❌ Bad
+    COMPONENTS.Logger:Error('Shop', 'Purchase completed')  -- Not an error
+    COMPONENTS.Logger:Info('Core', 'Database exploded')    -- Too severe for Info
+    ```
+  </Accordion>
+
+  <Accordion title="Include Relevant Context" icon="database">
+    **Always pass data parameter for important logs:**
+
+    ```lua
+    -- ✅ Good - includes context
+    COMPONENTS.Logger:Error('Inventory', 'Failed to add item', {
+        console = true,
+        database = true
+    }, {
+        characterSID = char:GetData('SID'),
+        item = itemName,
+        count = count,
+        error = errorMessage
+    })
+
+    -- ❌ Bad - no context
+    COMPONENTS.Logger:Error('Inventory', 'Failed to add item')
+    ```
+  </Accordion>
+
+  <Accordion title="Don't Spam Console" icon="terminal">
+    **Use file logging for high-frequency logs:**
+
+    ```lua
+    -- ✅ Good - file only for frequent logs
+    COMPONENTS.Logger:Trace('Movement', 'Player moved', {
+        console = false,
+        file = true
+    })
+
+    -- ❌ Bad - console spam
+    COMPONENTS.Logger:Info('Movement', 'Player moved', {
+        console = true
+    })
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Core - Fetch" icon="magnifying-glass" href="/api/core/fetch">
+    Player and character data access
+  </Card>
+  <Card title="Core - Database" icon="database" href="/api/core/database">
+    Database operations
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration/server-cfg">
+    Server configuration
+  </Card>
+  <Card title="Middleware" icon="filter" href="/api/core/middleware">
+    Event middleware system
+  </Card>
+</CardGroup>
+
+<Tip>
+**Pro Tip:** Create helper functions for common logging patterns:
+```lua
+function LogPlayerAction(component, action, char, data)
+    COMPONENTS.Logger:Info(component, string.format(
+        '%s %s: %s',
+        char:GetData('First'),
+        char:GetData('Last'),
+        action
+    ), {
+        console = true,
+        file = true,
+        database = true
+    }, data)
+end
+```
+</Tip>

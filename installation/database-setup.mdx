@@ -1,0 +1,599 @@
+---
+title: Database Setup
+description: Configure MongoDB and MySQL databases for Mythic Framework
+icon: 'database'
+---
+
+Mythic Framework uses a dual-database architecture: MongoDB for game data and authentication, and MySQL for compatibility and relational data. This guide walks you through setting up both databases.
+
+## Database Architecture Overview
+
+<CardGroup cols={2}>
+  <Card title="MongoDB (Primary)" icon="leaf">
+    **Stores:**
+    - User accounts and authentication
+    - Character data
+    - Inventory and items
+    - Player-specific data
+    - Logs and analytics
+
+    **Why:** Fast, flexible, document-based storage perfect for game data
+  </Card>
+  <Card title="MySQL (Secondary)" icon="table">
+    **Stores:**
+    - Relational data
+    - Compatibility with other resources
+    - Persistent server data
+    - Structured records
+
+    **Why:** Industry standard, excellent for structured data and compatibility
+  </Card>
+</CardGroup>
+
+<Note>
+Both databases are **required**. Mythic Framework will not start without both MongoDB and MySQL properly configured.
+</Note>
+
+## MongoDB Setup
+
+### Create Databases
+
+MongoDB databases are created on-the-fly, but we'll verify connectivity and create them explicitly.
+
+<Tabs>
+  <Tab title="MongoDB Shell">
+    **Connect to MongoDB:**
+    ```bash
+    # Open MongoDB shell
+    mongo
+
+    # Or if you have authentication enabled:
+    mongo -u admin -p your_password --authenticationDatabase admin
+    ```
+
+    **Create the databases:**
+    ```javascript
+    // Switch to auth database
+    use auth
+
+    // Insert a dummy document to create the database
+    db.test.insertOne({test: true})
+    db.test.deleteOne({test: true})
+
+    // Switch to game database
+    use fivem
+
+    // Insert a dummy document
+    db.test.insertOne({test: true})
+    db.test.deleteOne({test: true})
+
+    // Verify databases exist
+    show dbs
+    // Should show 'auth' and 'fivem' in the list
+
+    // Exit
+    exit
+    ```
+  </Tab>
+  <Tab title="MongoDB Compass (GUI)">
+    1. Open MongoDB Compass
+    2. Connect to `mongodb://localhost:27017`
+    3. Click "Create Database"
+    4. Database name: `auth`, Collection name: `users`
+    5. Click "Create Database" again
+    6. Database name: `fivem`, Collection name: `characters`
+
+    <Tip>
+    Collections will be created automatically by Mythic Framework. We just need the databases to exist.
+    </Tip>
+  </Tab>
+</Tabs>
+
+### MongoDB Connection String
+
+The connection string tells Mythic Framework how to connect to MongoDB.
+
+**Format:**
+```
+mongodb://[username:password@]host:port/[?options]
+```
+
+**Examples:**
+
+<CodeGroup>
+```bash No Authentication (Development)
+mongodb://localhost:27017/?readPreference=primary&ssl=false
+```
+
+```bash With Authentication (Production)
+mongodb://mythic:your_password@localhost:27017/?authSource=admin&readPreference=primary&ssl=false
+```
+
+```bash Remote Server
+mongodb://username:password@192.168.1.100:27017/?authSource=admin&readPreference=primary&ssl=false
+```
+
+```bash MongoDB Atlas (Cloud)
+mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
+```
+</CodeGroup>
+
+<Warning>
+**Security Warning:** Never use no-authentication setup in production! Always enable authentication for production servers.
+</Warning>
+
+### Enable MongoDB Authentication (Recommended)
+
+For production servers, enable authentication:
+
+```bash
+# Connect to MongoDB shell
+mongo
+
+# Switch to admin database
+use admin
+
+# Create admin user
+db.createUser({
+  user: "admin",
+  pwd: "your_secure_admin_password",
+  roles: [ { role: "root", db: "admin" } ]
+})
+
+# Create mythic user
+db.createUser({
+  user: "mythic",
+  pwd: "your_secure_mythic_password",
+  roles: [
+    { role: "readWrite", db: "auth" },
+    { role: "readWrite", db: "fivem" }
+  ]
+})
+
+# Exit
+exit
+```
+
+**Enable authentication in MongoDB config:**
+
+<Tabs>
+  <Tab title="Windows">
+    Edit `C:\Program Files\MongoDB\Server\6.0\bin\mongod.cfg`:
+    ```yaml
+    security:
+      authorization: enabled
+    ```
+
+    Restart MongoDB service:
+    ```bash
+    net stop MongoDB
+    net start MongoDB
+    ```
+  </Tab>
+  <Tab title="Linux">
+    Edit `/etc/mongod.conf`:
+    ```yaml
+    security:
+      authorization: enabled
+    ```
+
+    Restart MongoDB:
+    ```bash
+    sudo systemctl restart mongod
+    ```
+  </Tab>
+</Tabs>
+
+### Test MongoDB Connection
+
+Verify you can connect with your configured credentials:
+
+```bash
+# Test connection
+mongo "mongodb://mythic:your_secure_mythic_password@localhost:27017/auth?authSource=admin"
+
+# Should connect successfully and show MongoDB shell
+# If you get authentication error, check username/password
+```
+
+## MySQL Setup
+
+### Create Database
+
+Create the MySQL database for Mythic Framework:
+
+<Tabs>
+  <Tab title="MySQL Command Line">
+    ```bash
+    # Connect to MySQL
+    mysql -u root -p
+    # Enter your root password when prompted
+    ```
+
+    ```sql
+    -- Create the database
+    CREATE DATABASE MythicFramework_345AE9 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+    -- Create a dedicated user (recommended)
+    CREATE USER 'mythic'@'localhost' IDENTIFIED BY 'your_secure_password';
+
+    -- Grant privileges
+    GRANT ALL PRIVILEGES ON MythicFramework_345AE9.* TO 'mythic'@'localhost';
+    FLUSH PRIVILEGES;
+
+    -- Verify database exists
+    SHOW DATABASES;
+    -- Should show MythicFramework_345AE9 in the list
+
+    -- Exit
+    EXIT;
+    ```
+  </Tab>
+  <Tab title="phpMyAdmin (XAMPP Users)">
+    1. Open phpMyAdmin: `http://localhost/phpmyadmin`
+    2. Click "Databases" tab
+    3. Create database:
+       - Database name: `MythicFramework_345AE9`
+       - Collation: `utf8mb4_unicode_ci`
+       - Click "Create"
+    4. Navigate to "User accounts" tab
+    5. Add user account:
+       - Username: `mythic`
+       - Host: `localhost`
+       - Password: `your_secure_password`
+       - Check "Create database with same name and grant all privileges"
+    6. Click "Go"
+  </Tab>
+  <Tab title="HeidiSQL">
+    1. Open HeidiSQL and connect to localhost
+    2. Right-click on left panel > "Create new" > "Database"
+    3. Name: `MythicFramework_345AE9`
+    4. Collation: `utf8mb4_unicode_ci`
+    5. Click "OK"
+    6. Go to Tools > User manager
+    7. Add user with appropriate privileges
+  </Tab>
+</Tabs>
+
+<Note>
+The database name `MythicFramework_345AE9` can be customized, but make sure it matches your `server.cfg` configuration.
+</Note>
+
+### MySQL Connection String
+
+The connection string format for oxmysql:
+
+**Format:**
+```
+mysql://[user[:password]@]host[:port]/database[?options]
+```
+
+**Examples:**
+
+<CodeGroup>
+```bash Local MySQL (Development)
+mysql://root@localhost/MythicFramework_345AE9?charset=utf8mb4
+```
+
+```bash With Password
+mysql://mythic:your_password@localhost/MythicFramework_345AE9?charset=utf8mb4
+```
+
+```bash Custom Port
+mysql://mythic:your_password@localhost:3307/MythicFramework_345AE9?charset=utf8mb4
+```
+
+```bash Remote Server
+mysql://mythic:your_password@192.168.1.100:3306/MythicFramework_345AE9?charset=utf8mb4
+```
+</CodeGroup>
+
+### Test MySQL Connection
+
+Verify your connection works:
+
+```bash
+# Test connection
+mysql -u mythic -p MythicFramework_345AE9
+
+# Enter password when prompted
+# Should connect successfully
+
+# Verify database
+SHOW TABLES;
+# Will be empty - tables are created by framework
+
+# Exit
+EXIT;
+```
+
+## Configure server.cfg
+
+Now update your `server.cfg` with the database connection strings.
+
+Open `server.cfg` and find the database configuration section:
+
+```bash server.cfg
+# MongoDB Connections
+set mongodb_auth_url "mongodb://localhost:27017/?readPreference=primary&ssl=false"
+set mongodb_auth_database "auth"
+set mongodb_game_url "mongodb://localhost:27017/?readPreference=primary&ssl=false"
+set mongodb_game_database "fivem"
+
+# MySQL Connection
+set mysql_connection_string "mysql://root:your_password@localhost/MythicFramework_345AE9?charset=utf8mb4"
+```
+
+**Update with your actual connection strings:**
+
+<CodeGroup>
+```bash Development (No Auth)
+# MongoDB
+set mongodb_auth_url "mongodb://localhost:27017/?readPreference=primary&ssl=false"
+set mongodb_auth_database "auth"
+set mongodb_game_url "mongodb://localhost:27017/?readPreference=primary&ssl=false"
+set mongodb_game_database "fivem"
+
+# MySQL
+set mysql_connection_string "mysql://root:your_root_password@localhost/MythicFramework_345AE9?charset=utf8mb4"
+```
+
+```bash Production (With Auth)
+# MongoDB
+set mongodb_auth_url "mongodb://mythic:your_secure_password@localhost:27017/?authSource=admin&readPreference=primary&ssl=false"
+set mongodb_auth_database "auth"
+set mongodb_game_url "mongodb://mythic:your_secure_password@localhost:27017/?authSource=admin&readPreference=primary&ssl=false"
+set mongodb_game_database "fivem"
+
+# MySQL
+set mysql_connection_string "mysql://mythic:your_secure_password@localhost/MythicFramework_345AE9?charset=utf8mb4"
+```
+</CodeGroup>
+
+<Warning>
+**Important:**
+- Replace `your_password` / `your_secure_password` with your actual passwords
+- Do NOT use `root` MySQL user in production
+- Keep passwords secure and never commit server.cfg to public repositories
+</Warning>
+
+## Verify Database Configuration
+
+Let's verify the databases are configured correctly before starting the server.
+
+### MongoDB Verification
+
+<Steps>
+  <Step title="Check MongoDB is running">
+    ```bash
+    # Windows
+    net start | findstr MongoDB
+
+    # Linux
+    sudo systemctl status mongod
+    ```
+  </Step>
+  <Step title="Check databases exist">
+    ```bash
+    mongo
+
+    # List databases
+    show dbs
+    # Should see 'auth' and 'fivem'
+    ```
+  </Step>
+  <Step title="Test connection string">
+    ```bash
+    # Use the exact connection string from server.cfg
+    mongo "mongodb://mythic:password@localhost:27017/auth?authSource=admin"
+    ```
+  </Step>
+</Steps>
+
+### MySQL Verification
+
+<Steps>
+  <Step title="Check MySQL is running">
+    ```bash
+    # Windows (XAMPP)
+    # Check XAMPP Control Panel - MySQL should be green
+
+    # Linux
+    sudo systemctl status mysql
+    # or
+    sudo systemctl status mariadb
+    ```
+  </Step>
+  <Step title="Check database exists">
+    ```bash
+    mysql -u mythic -p
+
+    # List databases
+    SHOW DATABASES;
+    # Should see 'MythicFramework_345AE9'
+    ```
+  </Step>
+  <Step title="Test connection string">
+    ```bash
+    # Extract connection details from your server.cfg string
+    # Example: mysql://mythic:password@localhost/MythicFramework_345AE9
+    mysql -h localhost -u mythic -p MythicFramework_345AE9
+    ```
+  </Step>
+</Steps>
+
+## Database Initialization
+
+On first server start, Mythic Framework will automatically:
+
+1. Connect to both databases
+2. Create required collections (MongoDB)
+3. Create required tables (MySQL)
+4. Initialize default data
+5. Create indexes for performance
+
+<Note>
+You don't need to manually create tables or collections. The framework handles this automatically on first run.
+</Note>
+
+## Connection Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="MongoDB Connection Failed" icon="database">
+    **Common Issues:**
+
+    1. **MongoDB not running:**
+       ```bash
+       # Windows
+       net start MongoDB
+
+       # Linux
+       sudo systemctl start mongod
+       ```
+
+    2. **Wrong connection string:**
+       - Check username/password
+       - Verify `authSource=admin` if using authentication
+       - Ensure database names match
+
+    3. **Authentication error:**
+       ```bash
+       # Verify user exists
+       mongo -u admin -p admin_password --authenticationDatabase admin
+
+       use admin
+       db.getUsers()
+       ```
+
+    4. **Firewall blocking:**
+       ```bash
+       # Check if MongoDB is listening
+       netstat -ano | findstr :27017  # Windows
+       lsof -i :27017  # Linux
+       ```
+  </Accordion>
+
+  <Accordion title="MySQL Connection Failed" icon="database">
+    **Common Issues:**
+
+    1. **MySQL not running:**
+       ```bash
+       # Windows (XAMPP)
+       # Start from XAMPP Control Panel
+
+       # Linux
+       sudo systemctl start mysql
+       ```
+
+    2. **Wrong credentials:**
+       ```bash
+       # Test credentials
+       mysql -u mythic -p
+       # If fails, password or username is wrong
+       ```
+
+    3. **Database doesn't exist:**
+       ```sql
+       # Login as root and check
+       mysql -u root -p
+       SHOW DATABASES;
+       # Create if missing
+       CREATE DATABASE MythicFramework_345AE9 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+       ```
+
+    4. **Host/port issues:**
+       ```bash
+       # Check MySQL is listening
+       netstat -ano | findstr :3306  # Windows
+       lsof -i :3306  # Linux
+       ```
+
+    5. **User doesn't have privileges:**
+       ```sql
+       # Grant privileges
+       GRANT ALL PRIVILEGES ON MythicFramework_345AE9.* TO 'mythic'@'localhost';
+       FLUSH PRIVILEGES;
+       ```
+  </Accordion>
+
+  <Accordion title="oxmysql Resource Errors" icon="plug">
+    **If oxmysql won't start:**
+
+    1. Check connection string format is correct
+    2. Verify resource exists: `resources/oxmysql/`
+    3. Ensure it's started before mythic-base in resources.cfg
+    4. Check console for specific error messages
+  </Accordion>
+</AccordionGroup>
+
+## Database Management Tools
+
+<CardGroup cols={2}>
+  <Card title="MongoDB Compass" icon="chart-simple">
+    **Best for:**
+    - Viewing character data
+    - Debugging inventory issues
+    - Analyzing player statistics
+    - Running queries
+
+    Connect: `mongodb://localhost:27017`
+  </Card>
+  <Card title="HeidiSQL / phpMyAdmin" icon="table-cells">
+    **Best for:**
+    - Viewing relational data
+    - Debugging SQL queries
+    - Analyzing performance
+    - Managing users
+
+    Connect: `localhost:3306`
+  </Card>
+</CardGroup>
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Strong Passwords" icon="lock">
+    - Minimum 16 characters
+    - Mix of uppercase, lowercase, numbers, symbols
+    - Don't use default passwords
+    - Don't reuse passwords from other services
+  </Accordion>
+
+  <Accordion title="Restrict Network Access" icon="shield">
+    - Only allow localhost connections if server and database are on same machine
+    - Use firewall rules to restrict database ports
+    - Never expose database ports to the internet
+    - Use VPN for remote database access
+  </Accordion>
+
+  <Accordion title="Regular Backups" icon="floppy-disk">
+    - Daily automated backups
+    - Test restore procedures
+    - Keep backups off-site or in cloud storage
+    - Backup before major updates
+  </Accordion>
+
+  <Accordion title="Monitor Database" icon="chart-line">
+    - Set up monitoring for connection errors
+    - Monitor disk space usage
+    - Track slow queries
+    - Set up alerts for unusual activity
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Databases are configured! Now configure the rest of your server:
+
+<CardGroup cols={2}>
+  <Card title="Server Configuration" icon="gear" href="/installation/configuration">
+    Configure server.cfg with license keys and settings
+  </Card>
+  <Card title="First Start" icon="rocket" href="/installation/first-start">
+    Start your server for the first time
+  </Card>
+</CardGroup>
+
+<Tip>
+**Before starting the server:** Double-check both MongoDB and MySQL are running and connection strings in server.cfg are correct. This prevents 90% of startup issues.
+</Tip>

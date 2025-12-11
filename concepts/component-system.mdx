@@ -1,0 +1,726 @@
+---
+title: Component System
+description: Understanding component-based architecture in Mythic Framework
+icon: 'cubes'
+---
+
+Mythic Framework uses a component-based architecture where functionality is encapsulated into reusable, composable components. This approach promotes modularity, reusability, and maintainability.
+
+## What are Components?
+
+Components are self-contained units of functionality that:
+
+- **Encapsulate** related data and methods
+- **Expose** a public API through methods
+- **Register** themselves with the framework
+- **Depend** on other components when needed
+- **Extend** existing functionality
+
+Think of components as services or modules that other parts of the framework can use.
+
+## Component Structure
+
+A typical component has this structure:
+
+```lua
+local MyComponent = {
+    -- Private data (not accessible outside)
+    _privateData = {},
+
+    -- Public configuration
+    config = {
+        enabled = true,
+        timeout = 5000
+    },
+
+    -- Public methods
+    DoSomething = function(self, param)
+        -- Method implementation
+        return result
+    end,
+
+    -- Helper methods (typically private by convention)
+    _helperMethod = function(self)
+        -- Internal helper
+    end,
+
+    -- Component metadata
+    _protected = false,  -- Can be overridden?
+    _required = {},      -- Required methods
+    _name = 'mycomponent' -- Component name for logging
+}
+
+-- Register with framework
+exports['mythic-base']:RegisterComponent('MyComponent', MyComponent)
+```
+
+## Component Categories
+
+Mythic Framework organizes components into categories:
+
+### 1. Core Components
+
+**Provided by:** `mythic-base`
+
+Essential framework components that other resources depend on:
+
+<CardGroup cols={2}>
+  <Card title="Proxy" icon="circle-nodes">
+    Component registration and dependency injection system
+  </Card>
+  <Card title="Logger" icon="file-lines">
+    Centralized logging with levels and Discord webhooks
+  </Card>
+  <Card title="Database" icon="database">
+    MongoDB and MySQL database operations
+  </Card>
+  <Card title="Middleware" icon="filter">
+    Event middleware for pre/post processing
+  </Card>
+  <Card title="Callback" icon="phone">
+    Client-server callback system
+  </Card>
+  <Card title="Punishment" icon="gavel">
+    Ban and punishment management
+  </Card>
+</CardGroup>
+
+**Example Usage:**
+
+```lua
+-- Logging
+COMPONENTS.Logger:Info('MyResource', 'Something happened', { data = 'value' })
+COMPONENTS.Logger:Error('MyResource', 'Error occurred', { console = true })
+
+-- Database
+local character = COMPONENTS.Database:findOne('characters', { SID = 1 })
+COMPONENTS.Database:insertOne('logs', { action = 'login', player = source })
+
+-- Callbacks
+COMPONENTS.Callback:RegisterCallback('getData', function(source, data, cb)
+    cb({ success = true, data = someData })
+end)
+```
+
+### 2. Feature Components
+
+**Provided by:** Feature resources (`mythic-inventory`, `mythic-jobs`, etc.)
+
+Business logic components for game features:
+
+```lua
+-- Characters component
+COMPONENTS.Characters = {
+    GetCharacter = function(self, source)
+        -- Get active character for player
+    end,
+
+    CreateCharacter = function(self, source, data)
+        -- Create new character
+    end,
+
+    DeleteCharacter = function(self, characterId)
+        -- Delete character
+    end
+}
+
+-- Inventory component
+COMPONENTS.Inventory = {
+    Get = function(self, characterId)
+        -- Get inventory
+    end,
+
+    AddItem = function(self, characterId, item, count, metadata)
+        -- Add item to inventory
+    end,
+
+    RemoveItem = function(self, characterId, slot, count)
+        -- Remove item
+    end,
+
+    HasItem = function(self, characterId, item, count)
+        -- Check if has item
+    end
+}
+
+-- Jobs component
+COMPONENTS.Jobs = {
+    GetJob = function(self, characterId)
+        -- Get character's job
+    end,
+
+    SetJob = function(self, characterId, job, grade)
+        -- Set character's job
+    end,
+
+    DoesJobExist = function(self, jobId)
+        -- Check if job exists
+    end
+}
+```
+
+### 3. Utility Components
+
+**Provided by:** Utility resources
+
+Helper components that provide common functionality:
+
+```lua
+-- Formatting utilities
+COMPONENTS.Format = {
+    Money = function(self, amount)
+        return '$' .. string.format('%,.2f', amount)
+    end,
+
+    Time = function(self, seconds)
+        local hours = math.floor(seconds / 3600)
+        local mins = math.floor((seconds % 3600) / 60)
+        return string.format('%02d:%02d', hours, mins)
+    end
+}
+
+-- Math utilities
+COMPONENTS.Math = {
+    Clamp = function(self, value, min, max)
+        return math.max(min, math.min(max, value))
+    end,
+
+    Round = function(self, value, decimals)
+        local mult = 10 ^ (decimals or 0)
+        return math.floor(value * mult + 0.5) / mult
+    end
+}
+```
+
+## Creating Components
+
+### Basic Component
+
+Create a simple component with public methods:
+
+```lua
+-- mythic-myresource/server/component.lua
+
+exports['mythic-base']:RegisterComponent('MyFeature', {
+    -- Configuration
+    enabled = true,
+
+    -- Public API
+    DoAction = function(self, player, data)
+        if not self.enabled then
+            return false, 'Feature disabled'
+        end
+
+        -- Implementation
+        COMPONENTS.Logger:Info('MyFeature', 'Action performed', {
+            player = player,
+            data = data
+        })
+
+        return true
+    end,
+
+    GetData = function(self, id)
+        return COMPONENTS.Database:findOne('myfeature', { _id = id })
+    end
+})
+```
+
+### Component with Dependencies
+
+Use `RequestDependencies` to ensure required components are loaded:
+
+```lua
+-- mythic-shop/server/component.lua
+
+exports['mythic-base']:RequestDependencies('Shop', {
+    'Inventory',
+    'Economy',
+    'Logger'
+}, function(errors)
+    if #errors > 0 then
+        print('Failed to load Shop dependencies:', json.encode(errors))
+        return
+    end
+
+    exports['mythic-base']:RegisterComponent('Shop', {
+        _protected = true,
+        _name = 'shop',
+
+        Purchase = function(self, player, item, price)
+            -- Check if player has money
+            if not COMPONENTS.Economy:Has(player, price) then
+                return false, 'Insufficient funds'
+            end
+
+            -- Charge player
+            COMPONENTS.Economy:Charge(player, price)
+
+            -- Give item
+            COMPONENTS.Inventory:AddItem(player, item, 1)
+
+            -- Log purchase
+            COMPONENTS.Logger:Info('Shop', 'Purchase made', {
+                player = player,
+                item = item,
+                price = price
+            })
+
+            return true
+        end,
+
+        Sell = function(self, player, item, price)
+            -- Check if player has item
+            if not COMPONENTS.Inventory:HasItem(player, item, 1) then
+                return false, 'Item not found'
+            end
+
+            -- Remove item
+            COMPONENTS.Inventory:RemoveItem(player, item, 1)
+
+            -- Pay player
+            COMPONENTS.Economy:Add(player, price)
+
+            return true
+        end
+    })
+end)
+```
+
+### Component with State
+
+Components can maintain internal state:
+
+```lua
+exports['mythic-base']:RegisterComponent('Cache', {
+    -- Private state
+    _cache = {},
+    _hits = 0,
+    _misses = 0,
+
+    -- Public methods
+    Set = function(self, key, value, ttl)
+        self._cache[key] = {
+            value = value,
+            expires = ttl and (os.time() + ttl) or nil
+        }
+    end,
+
+    Get = function(self, key)
+        local entry = self._cache[key]
+
+        if not entry then
+            self._misses = self._misses + 1
+            return nil
+        end
+
+        -- Check expiration
+        if entry.expires and os.time() > entry.expires then
+            self._cache[key] = nil
+            self._misses = self._misses + 1
+            return nil
+        end
+
+        self._hits = self._hits + 1
+        return entry.value
+    end,
+
+    Clear = function(self)
+        self._cache = {}
+        self._hits = 0
+        self._misses = 0
+    end,
+
+    GetStats = function(self)
+        return {
+            hits = self._hits,
+            misses = self._misses,
+            hitRate = self._hits / (self._hits + self._misses)
+        }
+    end
+})
+```
+
+## Component Patterns
+
+### 1. Service Pattern
+
+Stateless components that provide services:
+
+```lua
+exports['mythic-base']:RegisterComponent('Notifications', {
+    Send = function(self, player, message, type)
+        TriggerClientEvent('mythic-notifications:client:Send', player, {
+            message = message,
+            type = type or 'info',
+            duration = 5000
+        })
+    end,
+
+    SendAll = function(self, message, type)
+        TriggerClientEvent('mythic-notifications:client:Send', -1, {
+            message = message,
+            type = type or 'info',
+            duration = 5000
+        })
+    end,
+
+    SendError = function(self, player, message)
+        self:Send(player, message, 'error')
+    end,
+
+    SendSuccess = function(self, player, message)
+        self:Send(player, message, 'success')
+    end
+})
+```
+
+### 2. Manager Pattern
+
+Components that manage a collection of items:
+
+```lua
+exports['mythic-base']:RegisterComponent('VehicleManager', {
+    _vehicles = {},  -- Active vehicles
+
+    Register = function(self, vehicleId, data)
+        self._vehicles[vehicleId] = data
+    end,
+
+    Unregister = function(self, vehicleId)
+        self._vehicles[vehicleId] = nil
+    end,
+
+    Get = function(self, vehicleId)
+        return self._vehicles[vehicleId]
+    end,
+
+    GetAll = function(self)
+        return self._vehicles
+    end,
+
+    Count = function(self)
+        local count = 0
+        for _ in pairs(self._vehicles) do
+            count = count + 1
+        end
+        return count
+    end
+})
+```
+
+### 3. Factory Pattern
+
+Components that create other objects:
+
+```lua
+exports['mythic-base']:RegisterComponent('ItemFactory', {
+    _templates = {},
+
+    RegisterTemplate = function(self, itemId, template)
+        self._templates[itemId] = template
+    end,
+
+    Create = function(self, itemId, overrides)
+        local template = self._templates[itemId]
+        if not template then
+            return nil, 'Template not found'
+        end
+
+        -- Clone template
+        local item = {}
+        for k, v in pairs(template) do
+            item[k] = v
+        end
+
+        -- Apply overrides
+        if overrides then
+            for k, v in pairs(overrides) do
+                item[k] = v
+            end
+        end
+
+        -- Add metadata
+        item.id = COMPONENTS.Utils:GenerateUUID()
+        item.created = os.time()
+
+        return item
+    end
+})
+```
+
+### 4. Decorator Pattern
+
+Extending components with additional functionality:
+
+```lua
+-- Original component
+COMPONENTS.Inventory = {
+    AddItem = function(self, player, item, count)
+        -- Basic add item logic
+        return true
+    end
+}
+
+-- Decorate with logging
+local originalAddItem = COMPONENTS.Inventory.AddItem
+exports['mythic-base']:ExtendComponent('Inventory', {
+    AddItem = function(self, player, item, count)
+        -- Log before
+        COMPONENTS.Logger:Info('Inventory', 'Adding item', {
+            player = player,
+            item = item,
+            count = count
+        })
+
+        -- Call original
+        local success = originalAddItem(self, player, item, count)
+
+        -- Log after
+        if success then
+            COMPONENTS.Logger:Info('Inventory', 'Item added successfully')
+        end
+
+        return success
+    end
+})
+```
+
+## Component Communication
+
+Components interact through several mechanisms:
+
+### Direct Method Calls
+
+```lua
+-- Simple and fast
+local inventory = COMPONENTS.Inventory:Get(characterId)
+COMPONENTS.Notifications:Send(source, 'Item received', 'success')
+```
+
+### Component Chaining
+
+```lua
+COMPONENTS.Economy:Charge(player, price)
+    and COMPONENTS.Inventory:AddItem(player, item, 1)
+    and COMPONENTS.Notifications:Send(player, 'Purchase successful', 'success')
+```
+
+### Event-Based Communication
+
+```lua
+-- Component triggers event
+exports['mythic-base']:RegisterComponent('Shop', {
+    Purchase = function(self, player, item, price)
+        local success = self:_processPurchase(player, item, price)
+
+        if success then
+            -- Trigger event for other systems to react
+            TriggerEvent('Shop:PurchaseComplete', player, item, price)
+        end
+
+        return success
+    end
+})
+
+-- Other components listen
+AddEventHandler('Shop:PurchaseComplete', function(player, item, price)
+    -- Award loyalty points
+    COMPONENTS.Loyalty:AddPoints(player, math.floor(price / 10))
+end)
+```
+
+## Component Best Practices
+
+<AccordionGroup>
+  <Accordion title="1. Single Responsibility" icon="bullseye">
+    Each component should have one clear purpose:
+
+    ```lua
+    // ✅ GOOD - Focused component
+    COMPONENTS.Authentication = {
+        Login = function(...) end,
+        Logout = function(...) end,
+        ValidateToken = function(...) end
+    }
+
+    // ❌ BAD - Does too much
+    COMPONENTS.Everything = {
+        Login = function(...) end,
+        GetInventory = function(...) end,
+        SpawnVehicle = function(...) end,
+        SendEmail = function(...) end
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="2. Clear API" icon="book-open">
+    Public methods should be well-documented and intuitive:
+
+    ```lua
+    exports['mythic-base']:RegisterComponent('Garage', {
+        --- Spawn a vehicle from garage
+        ---@param player number Player server ID
+        ---@param vehicleId number Vehicle database ID
+        ---@return boolean success
+        ---@return table|string vehicle or error message
+        SpawnVehicle = function(self, player, vehicleId)
+            -- Implementation
+        end
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="3. Error Handling" icon="triangle-exclamation">
+    Always handle errors gracefully:
+
+    ```lua
+    exports['mythic-base']:RegisterComponent('Payment', {
+        Charge = function(self, player, amount)
+            -- Validate inputs
+            if not player or amount <= 0 then
+                return false, 'Invalid parameters'
+            end
+
+            -- Check balance
+            local balance = self:GetBalance(player)
+            if balance < amount then
+                return false, 'Insufficient funds'
+            end
+
+            -- Attempt charge
+            local success = self:_deductBalance(player, amount)
+            if not success then
+                COMPONENTS.Logger:Error('Payment', 'Failed to deduct balance')
+                return false, 'Transaction failed'
+            end
+
+            return true
+        end
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="4. Dependency Management" icon="link">
+    Always declare and wait for dependencies:
+
+    ```lua
+    // ✅ GOOD
+    exports['mythic-base']:RequestDependencies('MyComponent', {
+        'Database',
+        'Logger'
+    }, function(errors)
+        if #errors == 0 then
+            -- Safe to use dependencies
+        end
+    end)
+
+    // ❌ BAD
+    local db = COMPONENTS.Database  -- May be nil!
+    ```
+  </Accordion>
+
+  <Accordion title="5. Testability" icon="vial">
+    Design components to be testable:
+
+    ```lua
+    exports['mythic-base']:RegisterComponent('Calculator', {
+        -- Pure function - easy to test
+        Add = function(self, a, b)
+            return a + b
+        end,
+
+        -- Dependency injection - easy to mock
+        SaveResult = function(self, result, database)
+            database = database or COMPONENTS.Database
+            return database:insert('calculations', { result = result })
+        end
+    })
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Topics
+
+### Component Lifecycle Hooks
+
+```lua
+exports['mythic-base']:RegisterComponent('MyComponent', {
+    -- Called when component is registered
+    _onInit = function(self)
+        print('Component initialized')
+        self:_loadConfiguration()
+    end,
+
+    -- Called when dependencies update
+    _onDependencyUpdate = function(self, dependency)
+        print('Dependency updated:', dependency)
+        self:_refreshCache()
+    end,
+
+    -- Called on resource stop
+    _onCleanup = function(self)
+        print('Component cleaning up')
+        self:_saveState()
+    end
+})
+```
+
+### Component Versioning
+
+```lua
+exports['mythic-base']:RegisterComponent('MyAPI', {
+    _version = '2.0.0',
+
+    -- Old method (deprecated)
+    OldMethod = function(self, ...)
+        COMPONENTS.Logger:Warn('MyAPI', 'OldMethod is deprecated, use NewMethod')
+        return self:NewMethod(...)
+    end,
+
+    -- New method
+    NewMethod = function(self, ...)
+        -- New implementation
+    end,
+
+    -- Version check
+    GetVersion = function(self)
+        return self._version
+    end
+})
+```
+
+### Component Namespacing
+
+```lua
+-- Organize related components under namespace
+exports['mythic-base']:RegisterComponent('Inventory.Items', {...})
+exports['mythic-base']:RegisterComponent('Inventory.Crafting', {...})
+exports['mythic-base']:RegisterComponent('Inventory.Shops', {...})
+
+-- Access via namespace
+COMPONENTS.Inventory.Items:Get(id)
+COMPONENTS.Inventory.Crafting:Craft(recipe)
+COMPONENTS.Inventory.Shops:Purchase(item)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Proxy Pattern" icon="circle-nodes" href="/concepts/proxy-pattern">
+    Deep dive into RegisterComponent, FetchComponent, etc.
+  </Card>
+  <Card title="Resource Structure" icon="folder-tree" href="/concepts/resource-structure">
+    How to organize resources using components
+  </Card>
+  <Card title="Event System" icon="bolt" href="/concepts/event-system">
+    Complement components with events
+  </Card>
+  <Card title="Creating Resources" icon="plus" href="/development/creating-resources/overview">
+    Build your first component-based resource
+  </Card>
+</CardGroup>
+
+<Tip>
+**Think in components:** When building features, break them into logical components. Each component should do one thing well and expose a clean API.
+</Tip>

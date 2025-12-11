@@ -1,0 +1,695 @@
+---
+title: Characters - Events
+description: Character-related events for lifecycle management and state changes
+icon: 'bolt'
+---
+
+Character events fire at key moments in the character lifecycle, allowing other resources to react to character creation, selection, updates, and deletion.
+
+## Server Events
+
+All character events fire on the **server-side**.
+
+<CardGroup cols={2}>
+  <Card title="Lifecycle Events" icon="circle-nodes">
+    Created, Selected, Deleted
+  </Card>
+  <Card title="State Changes" icon="arrows-rotate">
+    Job changes, money changes, updates
+  </Card>
+  <Card title="Persistent" icon="database">
+    Save and load events
+  </Card>
+  <Card title="Hookable" icon="link">
+    Add custom logic to character operations
+  </Card>
+</CardGroup>
+
+---
+
+## Lifecycle Events
+
+### mythic-characters:server:CharacterCreated
+
+Fired when a new character is successfully created.
+
+```lua
+AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="source" type="number">
+  Player server ID who created the character
+</ParamField>
+
+<ParamField path="character" type="table">
+  Newly created character object with all fields
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Give starter items
+AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
+    -- Create inventory
+    COMPONENTS.Inventory:Create(character.SID)
+
+    -- Give starter items
+    COMPONENTS.Inventory:AddItem(character.SID, 'phone', 1, {
+        number = character.Phone
+    })
+    COMPONENTS.Inventory:AddItem(character.SID, 'water', 2)
+    COMPONENTS.Inventory:AddItem(character.SID, 'sandwich', 2)
+    COMPONENTS.Inventory:AddItem(character.SID, 'id_card', 1, {
+        name = character.First .. ' ' .. character.Last,
+        dob = character.DOB,
+        gender = character.Gender
+    })
+
+    COMPONENTS.Logger:Info('Characters', 'New character created', {
+        player = source,
+        character = character.SID,
+        name = character.First .. ' ' .. character.Last
+    })
+end)
+
+-- Set default job
+AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
+    COMPONENTS.Jobs:SetJob(character.SID, 'unemployed', 0)
+end)
+
+-- Send welcome notification
+AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'Welcome to the city, ' .. character.First .. '!',
+        type = 'success',
+        duration = 5000
+    })
+end)
+
+-- Create default bank account
+AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
+    COMPONENTS.Database:insertOne('bank_accounts', {
+        owner = character.SID,
+        type = 'checking',
+        balance = 5000,  -- Starting balance
+        accountNumber = GenerateAccountNumber(),
+        createdAt = os.time()
+    })
+end)
+```
+
+---
+
+### mythic-characters:server:CharacterSelected
+
+Fired when a player selects and loads a character.
+
+```lua
+AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="source" type="number">
+  Player server ID
+</ParamField>
+
+<ParamField path="character" type="table">
+  Selected character object
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Load character data for other systems
+AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
+    -- Load inventory
+    local inventory = COMPONENTS.Inventory:Get(character.SID)
+    TriggerClientEvent('mythic-inventory:client:SetInventory', source, inventory)
+
+    -- Load vehicles
+    local vehicles = COMPONENTS.Database:find('vehicles', { owner = character.SID })
+    TriggerClientEvent('mythic-vehicles:client:SetVehicles', source, vehicles)
+
+    -- Load properties
+    local properties = COMPONENTS.Database:find('properties', { owner = character.SID })
+    TriggerClientEvent('mythic-properties:client:SetProperties', source, properties)
+
+    -- Set job
+    TriggerClientEvent('mythic-jobs:client:SetJob', source, {
+        job = character.job,
+        grade = character.jobGrade,
+        onDuty = character.onDuty or false
+    })
+end)
+
+-- Log character selection
+AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
+    COMPONENTS.Logger:Info('Characters', 'Character selected', {
+        player = source,
+        playerName = GetPlayerName(source),
+        character = character.SID,
+        characterName = character.First .. ' ' .. character.Last
+    })
+
+    -- Update last login
+    COMPONENTS.Characters:UpdateCharacter(character.SID, {
+        ['metadata.lastLogin'] = os.time()
+    })
+end)
+
+-- Check for pending notifications
+AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
+    local notifications = COMPONENTS.Database:find('notifications', {
+        target = character.SID,
+        read = false
+    })
+
+    if #notifications > 0 then
+        TriggerClientEvent('mythic-phone:client:ReceiveNotifications', source, notifications)
+    end
+end)
+```
+
+---
+
+### mythic-characters:server:CharacterDeleted
+
+Fired when a character is deleted.
+
+```lua
+AddEventHandler('mythic-characters:server:CharacterDeleted', function(source, characterId)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="source" type="number">
+  Player server ID who deleted the character
+</ParamField>
+
+<ParamField path="characterId" type="number">
+  SID of the deleted character
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Clean up character data
+AddEventHandler('mythic-characters:server:CharacterDeleted', function(source, characterId)
+    -- Delete inventory
+    COMPONENTS.Inventory:Delete(characterId)
+
+    -- Delete all vehicles
+    COMPONENTS.Database:deleteMany('vehicles', { owner = characterId })
+
+    -- Delete properties
+    COMPONENTS.Database:deleteMany('property_ownership', { owner = characterId })
+
+    -- Delete phone data
+    COMPONENTS.Database:deleteMany('phone_messages', {
+        ['$or'] = {
+            { sender = characterId },
+            { receiver = characterId }
+        }
+    })
+
+    -- Delete bank accounts
+    COMPONENTS.Database:deleteMany('bank_accounts', { owner = characterId })
+
+    COMPONENTS.Logger:Info('Characters', 'Character data cleaned up', {
+        character = characterId
+    })
+end)
+
+-- Log deletion for audit
+AddEventHandler('mythic-characters:server:CharacterDeleted', function(source, characterId)
+    COMPONENTS.Database:insertOne('audit_log', {
+        type = 'character_deleted',
+        player = GetPlayerIdentifier(source, 0),
+        character = characterId,
+        timestamp = os.time()
+    })
+end)
+```
+
+---
+
+## State Change Events
+
+### mythic-characters:server:JobChanged
+
+Fired when a character's job or job grade changes.
+
+```lua
+AddEventHandler('mythic-characters:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="characterId" type="number">
+  Character SID
+</ParamField>
+
+<ParamField path="newJob" type="string">
+  New job identifier
+</ParamField>
+
+<ParamField path="newGrade" type="number">
+  New job grade
+</ParamField>
+
+<ParamField path="oldJob" type="string">
+  Previous job identifier
+</ParamField>
+
+<ParamField path="oldGrade" type="number">
+  Previous job grade
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Give job-specific items
+AddEventHandler('mythic-characters:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+    if newJob == 'police' then
+        -- Give police equipment
+        COMPONENTS.Inventory:AddItem(characterId, 'weapon_pistol', 1)
+        COMPONENTS.Inventory:AddItem(characterId, 'radio', 1)
+        COMPONENTS.Inventory:AddItem(characterId, 'handcuffs', 1)
+    elseif newJob == 'ems' then
+        -- Give EMS equipment
+        COMPONENTS.Inventory:AddItem(characterId, 'medkit', 5)
+        COMPONENTS.Inventory:AddItem(characterId, 'bandage', 10)
+    end
+
+    -- Remove old job items
+    if oldJob == 'police' then
+        COMPONENTS.Inventory:RemoveItem(characterId, 'weapon_pistol', 999)
+        COMPONENTS.Inventory:RemoveItem(characterId, 'handcuffs', 999)
+    end
+end)
+
+-- Update permissions
+AddEventHandler('mythic-characters:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+    local player = Fetch:SID(characterId)
+
+    if player then
+        local source = player:GetData('Source')
+        -- Update Discord roles or permissions
+        TriggerEvent('discord:updateRoles', source, newJob)
+    end
+end)
+
+-- Notify player
+AddEventHandler('mythic-characters:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+    local player = Fetch:SID(characterId)
+
+    if player then
+        local source = player:GetData('Source')
+        local jobLabel = COMPONENTS.Jobs:GetJobLabel(newJob)
+        local gradeLabel = COMPONENTS.Jobs:GetGradeLabel(newJob, newGrade)
+
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'Job changed to ' .. jobLabel .. ' - ' .. gradeLabel,
+            type = 'info'
+        })
+    end
+end)
+```
+
+---
+
+### mythic-characters:server:MoneyChanged
+
+Fired when a character's cash or bank balance changes.
+
+```lua
+AddEventHandler('mythic-characters:server:MoneyChanged', function(characterId, account, amount, newBalance, reason)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="characterId" type="number">
+  Character SID
+</ParamField>
+
+<ParamField path="account" type="string">
+  Account type: `'cash'` or `'bank'`
+</ParamField>
+
+<ParamField path="amount" type="number">
+  Change amount (positive = added, negative = removed)
+</ParamField>
+
+<ParamField path="newBalance" type="number">
+  New balance after change
+</ParamField>
+
+<ParamField path="reason" type="string">
+  Transaction reason
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Update client HUD
+AddEventHandler('mythic-characters:server:MoneyChanged', function(characterId, account, amount, newBalance, reason)
+    local player = Fetch:SID(characterId)
+
+    if player then
+        local source = player:GetData('Source')
+        TriggerClientEvent('mythic-hud:client:UpdateMoney', source, {
+            account = account,
+            balance = newBalance,
+            change = amount
+        })
+    end
+end)
+
+-- Log large transactions
+AddEventHandler('mythic-characters:server:MoneyChanged', function(characterId, account, amount, newBalance, reason)
+    if math.abs(amount) >= 10000 then  -- Log transactions $10k+
+        COMPONENTS.Logger:Info('Economy', 'Large transaction', {
+            character = characterId,
+            account = account,
+            amount = amount,
+            newBalance = newBalance,
+            reason = reason
+        }, { file = true })
+    end
+end)
+
+-- Achievement tracking
+AddEventHandler('mythic-characters:server:MoneyChanged', function(characterId, account, amount, newBalance, reason)
+    if account == 'bank' and newBalance >= 1000000 then
+        -- Unlock millionaire achievement
+        COMPONENTS.Achievements:Unlock(characterId, 'millionaire')
+    end
+end)
+
+-- Transaction log
+AddEventHandler('mythic-characters:server:MoneyChanged', function(characterId, account, amount, newBalance, reason)
+    COMPONENTS.Database:insertOne('transactions', {
+        character = characterId,
+        account = account,
+        amount = amount,
+        balance = newBalance,
+        reason = reason,
+        timestamp = os.time()
+    })
+end)
+```
+
+---
+
+## Client Events
+
+### mythic-characters:client:Spawned
+
+Fired on the client when the character spawns in the world.
+
+```lua
+AddEventHandler('mythic-characters:client:Spawned', function(character, location)
+    -- Handler code
+end)
+```
+
+**Parameters:**
+
+<ParamField path="character" type="table">
+  Character data
+</ParamField>
+
+<ParamField path="location" type="table">
+  Spawn location {x, y, z, heading}
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Client-side initialization
+AddEventHandler('mythic-characters:client:Spawned', function(character, location)
+    -- Initialize HUD
+    SendNUIMessage({
+        type = 'INIT_CHARACTER',
+        character = {
+            name = character.First .. ' ' .. character.Last,
+            job = character.job,
+            cash = character.cash,
+            bank = character.bank
+        }
+    })
+
+    -- Load player appearance
+    TriggerEvent('mythic-appearance:client:LoadAppearance', character.metadata.appearance)
+
+    -- Enable controls
+    FreezeEntityPosition(PlayerPedId(), false)
+
+    print('Spawned as', character.First, character.Last, 'at', location.x, location.y, location.z)
+end)
+
+-- Camera transition
+AddEventHandler('mythic-characters:client:Spawned', function(character, location)
+    -- Fade out character selection screen
+    DoScreenFadeOut(500)
+    Wait(500)
+
+    -- Spawn player
+    SetEntityCoords(PlayerPedId(), location.x, location.y, location.z)
+    SetEntityHeading(PlayerPedId(), location.heading)
+
+    -- Fade in game world
+    Wait(1000)
+    DoScreenFadeIn(1000)
+end)
+```
+
+---
+
+### mythic-characters:client:CharacterUpdated
+
+Fired on the client when character data is updated.
+
+```lua
+AddEventHandler('mythic-characters:client:CharacterUpdated', function(character)
+    -- Handler code
+end)
+```
+
+**Examples:**
+
+```lua
+-- Update HUD
+AddEventHandler('mythic-characters:client:CharacterUpdated', function(character)
+    SendNUIMessage({
+        type = 'UPDATE_CHARACTER',
+        character = character
+    })
+end)
+```
+
+---
+
+## Using Events for Custom Logic
+
+### Hook Into Character Creation
+
+```lua
+-- Add custom welcome package
+AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
+    -- Custom welcome logic
+    local welcomePackage = {
+        { item = 'phone', count = 1 },
+        { item = 'water', count = 5 },
+        { item = 'sandwich', count = 5 },
+        { item = 'starter_pack', count = 1 }
+    }
+
+    for _, item in ipairs(welcomePackage) do
+        COMPONENTS.Inventory:AddItem(character.SID, item.item, item.count)
+    end
+
+    -- Give starting money
+    COMPONENTS.Characters:AddMoney(character.SID, 'bank', 5000, 'Welcome bonus')
+end)
+```
+
+### Track Playtime
+
+```lua
+local playtime = {}
+
+-- Start tracking on character select
+AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
+    playtime[character.SID] = os.time()
+end)
+
+-- Save playtime on disconnect
+AddEventHandler('playerDropped', function(reason)
+    local player = Fetch:Source(source)
+
+    if player then
+        local char = player:GetData('Character')
+
+        if char and playtime[char:GetData('SID')] then
+            local stateId = char:GetData('SID')
+            local sessionTime = os.time() - playtime[stateId]
+            local metadata = char:GetData('MetaData') or {}
+            local totalPlaytime = (metadata.playtime or 0) + sessionTime
+
+            -- Update database directly as player is disconnecting
+            Database.Game:updateOne({
+                collection = 'characters',
+                query = {SID = stateId},
+                update = {
+                    ['$set'] = {['MetaData.playtime'] = totalPlaytime}
+                }
+            })
+
+            playtime[stateId] = nil
+        end
+    end
+end)
+```
+
+### Custom Job Logic
+
+```lua
+-- Custom logic when becoming police
+AddEventHandler('mythic-characters:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+    if newJob == 'police' then
+        -- Grant police access
+        local player = Fetch:SID(characterId)
+
+        if player then
+            local source = player:GetData('Source')
+            -- Give police permissions
+            ExecuteCommand('add_principal identifier.' .. GetPlayerIdentifier(source, 0) .. ' group.police')
+
+            -- Notify
+            TriggerClientEvent('mythic-notifications:client:Send', source, {
+                message = 'You are now a police officer',
+                type = 'success'
+            })
+        end
+    elseif oldJob == 'police' then
+        -- Remove police access when leaving
+        local player = Fetch:SID(characterId)
+
+        if player then
+            local source = player:GetData('Source')
+            ExecuteCommand('remove_principal identifier.' .. GetPlayerIdentifier(source, 0) .. ' group.police')
+        end
+    end
+end)
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Don't Block Event Handlers" icon="hourglass-half">
+    **❌ Bad:**
+    ```lua
+    AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
+        -- Long synchronous operation
+        for i = 1, 1000000 do
+            -- Heavy work
+        end
+    })
+    ```
+
+    **✅ Good:**
+    ```lua
+    AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
+        -- Use thread for heavy work
+        CreateThread(function()
+            -- Heavy work
+        end)
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="Validate Character Exists" icon="shield-check">
+    ```lua
+    AddEventHandler('mythic-characters:server:JobChanged', function(characterId, ...)
+        -- Validate character exists (check if online)
+        local player = Fetch:SID(characterId)
+
+        if not player then
+            COMPONENTS.Logger:Warn('Characters', 'JobChanged for offline character', {
+                console = true,
+                file = true
+            }, {
+                characterId = characterId
+            })
+            return
+        end
+
+        -- Process event
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Clean Up Event Data" icon="broom">
+    ```lua
+    local sessionData = {}
+
+    AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
+        sessionData[character.SID] = {
+            loginTime = os.time(),
+            source = source
+        }
+    end)
+
+    AddEventHandler('playerDropped', function()
+        local player = Fetch:Source(source)
+
+        if player then
+            local char = player:GetData('Character')
+
+            if char then
+                sessionData[char:GetData('SID')] = nil  -- Clean up
+            end
+        end
+    end)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Characters - Exports" icon="cube" href="/api/characters/exports">
+    Character management methods
+  </Card>
+  <Card title="Characters - Data Structure" icon="database" href="/api/characters/data-structure">
+    Character data schema
+  </Card>
+  <Card title="Event System" icon="bolt" href="/concepts/event-system">
+    Understanding the event system
+  </Card>
+  <Card title="Inventory Events" icon="box" href="/api/inventory/events">
+    Inventory-related events
+  </Card>
+</CardGroup>
+
+<Tip>
+**Event Timing:** Character events fire in a specific order. Use this to your advantage - for example, `CharacterCreated` fires before `CharacterSelected`, so you can set up initial data in the creation handler.
+</Tip>

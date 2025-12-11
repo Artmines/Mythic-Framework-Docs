@@ -1,0 +1,1063 @@
+---
+title: Vehicles - Events
+description: Vehicle-related events and callbacks for managing vehicle state and interactions
+icon: 'bolt'
+---
+
+The Vehicles system provides events for vehicle lifecycle management, key synchronization, vehicle state changes, and player interactions with vehicles.
+
+## Server Events
+
+### Vehicles:Server:PlayerSetProperties
+
+Triggered when client sends vehicle properties after first spawn.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| veh | number | Vehicle entity ID |
+| properties | table | Vehicle customization properties |
+
+**Example:**
+```lua
+-- Server side
+RegisterNetEvent('Vehicles:Server:PlayerSetProperties', function(veh, properties)
+    -- Framework handles this automatically
+    -- Properties are saved to vehicle database record
+end)
+```
+
+**Notes:**
+- Automatically triggered by framework when vehicle spawns without saved properties
+- Do not trigger manually unless creating custom vehicle spawning logic
+
+---
+
+### Vehicles:Server:StopDespawn
+
+Prevent a temporary vehicle from despawning.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vNet | number | Vehicle network ID |
+
+**Example:**
+```lua
+-- Client side
+local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+local vNet = NetworkGetNetworkIdFromEntity(vehicle)
+
+TriggerServerEvent('Vehicles:Server:StopDespawn', vNet)
+
+-- Server will keep the vehicle from despawning when player leaves
+```
+
+---
+
+### Vehicles:Server:FlipVehicle
+
+Request to flip an overturned vehicle.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| netVeh | number | Vehicle network ID |
+| correctPitch | boolean | Whether to correct pitch rotation |
+
+**Example:**
+```lua
+-- Client side
+local vehicle = GetClosestVehicle(GetEntityCoords(PlayerPedId()), 5.0, 0, 71)
+if vehicle ~= 0 then
+    local vNet = NetworkGetNetworkIdFromEntity(vehicle)
+    TriggerServerEvent('Vehicles:Server:FlipVehicle', vNet, true)
+end
+```
+
+---
+
+### Vehicles:Server:StealLocalKeys
+
+Give player keys to a vehicle (lockpicking, etc.).
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vehNet | number | Vehicle network ID |
+
+**Example:**
+```lua
+-- Client side - After successful lockpick
+local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+local vNet = NetworkGetNetworkIdFromEntity(vehicle)
+
+TriggerServerEvent('Vehicles:Server:StealLocalKeys', vNet)
+```
+
+---
+
+### Vehicles:Server:HarnessDamage
+
+Apply damage to racing harness.
+
+**Example:**
+```lua
+-- Client side - On vehicle crash with harness
+TriggerServerEvent('Vehicles:Server:HarnessDamage')
+```
+
+---
+
+### Vehicles:Server:RemoveBomb
+
+Remove car bomb from vehicle.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vNet | number | Vehicle network ID |
+
+**Example:**
+```lua
+-- Client side
+local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+local vNet = NetworkGetNetworkIdFromEntity(vehicle)
+
+TriggerServerEvent('Vehicles:Server:RemoveBomb', vNet)
+```
+
+---
+
+## Client Events
+
+### Vehicles:Client:UpdateKeys
+
+Update client's vehicle keys table.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| keys | table | Table of VINs the player has keys to |
+
+**Example:**
+```lua
+-- Client side
+RegisterNetEvent('Vehicles:Client:UpdateKeys', function(keys)
+    -- Update local keys table
+    _vehicleKeys = keys
+
+    -- Check if player has specific key
+    if keys['ABC123456789'] then
+        print('Player has keys to this vehicle')
+    end
+end)
+```
+
+**Triggered When:**
+- Player receives keys
+- Player loses keys
+- Character spawns/selects character
+
+---
+
+### Vehicles:Client:ViewVIN
+
+Display vehicle VIN to player.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| VIN | string | Vehicle Identification Number |
+
+**Example:**
+```lua
+-- Client side
+RegisterNetEvent('Vehicles:Client:ViewVIN', function(VIN)
+    -- Display VIN in UI
+    SendNUIMessage({
+        action = 'showVIN',
+        vin = VIN
+    })
+end)
+```
+
+---
+
+### Vehicles:Client:Actions:SwitchSeat
+
+Force player to switch vehicle seat.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| seatIndex | number | Seat index to switch to (-1=driver, 0=front passenger, etc.) |
+
+**Example:**
+```lua
+-- Server side - Move player to driver seat
+TriggerClientEvent('Vehicles:Client:Actions:SwitchSeat', source, -1)
+
+-- Move to back seat
+TriggerClientEvent('Vehicles:Client:Actions:SwitchSeat', source, 1)
+```
+
+---
+
+### Vehicles:Client:Actions:ToggleDoor
+
+Open or close vehicle door.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| doorId | number/string | Door index (0-5) or "open"/"shut" for all |
+
+**Example:**
+```lua
+-- Server side
+-- Open specific door
+TriggerClientEvent('Vehicles:Client:Actions:ToggleDoor', source, 0) -- Front left
+
+-- Open all doors
+TriggerClientEvent('Vehicles:Client:Actions:ToggleDoor', source, 'open')
+
+-- Close all doors
+TriggerClientEvent('Vehicles:Client:Actions:ToggleDoor', source, 'shut')
+```
+
+**Door Indices:**
+```lua
+0 = Front Left Door
+1 = Front Right Door
+2 = Rear Left Door
+3 = Rear Right Door
+4 = Hood
+5 = Trunk
+```
+
+---
+
+### Vehicles:Client:Actions:ToggleWindow
+
+Open or close vehicle window.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| windowId | number/string | Window index (0-3) or "open"/"shut" for all |
+
+**Example:**
+```lua
+-- Server side
+-- Roll down driver window
+TriggerClientEvent('Vehicles:Client:Actions:ToggleWindow', source, 0)
+
+-- Roll down all windows
+TriggerClientEvent('Vehicles:Client:Actions:ToggleWindow', source, 'open')
+
+-- Roll up all windows
+TriggerClientEvent('Vehicles:Client:Actions:ToggleWindow', source, 'shut')
+```
+
+---
+
+### Vehicles:Client:CleaningKit
+
+Trigger vehicle cleaning animation.
+
+**Example:**
+```lua
+-- Server side - When player uses cleaning kit item
+TriggerClientEvent('Vehicles:Client:CleaningKit', source)
+```
+
+---
+
+### Vehicles:Client:ToggleAnchor
+
+Toggle boat anchor.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vNet | number | Vehicle network ID |
+| toggle | boolean | Anchor state (true=down, false=up) |
+
+**Example:**
+```lua
+-- Client side
+RegisterNetEvent('Vehicles:Client:ToggleAnchor', function(vNet, toggle)
+    local boat = NetworkGetEntityFromNetworkId(vNet)
+    if DoesEntityExist(boat) then
+        -- Set anchor state
+        if toggle then
+            print('Anchor dropped')
+        else
+            print('Anchor raised')
+        end
+    end
+end)
+```
+
+---
+
+### Vehicles:Client:SyncNitroEffect
+
+Sync nitrous visual effects.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vNet | number | Vehicle network ID |
+| state | boolean | Nitrous effect state |
+
+**Example:**
+```lua
+-- Client side
+RegisterNetEvent('Vehicles:Client:SyncNitroEffect', function(vNet, state)
+    local vehicle = NetworkGetEntityFromNetworkId(vNet)
+    if DoesEntityExist(vehicle) then
+        -- Play/stop nitrous visual effects
+    end
+end)
+```
+
+---
+
+### Vehicles:Client:SyncPurgeEffect
+
+Sync nitrous purge visual effects.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vNet | number | Vehicle network ID |
+| state | boolean | Purge effect state |
+
+**Example:**
+```lua
+-- Client side
+RegisterNetEvent('Vehicles:Client:SyncPurgeEffect', function(vNet, state)
+    local vehicle = NetworkGetEntityFromNetworkId(vNet)
+    if DoesEntityExist(vehicle) then
+        -- Play/stop purge visual effects
+    end
+end)
+```
+
+---
+
+## VehicleSync Events
+
+### VehicleSync:Client:OpenDoor
+
+Open vehicle door with sync.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vNet | number | Vehicle network ID |
+| door | number | Door index (0-5) |
+| loose | boolean | Door is loose/damaged |
+| instant | boolean | Skip animation |
+
+**Example:**
+```lua
+-- Client side
+RegisterNetEvent('VehicleSync:Client:OpenDoor', function(vNet, door, loose, instant)
+    local vehicle = NetworkGetEntityFromNetworkId(vNet)
+    if DoesEntityExist(vehicle) then
+        SetVehicleDoorOpen(vehicle, door, loose, instant)
+    end
+end)
+```
+
+---
+
+### VehicleSync:Client:ShutDoor
+
+Close vehicle door with sync.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vNet | number | Vehicle network ID |
+| door | number | Door index (0-5) |
+| instant | boolean | Skip animation |
+
+**Example:**
+```lua
+-- Client side
+RegisterNetEvent('VehicleSync:Client:ShutDoor', function(vNet, door, instant)
+    local vehicle = NetworkGetEntityFromNetworkId(vNet)
+    if DoesEntityExist(vehicle) then
+        SetVehicleDoorShut(vehicle, door, instant)
+    end
+end)
+```
+
+---
+
+### VehicleSync:Client:SyncIndicators
+
+Sync turn signal indicators.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| veh | number | Vehicle network ID |
+| state | number | Indicator state (0=off, 1=left, 2=right, 3=hazards) |
+
+**Example:**
+```lua
+-- Client side
+RegisterNetEvent('VehicleSync:Client:SyncIndicators', function(veh, state)
+    local vehicle = NetworkGetEntityFromNetworkId(veh)
+    if DoesEntityExist(vehicle) then
+        -- Apply indicator state
+        -- 0 = Off, 1 = Left, 2 = Right, 3 = Hazards
+    end
+end)
+```
+
+---
+
+### VehicleSync:Client:SyncNeons
+
+Sync neon lights state.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| veh | number | Vehicle network ID |
+| state | boolean | Neon lights enabled |
+
+**Example:**
+```lua
+-- Client side
+RegisterNetEvent('VehicleSync:Client:SyncNeons', function(veh, state)
+    local vehicle = NetworkGetEntityFromNetworkId(veh)
+    if DoesEntityExist(vehicle) then
+        -- Enable/disable neons
+        for i = 0, 3 do
+            SetVehicleNeonLightEnabled(vehicle, i, state)
+        end
+    end
+end)
+```
+
+---
+
+### VehicleSync:Client:Emergency
+
+Sync emergency vehicle lights and siren.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| veh | number | Vehicle network ID |
+| lights | boolean | Emergency lights state |
+| siren | boolean | Siren state |
+
+**Example:**
+```lua
+-- Client side
+RegisterNetEvent('VehicleSync:Client:Emergency', function(veh, lights, siren)
+    local vehicle = NetworkGetEntityFromNetworkId(veh)
+    if DoesEntityExist(vehicle) then
+        SetVehicleSiren(vehicle, siren)
+        -- Apply emergency light state
+    end
+end)
+```
+
+---
+
+### VehicleSync:Client:EmergencyAirhorn
+
+Sync emergency vehicle airhorn.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| veh | number | Vehicle network ID |
+| state | boolean | Airhorn active |
+
+---
+
+### VehicleSync:Client:BodyRepair
+
+Trigger vehicle body repair animation.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vNet | number | Vehicle network ID |
+
+**Example:**
+```lua
+-- Client side
+RegisterNetEvent('VehicleSync:Client:BodyRepair', function(vNet)
+    local vehicle = NetworkGetEntityFromNetworkId(vNet)
+    if DoesEntityExist(vehicle) then
+        -- Play repair effects
+        -- Update vehicle body damage
+    end
+end)
+```
+
+---
+
+## Local Client Events
+
+These events are triggered locally on the client for vehicle state management.
+
+### Vehicles:Client:EnterVehicle
+
+Triggered when player enters a vehicle.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vehicle | number | Vehicle entity ID |
+| seat | number | Seat index (-1=driver, 0+=passenger) |
+| class | number | Vehicle class |
+
+**Example:**
+```lua
+-- Client side
+AddEventHandler('Vehicles:Client:EnterVehicle', function(vehicle, seat, class)
+    print('Entered vehicle:', vehicle)
+    print('Seat:', seat)
+    print('Class:', class)
+
+    -- Custom logic when entering vehicle
+    if seat == -1 then
+        print('Entered as driver')
+    end
+end)
+```
+
+---
+
+### Vehicles:Client:ExitVehicle
+
+Triggered when player exits a vehicle.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vehicle | number | Vehicle entity ID |
+
+**Example:**
+```lua
+-- Client side
+AddEventHandler('Vehicles:Client:ExitVehicle', function(vehicle)
+    print('Exited vehicle:', vehicle)
+
+    -- Clean up vehicle-specific UI
+    -- Reset vehicle-related states
+end)
+```
+
+---
+
+### Vehicles:Client:BecameDriver
+
+Triggered when player becomes the driver.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vehicle | number | Vehicle entity ID |
+| seat | number | Seat index (should be -1) |
+| class | number | Vehicle class |
+
+**Example:**
+```lua
+-- Client side
+AddEventHandler('Vehicles:Client:BecameDriver', function(vehicle, seat, class)
+    print('Became driver of vehicle:', vehicle)
+
+    -- Show speedometer
+    -- Enable vehicle controls
+end)
+```
+
+---
+
+### Vehicles:Client:SwitchVehicleSeat
+
+Triggered when player switches seats.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| vehicle | number | Vehicle entity ID |
+| seat | number | New seat index |
+| class | number | Vehicle class |
+
+**Example:**
+```lua
+-- Client side
+AddEventHandler('Vehicles:Client:SwitchVehicleSeat', function(vehicle, seat, class)
+    print('Switched to seat:', seat)
+
+    -- Update UI based on seat
+    if seat == -1 then
+        -- Now driver
+    else
+        -- Now passenger
+    end
+end)
+```
+
+---
+
+### Vehicles:Client:Ignition
+
+Triggered when vehicle ignition state changes.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| state | boolean | Ignition state (true=on, false=off) |
+
+**Example:**
+```lua
+-- Client side
+AddEventHandler('Vehicles:Client:Ignition', function(state)
+    if state then
+        print('Engine started')
+        -- Show engine on indicator
+    else
+        print('Engine stopped')
+        -- Show engine off indicator
+    end
+end)
+```
+
+---
+
+### Vehicles:Client:Seatbelt
+
+Triggered when seatbelt state changes.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| state | boolean | Seatbelt state (true=on, false=off) |
+
+**Example:**
+```lua
+-- Client side
+AddEventHandler('Vehicles:Client:Seatbelt', function(state)
+    if state then
+        print('Seatbelt fastened')
+        -- Show seatbelt indicator
+        -- Reduce ejection on crash
+    else
+        print('Seatbelt removed')
+        -- Hide seatbelt indicator
+    end
+end)
+```
+
+---
+
+### Vehicles:Client:Cruise
+
+Triggered when cruise control state changes.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| state | boolean/number | Cruise control (false=off, number=speed) |
+
+**Example:**
+```lua
+-- Client side
+AddEventHandler('Vehicles:Client:Cruise', function(state)
+    if state then
+        print('Cruise control set to:', state, 'MPH')
+        -- Show cruise control indicator
+    else
+        print('Cruise control disabled')
+        -- Hide cruise control indicator
+    end
+end)
+```
+
+---
+
+## Callbacks
+
+### Vehicles:GetKeys
+
+Give player keys to a vehicle.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| VIN | string | Vehicle Identification Number |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | Always true |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Callbacks:ServerCallback('Vehicles:GetKeys', 'ABC123456789', function(success)
+    if success then
+        print('Received vehicle keys')
+    end
+end)
+```
+
+---
+
+### Vehicles:ToggleLocks
+
+Toggle vehicle lock state.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| netId | number | Vehicle network ID |
+| state | boolean | Lock state (optional, toggles if nil) |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | Success status |
+| boolean | New lock state |
+
+**Example:**
+```lua
+-- Client side
+local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+local vNet = NetworkGetNetworkIdFromEntity(vehicle)
+
+COMPONENTS.Callbacks:ServerCallback('Vehicles:ToggleLocks', {
+    netId = vNet,
+    state = nil  -- Toggle
+}, function(success, newState)
+    if success then
+        print('Vehicle locked:', newState)
+    end
+end)
+
+-- Force lock
+COMPONENTS.Callbacks:ServerCallback('Vehicles:ToggleLocks', {
+    netId = vNet,
+    state = true  -- Lock
+}, function(success, newState)
+    -- Vehicle is now locked
+end)
+```
+
+---
+
+### Vehicles:BreakOpenLock
+
+Force unlock a vehicle (lockpick, etc.).
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| netId | number | Vehicle network ID |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | Success status |
+| boolean | New lock state (false) |
+
+**Example:**
+```lua
+-- Client side - After lockpick minigame
+local vehicle = GetClosestVehicle(GetEntityCoords(PlayerPedId()), 5.0, 0, 71)
+if vehicle ~= 0 then
+    local vNet = NetworkGetNetworkIdFromEntity(vehicle)
+
+    COMPONENTS.Callbacks:ServerCallback('Vehicles:BreakOpenLock', {
+        netId = vNet
+    }, function(success, newState)
+        if success then
+            print('Vehicle unlocked')
+            -- Give temporary keys
+            TriggerServerEvent('Vehicles:Server:StealLocalKeys', vNet)
+        end
+    end)
+end
+```
+
+---
+
+### Vehicles:GetVehiclesInStorage
+
+Get vehicles stored in a garage.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| storageId | string | Garage identifier |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table/boolean | Array of vehicle data or false |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Callbacks:ServerCallback('Vehicles:GetVehiclesInStorage', 'legion_square', function(vehicles)
+    if vehicles then
+        print('Found', #vehicles, 'vehicles in garage')
+        for k, v in ipairs(vehicles) do
+            print(v.Make, v.Model, v.RegisteredPlate)
+        end
+    end
+end)
+```
+
+---
+
+### Vehicles:GetVehiclesInPropertyStorage
+
+Get vehicles stored in property garage.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| storageId | string | Property identifier |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table/boolean | Vehicle data, capacity, character ID, character info |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Callbacks:ServerCallback('Vehicles:GetVehiclesInPropertyStorage', 'property_123', function(vehicles, capacity, charId, charInfo)
+    if vehicles then
+        print('Property has', capacity.current, '/', capacity.max, 'vehicles')
+
+        for k, v in ipairs(vehicles) do
+            local ownerInfo = charInfo[v.Owner.Id]
+            print(v.Make, v.Model, 'owned by', ownerInfo.First, ownerInfo.Last)
+        end
+    end
+end)
+```
+
+---
+
+### Vehicles:RetrieveVehicleFromStorage
+
+Spawn vehicle from garage/property.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| VIN | string | Vehicle Identification Number |
+| coords | vector3 | Spawn coordinates |
+| heading | number | Spawn heading |
+| storageType | number | Storage type (1=garage, 2=property) |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | Success status |
+
+**Example:**
+```lua
+-- Client side
+local spawnPoint = GetOffsetFromEntityInWorldCoords(PlayerPedId(), 0.0, 5.0, 0.0)
+local heading = GetEntityHeading(PlayerPedId())
+
+COMPONENTS.Callbacks:ServerCallback('Vehicles:RetrieveVehicleFromStorage', {
+    VIN = 'ABC123456789',
+    coords = spawnPoint,
+    heading = heading,
+    storageType = 1  -- Garage
+}, function(success)
+    if success then
+        print('Vehicle spawned')
+    else
+        print('Failed to spawn vehicle')
+    end
+end)
+```
+
+---
+
+### Vehicles:PutVehicleInStorage
+
+Store vehicle in garage.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| VIN | string | Vehicle Identification Number |
+| storageId | string | Garage identifier |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | Success status |
+
+**Example:**
+```lua
+-- Client side
+local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+local vState = Entity(vehicle).state
+
+if vState.VIN then
+    COMPONENTS.Callbacks:ServerCallback('Vehicles:PutVehicleInStorage', {
+        VIN = vState.VIN,
+        storageId = 'legion_square'
+    }, function(success)
+        if success then
+            print('Vehicle stored in garage')
+        end
+    end)
+end
+```
+
+---
+
+## Custom Integration Examples
+
+### Vehicle Rental System
+
+```lua
+-- Server side
+AddEventHandler('rental:server:RentVehicle', function(vehicleModel, duration)
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then
+        return
+    end
+
+    local char = player:GetData('Character')
+    if not char then
+        return
+    end
+
+    local stateId = char:GetData('SID')
+
+    local rentalCost = 500 * duration  -- $500 per hour
+
+    if COMPONENTS.Characters:RemoveMoney(stateId, 'cash', rentalCost, 'Vehicle rental') then
+        local spawnCoords = GetRentalSpawnLocation()
+
+        COMPONENTS.Vehicles:SpawnTemp(
+            src,
+            GetHashKey(vehicleModel),
+            spawnCoords.coords,
+            spawnCoords.heading,
+            function(entityId, VIN, plate)
+                -- Give keys
+                COMPONENTS.Vehicles.Keys:Add(src, VIN)
+
+                -- Set rental expiry
+                RentalVehicles[VIN] = {
+                    entity = entityId,
+                    expires = os.time() + (duration * 3600)
+                }
+
+                TriggerClientEvent('mythic-notifications:client:Send', src, {
+                    message = string.format('Vehicle rented for %d hours. Plate: %s', duration, plate),
+                    type = 'success'
+                })
+            end
+        )
+    end
+end)
+```
+
+### Job Vehicle Spawn
+
+```lua
+-- Server side
+AddEventHandler('jobs:server:SpawnJobVehicle', function()
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then
+        return
+    end
+
+    local char = player:GetData('Character')
+    if not char then
+        return
+    end
+
+    local jobId = char:GetData('Job')
+    if jobId ~= 'police' then
+        return
+    end
+
+    local jobGarage = 'mrpd_garage'
+    local spawnLocation = GetJobSpawnLocation(jobGarage)
+
+    -- Get available fleet vehicles
+    COMPONENTS.Callbacks:ClientCallback(src, 'Vehicles:GetVehiclesInStorage', jobGarage, function(vehicles)
+        if vehicles and #vehicles > 0 then
+            -- Show vehicle selection menu
+            TriggerClientEvent('police:client:ShowFleetMenu', src, vehicles, spawnLocation)
+        end
+    end)
+end)
+```
+
+### Vehicle Damage Notification
+
+```lua
+-- Client side
+AddEventHandler('Vehicles:Client:EnterVehicle', function(vehicle, seat, class)
+    if seat == -1 then  -- Driver
+        local vState = Entity(vehicle).state
+
+        if vState.Damage and (vState.Damage.Engine < 80 or vState.Damage.Body < 60) then
+            TriggerEvent('mythic-notifications:client:Send', {
+                message = 'This vehicle is damaged and needs repairs',
+                type = 'warning'
+            })
+        end
+    end
+end)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Vehicles - Exports" icon="cube" href="/api/vehicles/exports">
+    Vehicle management methods
+  </Card>
+  <Card title="Vehicles - Configuration" icon="sliders" href="/api/vehicles/configuration">
+    Vehicle data structures and config
+  </Card>
+  <Card title="Vehicle Features" icon="car" href="/features/vehicles/overview">
+    Complete vehicle system guide
+  </Card>
+  <Card title="Keys System" icon="key" href="/features/vehicles/keys">
+    Vehicle keys and access control
+  </Card>
+</CardGroup>
+
+<Tip>
+**Event Order:** When entering a vehicle as driver, events fire in this order: `EnterVehicle` → `BecameDriver` → `Ignition`. Use `BecameDriver` for driver-specific logic.
+</Tip>
+
+<Warning>
+**Network IDs:** Always verify entities exist before using network IDs. Use `DoesEntityExist()` after `NetworkGetEntityFromNetworkId()`.
+</Warning>

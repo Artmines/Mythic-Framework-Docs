@@ -1,0 +1,739 @@
+---
+title: mythic-base API
+description: Core framework exports and component proxy system API reference
+icon: 'cube'
+---
+
+The `mythic-base` resource is the foundation of Mythic Framework, providing the component proxy system, logging, database access, and essential utilities that all other resources depend on.
+
+## Core Exports
+
+These are the four fundamental exports that power the entire framework:
+
+<CardGroup cols={2}>
+  <Card title="RegisterComponent" icon="plus">
+    Register a new component or override existing
+  </Card>
+  <Card title="FetchComponent" icon="arrow-down">
+    Retrieve a registered component
+  </Card>
+  <Card title="ExtendComponent" icon="arrows-maximize">
+    Add methods to existing component
+  </Card>
+  <Card title="RequestDependencies" icon="link">
+    Asynchronously wait for dependencies
+  </Card>
+</CardGroup>
+
+---
+
+## RegisterComponent
+
+Register a new component or override an existing protected component.
+
+### Syntax
+
+```lua
+exports['mythic-base']:RegisterComponent(componentName, componentData)
+```
+
+### Parameters
+
+<ParamField path="componentName" type="string" required>
+  Name of the component to register (e.g., 'Inventory', 'Jobs', 'MyComponent')
+</ParamField>
+
+<ParamField path="componentData" type="table" required>
+  Table containing component methods and properties
+
+  **Special Properties:**
+  - `_protected` (boolean) - If true, component cannot be overridden
+  - `_required` (table) - Array of method names that must exist
+  - `_name` (string) - Internal name for logging
+</ParamField>
+
+### Returns
+
+<ResponseField name="success" type="boolean">
+  Returns `true` if component was registered successfully
+</ResponseField>
+
+### Examples
+
+**Basic Component:**
+
+```lua
+-- mythic-example/server/component.lua
+
+exports['mythic-base']:RegisterComponent('Example', {
+    DoSomething = function(self, param)
+        print('Doing something with:', param)
+        return true
+    end,
+
+    GetData = function(self, id)
+        return { id = id, name = 'Example Data' }
+    end
+})
+```
+
+**Protected Component with Required Methods:**
+
+```lua
+-- mythic-inventory/server/component.lua
+
+exports['mythic-base']:RegisterComponent('Inventory', {
+    -- Metadata
+    _protected = true,  -- Cannot be overridden
+    _required = { 'Get', 'AddItem', 'RemoveItem' },  -- Must have these methods
+    _name = 'inventory',
+
+    -- Required methods
+    Get = function(self, characterId)
+        return COMPONENTS.Database:findOne('inventory', {
+            owner = characterId
+        })
+    end,
+
+    AddItem = function(self, characterId, item, count, metadata)
+        -- Add item logic
+        COMPONENTS.Logger:Info('Inventory', 'Item added', {
+            character = characterId,
+            item = item,
+            count = count
+        })
+        return true
+    end,
+
+    RemoveItem = function(self, characterId, slot, count)
+        -- Remove item logic
+        return true
+    end,
+
+    -- Additional methods
+    HasItem = function(self, characterId, item, count)
+        local inventory = self:Get(characterId)
+        -- Check logic
+        return false
+    end
+})
+```
+
+**Component with State:**
+
+```lua
+exports['mythic-base']:RegisterComponent('VehicleManager', {
+    -- Private state
+    _vehicles = {},
+
+    Register = function(self, vehicleId, data)
+        self._vehicles[vehicleId] = data
+    end,
+
+    Unregister = function(self, vehicleId)
+        self._vehicles[vehicleId] = nil
+    end,
+
+    Get = function(self, vehicleId)
+        return self._vehicles[vehicleId]
+    end,
+
+    GetAll = function(self)
+        return self._vehicles
+    end
+})
+```
+
+### Notes
+
+<Note>
+**Component Naming:** Use PascalCase for component names (e.g., 'Inventory', 'VehicleManager', 'MyFeature')
+</Note>
+
+<Warning>
+**Protected Components:** Attempting to override a protected component will fail with an error. Use `ExtendComponent` to add methods to protected components.
+</Warning>
+
+---
+
+## FetchComponent
+
+Retrieve a registered component for use.
+
+### Syntax
+
+```lua
+local component = exports['mythic-base']:FetchComponent(componentName)
+```
+
+### Parameters
+
+<ParamField path="componentName" type="string" required>
+  Name of the component to fetch
+</ParamField>
+
+### Returns
+
+<ResponseField name="component" type="table|nil">
+  The component table if found, `nil` if not registered
+</ResponseField>
+
+### Examples
+
+**Basic Fetch:**
+
+```lua
+-- Fetch a component
+local Inventory = exports['mythic-base']:FetchComponent('Inventory')
+
+if Inventory then
+    -- Use the component
+    local items = Inventory:Get(characterId)
+else
+    print('[ERROR] Inventory component not found!')
+end
+```
+
+**Using COMPONENTS Global:**
+
+```lua
+-- COMPONENTS is a global table populated by FetchComponent
+-- More convenient than repeated exports calls
+
+AddEventHandler('Core:Shared:Ready', function()
+    -- Components are now available in COMPONENTS global
+    COMPONENTS.Logger:Info('MyResource', 'Starting up')
+
+    local character = COMPONENTS.Characters:GetCharacter(source)
+    local inventory = COMPONENTS.Inventory:Get(character.SID)
+end)
+```
+
+**Fetch Multiple Components:**
+
+```lua
+-- Fetch multiple components at once
+local Logger = exports['mythic-base']:FetchComponent('Logger')
+local Database = exports['mythic-base']:FetchComponent('Database')
+local Characters = exports['mythic-base']:FetchComponent('Characters')
+
+-- Or use COMPONENTS global
+local Logger = COMPONENTS.Logger
+local Database = COMPONENTS.Database
+local Characters = COMPONENTS.Characters
+```
+
+### Notes
+
+<Tip>
+**COMPONENTS Global:** After `Core:Shared:Ready` event, all components are available in the `COMPONENTS` global table. Use `COMPONENTS.ComponentName` instead of repeatedly calling `FetchComponent`.
+</Tip>
+
+<Warning>
+**Timing:** Don't fetch components at the top level of your script! They may not be registered yet. Wait for `Core:Shared:Ready` or use `RequestDependencies`.
+</Warning>
+
+---
+
+## ExtendComponent
+
+Add new methods to an existing component without overriding it.
+
+### Syntax
+
+```lua
+exports['mythic-base']:ExtendComponent(componentName, extensionData)
+```
+
+### Parameters
+
+<ParamField path="componentName" type="string" required>
+  Name of the component to extend
+</ParamField>
+
+<ParamField path="extensionData" type="table" required>
+  Table containing new methods to add to the component
+</ParamField>
+
+### Returns
+
+<ResponseField name="success" type="boolean">
+  Returns `true` if extension was successful
+</ResponseField>
+
+### Examples
+
+**Add Helper Methods:**
+
+```lua
+-- mythic-inventory-extras/server/component.lua
+
+-- Extend Inventory component with new methods
+exports['mythic-base']:ExtendComponent('Inventory', {
+    -- Add weight calculation
+    GetWeight = function(self, characterId)
+        local inventory = self:Get(characterId)
+        local totalWeight = 0
+
+        for _, item in pairs(inventory.items) do
+            totalWeight = totalWeight + (item.weight * item.count)
+        end
+
+        return totalWeight
+    end,
+
+    -- Add bulk operation
+    AddMultipleItems = function(self, characterId, items)
+        for _, itemData in ipairs(items) do
+            self:AddItem(characterId, itemData.item, itemData.count)
+        end
+    end,
+
+    -- Add search functionality
+    FindItem = function(self, characterId, itemName)
+        local inventory = self:Get(characterId)
+
+        for slot, item in pairs(inventory.items) do
+            if item.name == itemName then
+                return slot, item
+            end
+        end
+
+        return nil
+    end
+})
+```
+
+**Override Method While Preserving Original:**
+
+```lua
+-- Save reference to original method
+local originalAddItem = COMPONENTS.Inventory.AddItem
+
+-- Extend with wrapper that adds logging
+exports['mythic-base']:ExtendComponent('Inventory', {
+    AddItem = function(self, characterId, item, count, metadata)
+        -- Log before
+        COMPONENTS.Logger:Debug('Inventory', 'Adding item', {
+            character = characterId,
+            item = item,
+            count = count
+        })
+
+        -- Call original method
+        local success = originalAddItem(self, characterId, item, count, metadata)
+
+        -- Log after
+        if success then
+            TriggerEvent('inventory:itemAdded', characterId, item, count)
+        end
+
+        return success
+    end
+})
+```
+
+**Add Integration Methods:**
+
+```lua
+-- mythic-crafting/server/component.lua
+
+-- Extend Inventory with crafting-specific methods
+exports['mythic-base']:ExtendComponent('Inventory', {
+    CanCraft = function(self, characterId, recipe)
+        for _, ingredient in ipairs(recipe.ingredients) do
+            if not self:HasItem(characterId, ingredient.item, ingredient.count) then
+                return false
+            end
+        end
+        return true
+    end,
+
+    ConsumeRecipe = function(self, characterId, recipe)
+        for _, ingredient in ipairs(recipe.ingredients) do
+            self:RemoveItem(characterId, ingredient.item, ingredient.count)
+        end
+    end
+})
+```
+
+### Notes
+
+<Note>
+**Non-Destructive:** `ExtendComponent` adds methods without removing existing ones. If a method already exists, it will be overridden.
+</Note>
+
+<Tip>
+**Modular Extensions:** Use `ExtendComponent` to add resource-specific functionality to core components without modifying the original resource.
+</Tip>
+
+---
+
+## RequestDependencies
+
+Asynchronously wait for component dependencies to be registered before initializing your component.
+
+### Syntax
+
+```lua
+exports['mythic-base']:RequestDependencies(componentName, dependencies, callback)
+```
+
+### Parameters
+
+<ParamField path="componentName" type="string" required>
+  Name of your component (for error reporting)
+</ParamField>
+
+<ParamField path="dependencies" type="table" required>
+  Array of component names that must be loaded before callback executes
+</ParamField>
+
+<ParamField path="callback" type="function" required>
+  Function called when all dependencies are loaded or on timeout
+
+  **Callback Parameters:**
+  - `errors` (table) - Array of error messages (empty if all dependencies loaded)
+</ParamField>
+
+### Returns
+
+Nothing (callback-based)
+
+### Examples
+
+**Basic Dependency Management:**
+
+```lua
+-- mythic-shops/server/component.lua
+
+exports['mythic-base']:RequestDependencies('Shops', {
+    'Inventory',
+    'Finance',
+    'Logger'
+}, function(errors)
+    if #errors > 0 then
+        -- Dependencies failed to load
+        print('[ERROR] Shops failed to load dependencies:')
+        for _, err in ipairs(errors) do
+            print('  - ' .. err)
+        end
+        return
+    end
+
+    -- All dependencies loaded, safe to register component
+    exports['mythic-base']:RegisterComponent('Shops', {
+        Purchase = function(self, player, item, price)
+            -- Can safely use dependencies here
+            if COMPONENTS.Finance:Charge(player, price) then
+                COMPONENTS.Inventory:AddItem(player, item, 1)
+                COMPONENTS.Logger:Info('Shops', 'Purchase complete')
+                return true
+            end
+            return false
+        end
+    })
+end)
+```
+
+**Multiple Dependencies:**
+
+```lua
+exports['mythic-base']:RequestDependencies('VehicleShop', {
+    'Database',
+    'Logger',
+    'Vehicles',
+    'Finance',
+    'Inventory',
+    'Characters'
+}, function(errors)
+    if #errors > 0 then
+        error('[VehicleShop] Missing dependencies: ' .. json.encode(errors))
+        return
+    end
+
+    -- All dependencies available
+    exports['mythic-base']:RegisterComponent('VehicleShop', {
+        -- Component implementation
+    })
+end)
+```
+
+**Graceful Degradation:**
+
+```lua
+exports['mythic-base']:RequestDependencies('MyFeature', {
+    'Inventory',    -- Required
+    'Phone'         -- Optional enhancement
+}, function(errors)
+    local hasPhone = true
+
+    -- Check which dependencies failed
+    for _, err in ipairs(errors) do
+        if string.find(err, 'Phone') then
+            print('[WARNING] Phone not available, notifications disabled')
+            hasPhone = false
+        else
+            -- Other dependency failed, can't continue
+            print('[ERROR]', err)
+            return
+        end
+    end
+
+    exports['mythic-base']:RegisterComponent('MyFeature', {
+        Notify = function(self, player, message)
+            if hasPhone then
+                -- Use phone notifications
+                COMPONENTS.Phone:SendNotification(player, message)
+            else
+                -- Fallback to chat
+                TriggerClientEvent('chat:addMessage', player, {
+                    args = { message }
+                })
+            end
+        end
+    })
+end)
+```
+
+### Notes
+
+<Warning>
+**Always Use RequestDependencies:** Even if dependencies are in fxmanifest.lua, use `RequestDependencies` to ensure components are registered before you use them.
+</Warning>
+
+<Info>
+**Timeout:** Dependencies have a timeout (default 30 seconds). If a dependency doesn't load in time, it will error in the callback.
+</Info>
+
+<Tip>
+**Load Order:** Resources still need proper load order in resources.cfg. `RequestDependencies` handles component registration timing, not resource loading.
+</Tip>
+
+---
+
+## Core:Shared:Ready Event
+
+The `Core:Shared:Ready` event fires when mythic-base has finished initializing and all core components are available.
+
+### Syntax
+
+```lua
+AddEventHandler('Core:Shared:Ready', function()
+    -- Core components available
+end)
+```
+
+### When to Use
+
+Use `Core:Shared:Ready` when you need to:
+- Access core components (Logger, Database, etc.)
+- Set up event handlers that use components
+- Initialize features that depend on the framework
+
+### Examples
+
+**Client-Side Initialization:**
+
+```lua
+-- mythic-hud/client/main.lua
+
+AddEventHandler('Core:Shared:Ready', function()
+    -- Fetch client components
+    local Logger = exports['mythic-base']:FetchComponent('Logger')
+    local Callbacks = exports['mythic-base']:FetchComponent('Callback')
+
+    Logger:Info('HUD', 'Initializing HUD')
+
+    -- Register callbacks
+    Callbacks:RegisterCallback('hud:getData', function(data, cb)
+        cb({ status = 'ok' })
+    end)
+
+    -- Start HUD
+    SendNUIMessage({ type = 'INIT' })
+end)
+```
+
+**Server-Side Initialization:**
+
+```lua
+-- mythic-jobs/server/main.lua
+
+AddEventHandler('Core:Shared:Ready', function()
+    -- Components now available in COMPONENTS global
+    COMPONENTS.Logger:Info('Jobs', 'Loading jobs system')
+
+    -- Load jobs from database
+    local jobs = COMPONENTS.Database:find('jobs', {})
+
+    COMPONENTS.Logger:Info('Jobs', 'Loaded ' .. #jobs .. ' jobs')
+
+    -- Set up event handlers
+    RegisterNetEvent('jobs:server:clockIn', function(jobId)
+        local char = COMPONENTS.Characters:GetCharacter(source)
+        COMPONENTS.Jobs:ClockIn(char.SID, jobId)
+    end)
+end)
+```
+
+---
+
+## COMPONENTS Global
+
+The `COMPONENTS` global table contains all registered components for easy access.
+
+### Usage
+
+```lua
+-- Instead of this:
+local Logger = exports['mythic-base']:FetchComponent('Logger')
+local Database = exports['mythic-base']:FetchComponent('Database')
+
+-- Use this:
+COMPONENTS.Logger:Info('MyResource', 'Message')
+COMPONENTS.Database:findOne('collection', {})
+```
+
+### Available After
+
+`COMPONENTS` is populated after the `Core:Shared:Ready` event fires.
+
+### Common Components
+
+<Tabs>
+  <Tab title="Server">
+    ```lua
+    -- Core components (always available)
+    COMPONENTS.Logger
+    COMPONENTS.Database
+    COMPONENTS.Middleware
+    COMPONENTS.Callback
+    COMPONENTS.Punishment
+
+    -- Feature components (if resources loaded)
+    COMPONENTS.Characters
+    COMPONENTS.Inventory
+    COMPONENTS.Finance
+    COMPONENTS.Jobs
+    COMPONENTS.Vehicles
+    COMPONENTS.Police
+    COMPONENTS.Properties
+    ```
+  </Tab>
+
+  <Tab title="Client">
+    ```lua
+    -- Core client components
+    COMPONENTS.Logger
+    COMPONENTS.Callback
+    COMPONENTS.Keybinds
+    COMPONENTS.Notifications
+
+    -- Client feature components
+    COMPONENTS.CharacterClient
+    COMPONENTS.InventoryClient
+    COMPONENTS.VehicleClient
+    COMPONENTS.HUD
+    COMPONENTS.Menu
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Wait for Core:Shared:Ready" icon="clock">
+    **❌ Bad:**
+    ```lua
+    -- Top-level component access (may be nil!)
+    local Logger = COMPONENTS.Logger
+    Logger:Info('MyResource', 'Starting')  -- Error: attempt to index nil
+    ```
+
+    **✅ Good:**
+    ```lua
+    AddEventHandler('Core:Shared:Ready', function()
+        COMPONENTS.Logger:Info('MyResource', 'Starting')
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Use RequestDependencies" icon="link">
+    **❌ Bad:**
+    ```lua
+    -- Assume dependencies exist
+    exports['mythic-base']:RegisterComponent('MyFeature', {
+        DoThing = function(self)
+            COMPONENTS.Inventory:AddItem(...)  -- May be nil!
+        end
+    })
+    ```
+
+    **✅ Good:**
+    ```lua
+    exports['mythic-base']:RequestDependencies('MyFeature', {
+        'Inventory'
+    }, function(errors)
+        if #errors == 0 then
+            exports['mythic-base']:RegisterComponent('MyFeature', {
+                DoThing = function(self)
+                    COMPONENTS.Inventory:AddItem(...)  -- Guaranteed to exist
+                end
+            })
+        end
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Document Your Components" icon="book">
+    ```lua
+    exports['mythic-base']:RegisterComponent('MyFeature', {
+        --- Add an item to player's inventory
+        ---@param player number Player server ID
+        ---@param item string Item name
+        ---@param count number Quantity
+        ---@return boolean success
+        GiveItem = function(self, player, item, count)
+            -- Implementation
+        end
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="Use Protected Wisely" icon="shield">
+    **When to use `_protected = true`:**
+    - Core framework components
+    - Components with complex internal state
+    - Components where overriding would break other resources
+
+    **When NOT to use:**
+    - Simple utility components
+    - Components designed to be customizable
+    - Resource-specific components
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Proxy Pattern" icon="circle-nodes" href="/concepts/proxy-pattern">
+    Deep dive into the proxy system
+  </Card>
+  <Card title="Component System" icon="cubes" href="/concepts/component-system">
+    Learn component architecture
+  </Card>
+  <Card title="Logger API" icon="file-lines" href="/api/core/logger">
+    Logging component reference
+  </Card>
+  <Card title="Database API" icon="database" href="/api/core/database">
+    Database component reference
+  </Card>
+  <Card title="Creating Resources" icon="plus" href="/development/creating-resources/overview">
+    Build your first component
+  </Card>
+</CardGroup>

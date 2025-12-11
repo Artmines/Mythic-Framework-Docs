@@ -1,0 +1,701 @@
+---
+title: Proxy Pattern
+description: Understanding the component proxy system that powers Mythic Framework
+icon: 'circle-nodes'
+---
+
+The proxy pattern is the **core architectural pattern** of Mythic Framework. It enables modular, extensible development through a component registration and dependency injection system. Understanding this pattern is essential for working with Mythic.
+
+<Note>
+**Reference Implementation:** `MythicFramework/resources/[mythic]/mythic-base/core/sh_proxy.lua`
+
+This file contains the complete proxy system implementation.
+</Note>
+
+## What is the Proxy Pattern?
+
+The proxy pattern in Mythic Framework provides a centralized component registry that:
+
+- **Registers** components from any resource
+- **Fetches** components for use by other resources
+- **Extends** existing components with new functionality
+- **Resolves** dependencies automatically
+
+Think of it as a service container or dependency injection container for FiveM resources.
+
+## The COMPONENTS Global Table
+
+At the heart of the proxy system is the global `COMPONENTS` table:
+
+```lua
+-- Global table accessible from all resources
+COMPONENTS = {}
+
+-- Example of what it contains after initialization:
+COMPONENTS = {
+    Proxy = {...},        -- The proxy system itself
+    Logger = {...},       -- Logging component
+    Database = {...},     -- Database operations
+    Inventory = {...},    -- Inventory management
+    Characters = {...},   -- Character system
+    Jobs = {...},         -- Job system
+    -- ... 60+ more components
+}
+```
+
+Every registered component becomes available in this global table.
+
+## The Four Core Exports
+
+The proxy system provides four essential exports:
+
+### 1. RegisterComponent
+
+**Purpose:** Register a new component or override an existing one
+
+**Location:** `mythic-base/core/sh_proxy.lua:32`
+
+```lua
+exports['mythic-base']:RegisterComponent(component_name, component_data)
+```
+
+**Parameters:**
+- `component_name` (string) - Unique name for the component
+- `component_data` (table) - The component object with methods and data
+
+**Example:**
+
+```lua
+-- In mythic-inventory/server/component.lua
+exports['mythic-base']:RegisterComponent('Inventory', {
+    -- Component methods
+    Get = function(self, characterId)
+        -- Fetch inventory from database
+        return COMPONENTS.Database:fetchOne('inventory', {
+            owner = characterId
+        })
+    end,
+
+    AddItem = function(self, characterId, item, count, metadata)
+        -- Add item logic
+        local inventory = self:Get(characterId)
+        -- ... add item to inventory
+        return true
+    end,
+
+    RemoveItem = function(self, characterId, slot, count)
+        -- Remove item logic
+        return true
+    end,
+
+    -- Mark as protected to prevent overriding
+    _protected = true,
+
+    -- Specify required dependencies
+    _required = { 'Get', 'AddItem', 'RemoveItem' },
+
+    -- Component name for logging
+    _name = 'inventory'
+})
+```
+
+**Protected Components:**
+
+Components can be marked as `_protected = true` to prevent other resources from overriding them:
+
+```lua
+-- This component cannot be overridden
+COMPONENTS.Inventory = {
+    _protected = true,
+    Get = function(self) ... end
+}
+
+-- Attempting to register again will fail with warning
+exports['mythic-base']:RegisterComponent('Inventory', {...})
+-- Warning: "Attempt To Override Protected Component: Inventory"
+```
+
+**Required Attributes:**
+
+Components can specify `_required` to enforce that certain methods must exist:
+
+```lua
+COMPONENTS.Payment = {
+    _required = { 'Charge', 'Refund' },
+    Charge = function(self, amount) ... end,
+    Refund = function(self, amount) ... end
+}
+
+-- Extending without required methods will fail
+exports['mythic-base']:ExtendComponent('Payment', {
+    AddBonus = function(self) ... end
+    -- Missing Charge and Refund - will fail
+})
+```
+
+### 2. FetchComponent
+
+**Purpose:** Retrieve a component for use
+
+**Location:** `mythic-base/core/sh_proxy.lua:67`
+
+```lua
+local component = exports['mythic-base']:FetchComponent(component_name)
+```
+
+**Parameters:**
+- `component_name` (string) - Name of the component to fetch
+
+**Returns:**
+- Component object or `nil` if not found
+
+**Example:**
+
+```lua
+-- Fetch the Inventory component
+local Inventory = exports['mythic-base']:FetchComponent('Inventory')
+
+if Inventory then
+    -- Use the component
+    local items = Inventory:Get(characterId)
+    Inventory:AddItem(characterId, 'water', 5)
+else
+    print('Inventory component not found!')
+end
+```
+
+**Best Practice:**
+
+```lua
+-- Fetch once at resource start, reuse throughout
+local Inventory, Jobs, Characters
+
+AddEventHandler('Core:Shared:Ready', function()
+    Inventory = exports['mythic-base']:FetchComponent('Inventory')
+    Jobs = exports['mythic-base']:FetchComponent('Jobs')
+    Characters = exports['mythic-base']:FetchComponent('Characters')
+end)
+
+-- Now use them anywhere
+AddEventHandler('myresource:doSomething', function()
+    local items = Inventory:Get(source)
+end)
+```
+
+<Warning>
+Always check if component exists before using! A component may not be loaded yet, or the resource providing it may not be started.
+</Warning>
+
+### 3. ExtendComponent
+
+**Purpose:** Add new functionality to an existing component without modifying it
+
+**Location:** `mythic-base/core/sh_proxy.lua:76`
+
+```lua
+exports['mythic-base']:ExtendComponent(component_name, extension_data)
+```
+
+**Parameters:**
+- `component_name` (string) - Name of component to extend
+- `extension_data` (table) - Methods/data to add
+
+**Example:**
+
+```lua
+-- Original Inventory component
+COMPONENTS.Inventory = {
+    Get = function(self, charId) ... end,
+    AddItem = function(self, charId, item) ... end
+}
+
+-- Extend with new method
+exports['mythic-base']:ExtendComponent('Inventory', {
+    -- Add a new method
+    GetWeight = function(self, charId)
+        local inv = self:Get(charId)
+        local totalWeight = 0
+        for _, item in ipairs(inv) do
+            totalWeight = totalWeight + (item.weight * item.count)
+        end
+        return totalWeight
+    end,
+
+    -- Add a new property
+    maxWeight = 100
+})
+
+-- Now you can use the new method
+local weight = COMPONENTS.Inventory:GetWeight(characterId)
+```
+
+**Use Cases:**
+
+1. **Adding helper methods:**
+   ```lua
+   exports['mythic-base']:ExtendComponent('Characters', {
+       GetOnlinePlayers = function(self)
+           return GetPlayers()
+       end
+   })
+   ```
+
+2. **Adding configuration:**
+   ```lua
+   exports['mythic-base']:ExtendComponent('Economy', {
+       taxRate = 0.15,
+       minWage = 50
+   })
+   ```
+
+3. **Monkey-patching:**
+   ```lua
+   -- Override a method while preserving original
+   local originalAddItem = COMPONENTS.Inventory.AddItem
+   exports['mythic-base']:ExtendComponent('Inventory', {
+       AddItem = function(self, charId, item, count)
+           print('Adding item:', item)
+           return originalAddItem(self, charId, item, count)
+       end
+   })
+   ```
+
+<Note>
+ExtendComponent cannot modify protected components. It will fail with a warning.
+</Note>
+
+### 4. RequestDependencies
+
+**Purpose:** Asynchronously wait for dependencies to load before initializing
+
+**Location:** `mythic-base/core/sh_proxy.lua:96`
+
+```lua
+exports['mythic-base']:RequestDependencies(component_name, dependencies, callback)
+```
+
+**Parameters:**
+- `component_name` (string) - Name of your component (for logging)
+- `dependencies` (table) - Array of component names to wait for
+- `callback` (function) - Called when dependencies are ready (or failed)
+
+**Example:**
+
+```lua
+-- mythic-shops/server/main.lua
+
+-- Request dependencies before initializing
+exports['mythic-base']:RequestDependencies('Shops', {
+    'Inventory',  -- Need Inventory component
+    'Economy',    -- Need Economy component
+    'Logger'      -- Need Logger component
+}, function(errors)
+    if #errors > 0 then
+        print('Failed to load dependencies:', json.encode(errors))
+        return
+    end
+
+    -- All dependencies loaded, safe to initialize
+    local Inventory = COMPONENTS.Inventory
+    local Economy = COMPONENTS.Economy
+    local Logger = COMPONENTS.Logger
+
+    -- Register shop component
+    exports['mythic-base']:RegisterComponent('Shops', {
+        Purchase = function(self, player, item, price)
+            if Economy:Charge(player, price) then
+                Inventory:AddItem(player, item, 1)
+                Logger:Info('Shops', player .. ' purchased ' .. item)
+                return true
+            end
+            return false
+        end
+    })
+
+    print('Shops component initialized successfully')
+end)
+```
+
+**How it Works:**
+
+1. Polls for dependencies every 100ms
+2. Times out after 50 attempts (~5 seconds)
+3. Calls callback with any errors
+4. Tracks which components depend on others for updates
+
+**Advanced Usage:**
+
+```lua
+-- Multiple resources depending on same component
+exports['mythic-base']:RequestDependencies('Banking', { 'Economy' }, function(errors)
+    if #errors == 0 then
+        COMPONENTS.Economy:RegisterAccount('bank', 'Main Bank')
+    end
+end)
+
+exports['mythic-base']:RequestDependencies('CryptoWallet', { 'Economy' }, function(errors)
+    if #errors == 0 then
+        COMPONENTS.Economy:RegisterAccount('crypto', 'Crypto Wallet')
+    end
+end)
+
+-- When Economy component updates, both Banking and CryptoWallet are notified
+```
+
+## Component Lifecycle
+
+Understanding when components are registered and available:
+
+```
+Server Start
+     ↓
+1. mythic-base starts
+     ↓
+2. Proxy system initializes (COMPONENTS.Proxy created)
+     ↓
+3. mythic-base registers core components
+   • Logger
+   • Database
+   • Middleware
+     ↓
+4. 'Proxy:Shared:RegisterReady' event fires
+     ↓
+5. Other resources start and register their components
+   • mythic-characters registers Characters component
+   • mythic-inventory registers Inventory component
+   • etc.
+     ↓
+6. 'Proxy:Shared:ExtendReady' fires for each component
+     ↓
+7. All components registered
+     ↓
+8. 'Core:Shared:Ready' event fires
+     ↓
+9. Resources can safely use all components
+```
+
+**Events:**
+
+- `Proxy:Shared:RegisterReady` - Proxy system is ready
+- `Proxy:Shared:ExtendReady` - A component was registered/extended
+- `Core:Shared:Ready` - All core components loaded
+
+## Real-World Examples
+
+### Example 1: Simple Utility Component
+
+```lua
+-- mythic-utils/shared/component.lua
+
+exports['mythic-base']:RegisterComponent('Utils', {
+    -- Format currency
+    FormatMoney = function(self, amount)
+        return '$' .. string.format('%,.2f', amount)
+    end,
+
+    -- Generate UUID
+    GenerateUUID = function(self)
+        local template = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+        return string.gsub(template, '[xy]', function(c)
+            local v = (c == 'x') and math.random(0, 0xf) or math.random(8, 0xb)
+            return string.format('%x', v)
+        end)
+    end,
+
+    -- Distance calculation
+    GetDistance = function(self, coords1, coords2)
+        return #(vector3(coords1.x, coords1.y, coords1.z) - vector3(coords2.x, coords2.y, coords2.z))
+    end
+})
+
+-- Usage anywhere:
+local money = COMPONENTS.Utils:FormatMoney(1500.50)  -- "$1,500.50"
+local uuid = COMPONENTS.Utils:GenerateUUID()
+local distance = COMPONENTS.Utils:GetDistance(pos1, pos2)
+```
+
+### Example 2: Complex Feature Component
+
+```lua
+-- mythic-garage/server/component.lua
+
+exports['mythic-base']:RequestDependencies('Garage', {
+    'Vehicles',
+    'Characters',
+    'Database'
+}, function(errors)
+    if #errors > 0 then return end
+
+    exports['mythic-base']:RegisterComponent('Garage', {
+        _protected = true,
+        _name = 'garage',
+
+        -- Get player's vehicles
+        GetVehicles = function(self, characterId)
+            return COMPONENTS.Database:fetchAll('vehicles', {
+                owner = characterId
+            })
+        end,
+
+        -- Spawn vehicle from garage
+        SpawnVehicle = function(self, player, vehicleId)
+            local vehicle = COMPONENTS.Database:fetchOne('vehicles', {
+                _id = vehicleId
+            })
+
+            if not vehicle then return false end
+
+            -- Check ownership
+            local char = COMPONENTS.Characters:GetCharacter(player)
+            if vehicle.owner ~= char.SID then
+                return false, 'Not your vehicle'
+            end
+
+            -- Spawn logic
+            local coords = GetEntityCoords(GetPlayerPed(player))
+            local veh = COMPONENTS.Vehicles:SpawnVehicle(vehicle.model, coords, vehicle.customization)
+
+            return true, veh
+        end,
+
+        -- Store vehicle in garage
+        StoreVehicle = function(self, player, vehicleEntity)
+            local plate = GetVehicleNumberPlateText(vehicleEntity)
+
+            -- Save customization
+            local mods = COMPONENTS.Vehicles:GetVehicleMods(vehicleEntity)
+            COMPONENTS.Database:updateOne('vehicles', {
+                plate = plate
+            }, {
+                customization = mods,
+                stored = true
+            })
+
+            -- Delete vehicle
+            DeleteEntity(vehicleEntity)
+            return true
+        end
+    })
+end)
+```
+
+### Example 3: Extending Core Component
+
+```lua
+-- mythic-inventory-weight/server/main.lua
+
+-- Add weight management to existing Inventory component
+exports['mythic-base']:RequestDependencies('InventoryWeight', {
+    'Inventory'
+}, function(errors)
+    if #errors > 0 then return end
+
+    -- Store original AddItem
+    local originalAddItem = COMPONENTS.Inventory.AddItem
+
+    -- Extend with weight checking
+    exports['mythic-base']:ExtendComponent('Inventory', {
+        maxWeight = 100,
+
+        GetWeight = function(self, charId)
+            local inv = self:Get(charId)
+            local weight = 0
+            for _, item in pairs(inv) do
+                weight = weight + (item.weight * item.count)
+            end
+            return weight
+        end,
+
+        AddItem = function(self, charId, item, count, metadata)
+            -- Check weight first
+            local currentWeight = self:GetWeight(charId)
+            local itemWeight = COMPONENTS.Items:GetItemWeight(item) * count
+
+            if currentWeight + itemWeight > self.maxWeight then
+                return false, 'Inventory too heavy'
+            end
+
+            -- Call original
+            return originalAddItem(self, charId, item, count, metadata)
+        end
+    })
+end)
+```
+
+## Dependency Updates
+
+When a component is extended or re-registered, all resources that depend on it are notified:
+
+```lua
+-- mythic-inventory registers component
+exports['mythic-base']:RegisterComponent('Inventory', {...})
+
+-- mythic-shops requests it as dependency
+exports['mythic-base']:RequestDependencies('Shops', { 'Inventory' }, ...)
+
+-- Later, mythic-inventory-addon extends it
+exports['mythic-base']:ExtendComponent('Inventory', {...})
+
+-- mythic-shops receives 'Inventory:Shared:DependencyUpdate' event
+AddEventHandler('Inventory:Shared:DependencyUpdate', function()
+    -- Re-fetch updated component
+    local Inventory = COMPONENTS.Inventory
+    -- Inventory now has extended functionality
+end)
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="1. Always Use RequestDependencies" icon="clock">
+    Never assume components are available immediately:
+
+    ```lua
+    -- ❌ BAD
+    local Inventory = COMPONENTS.Inventory  -- May be nil!
+
+    -- ✅ GOOD
+    exports['mythic-base']:RequestDependencies('MyResource', { 'Inventory' }, function(errors)
+        if #errors == 0 then
+            local Inventory = COMPONENTS.Inventory  -- Guaranteed to exist
+        end
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="2. Fetch Components Once" icon="download">
+    Don't fetch on every use:
+
+    ```lua
+    -- ❌ BAD
+    AddEventHandler('myevent', function()
+        local Inventory = exports['mythic-base']:FetchComponent('Inventory')
+        Inventory:Get(source)
+    end)
+
+    -- ✅ GOOD
+    local Inventory
+    AddEventHandler('Core:Shared:Ready', function()
+        Inventory = exports['mythic-base']:FetchComponent('Inventory')
+    end)
+
+    AddEventHandler('myevent', function()
+        Inventory:Get(source)
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="3. Use Protected for Core Components" icon="shield">
+    Prevent accidental overrides:
+
+    ```lua
+    exports['mythic-base']:RegisterComponent('Inventory', {
+        _protected = true,  -- Can't be overridden
+        -- ... methods
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="4. Name Components Consistently" icon="tag">
+    Use PascalCase for component names:
+
+    ```lua
+    // ✅ GOOD
+    COMPONENTS.Inventory
+    COMPONENTS.Characters
+    COMPONENTS.VehicleShop
+
+    // ❌ BAD
+    COMPONENTS.inventory
+    COMPONENTS.vehicle_shop
+    ```
+  </Accordion>
+
+  <Accordion title="5. Document Component APIs" icon="book">
+    Add comments explaining methods:
+
+    ```lua
+    exports['mythic-base']:RegisterComponent('Garage', {
+        ---@param characterId number Character ID
+        ---@param vehicleId number Vehicle ID
+        ---@return boolean success
+        ---@return table|string vehicle or error message
+        SpawnVehicle = function(self, characterId, vehicleId)
+            -- implementation
+        end
+    })
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Common Patterns
+
+### Singleton Pattern
+
+```lua
+-- Ensure component is only registered once
+if not COMPONENTS.MyComponent then
+    exports['mythic-base']:RegisterComponent('MyComponent', {...})
+end
+```
+
+### Factory Pattern
+
+```lua
+exports['mythic-base']:RegisterComponent('VehicleFactory', {
+    Create = function(self, type)
+        if type == 'car' then
+            return { wheels = 4, engine = 'V8' }
+        elseif type == 'bike' then
+            return { wheels = 2, engine = 'Single' }
+        end
+    end
+})
+
+local car = COMPONENTS.VehicleFactory:Create('car')
+```
+
+### Observer Pattern
+
+```lua
+-- Component with event subscription
+exports['mythic-base']:RegisterComponent('EventBus', {
+    listeners = {},
+
+    On = function(self, event, callback)
+        if not self.listeners[event] then
+            self.listeners[event] = {}
+        end
+        table.insert(self.listeners[event], callback)
+    end,
+
+    Emit = function(self, event, ...)
+        if self.listeners[event] then
+            for _, callback in ipairs(self.listeners[event]) do
+                callback(...)
+            end
+        end
+    end
+})
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Component System" icon="cubes" href="/concepts/component-system">
+    Learn more about component-based architecture
+  </Card>
+  <Card title="Resource Structure" icon="folder-tree" href="/concepts/resource-structure">
+    How to structure resources using components
+  </Card>
+  <Card title="Event System" icon="bolt" href="/concepts/event-system">
+    Complement components with events
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/core/proxy">
+    Complete API documentation for proxy exports
+  </Card>
+</CardGroup>
+
+<Tip>
+**Master the proxy pattern** and you've mastered Mythic Framework. This is the foundation everything else is built on.
+</Tip>

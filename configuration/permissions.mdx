@@ -1,0 +1,725 @@
+---
+title: Permissions System
+description: Configure FiveM ACE permissions for Mythic Framework admin access and resource control
+icon: 'shield-check'
+---
+
+Mythic Framework uses FiveM's Access Control Entry (ACE) permission system to manage admin permissions, command access, and resource-level permissions.
+
+## What is ACE?
+
+ACE (Access Control Entry) is FiveM's built-in permission system that controls who can execute commands and access resources.
+
+<CardGroup cols={2}>
+  <Card title="Flexible" icon="sliders">
+    Grant permissions by individual, group, or resource
+  </Card>
+  <Card title="Hierarchical" icon="sitemap">
+    Create permission groups with inheritance
+  </Card>
+  <Card title="Granular" icon="microscope">
+    Control access to specific commands and features
+  </Card>
+  <Card title="Persistent" icon="floppy-disk">
+    Configured in server.cfg, survives restarts
+  </Card>
+</CardGroup>
+
+## Permission Concepts
+
+### Principals
+
+A **principal** is an entity that can have permissions:
+
+- **Players:** Identified by Steam, License, Discord, etc.
+- **Resources:** Each resource is a principal
+- **Groups:** Collections of principals
+
+**Examples:**
+```bash
+identifier.steam:110000XXXXXXXX    # Player by Steam ID
+identifier.license:XXXXXXXX        # Player by FiveM license
+identifier.discord:123456789       # Player by Discord ID
+resource.mythic-admin              # Resource
+group.admin                        # Permission group
+```
+
+### ACEs (Access Control Entries)
+
+An **ACE** is a permission rule:
+
+```bash
+add_ace <principal> <object> <allow/deny>
+```
+
+- **principal:** Who gets the permission
+- **object:** What they can access
+- **allow/deny:** Grant or revoke access
+
+**Examples:**
+```bash
+# Allow admin group to use all commands
+add_ace group.admin command allow
+
+# Allow resource to use specific function
+add_ace resource.mythic-admin noclip allow
+
+# Deny specific player from using teleport
+add_ace identifier.steam:110000XXX teleport deny
+```
+
+### Groups
+
+**Groups** organize principals and inherit permissions:
+
+```bash
+add_principal <principal> <group>
+```
+
+**Examples:**
+```bash
+# Add player to admin group
+add_principal identifier.steam:110000XXX group.admin
+
+# Add moderator group to admin group (inheritance)
+add_principal group.moderator group.admin
+
+# Add resource to special group
+add_principal resource.mythic-admin group.system
+```
+
+## Basic Setup
+
+### Creating Admin Group
+
+```bash
+# server.cfg
+
+# Create admin group with full permissions
+add_ace group.admin command allow
+add_ace group.admin admin allow
+
+# Add yourself as admin
+add_principal identifier.steam:YOUR_STEAM_ID group.admin
+```
+
+<Steps>
+  <Step title="Find Your Steam ID">
+    1. Visit [https://steamid.io](https://steamid.io)
+    2. Enter your Steam profile URL
+    3. Copy your Steam ID64
+    4. Format as: `identifier.steam:YOUR_STEAM_ID`
+  </Step>
+
+  <Step title="Add to server.cfg">
+    ```bash
+    add_principal identifier.steam:110000XXXXXXXX group.admin
+    ```
+  </Step>
+
+  <Step title="Restart Server">
+    Permissions are loaded on server start. Restart to apply.
+  </Step>
+
+  <Step title="Verify In-Game">
+    Connect and try an admin command:
+    ```
+    /noclip
+    /godmode
+    /admin
+    ```
+  </Step>
+</Steps>
+
+## Permission Hierarchy
+
+Create a hierarchy of permission groups for different staff ranks:
+
+```bash
+# ====================================
+# PERMISSION GROUPS
+# ====================================
+
+# === SUPER ADMIN (Full Access) ===
+add_ace group.superadmin command allow
+add_ace group.superadmin admin allow
+add_ace group.superadmin rcon allow
+
+# === ADMIN (High-Level Management) ===
+add_ace group.admin command allow
+add_ace group.admin admin allow
+add_principal group.admin group.staff  # Inherit staff perms
+
+# === MODERATOR (Moderation) ===
+add_ace group.moderator kick allow
+add_ace group.moderator ban allow
+add_ace group.moderator warn allow
+add_ace group.moderator spectate allow
+add_principal group.moderator group.staff
+
+# === SUPPORT (Limited Help Tools) ===
+add_ace group.support goto allow
+add_ace group.support bring allow
+add_ace group.support teleport allow
+add_principal group.support group.staff
+
+# === STAFF (Base Staff Perms) ===
+add_ace group.staff staffchat allow
+add_ace group.staff viewreports allow
+
+# === MEMBER (Regular Players) ===
+add_ace group.member command.me allow
+add_ace group.member command.do allow
+```
+
+### Assigning Ranks
+
+```bash
+# Super Admins
+add_principal identifier.steam:110000AAAAAAA group.superadmin
+
+# Admins
+add_principal identifier.steam:110000BBBBBBB group.admin
+add_principal identifier.steam:110000CCCCCCC group.admin
+
+# Moderators
+add_principal identifier.steam:110000DDDDDDD group.moderator
+add_principal identifier.steam:110000EEEEEEE group.moderator
+
+# Support Staff
+add_principal identifier.steam:110000FFFFFFF group.support
+
+# Default for all players
+add_principal identifier.* group.member
+```
+
+<Note>
+**Inheritance:** If `group.admin` has `add_principal group.admin group.staff`, admins automatically get all staff permissions too.
+</Note>
+
+## Mythic Framework Permissions
+
+### Core Admin Permissions
+
+```bash
+# Full admin panel access
+add_ace group.admin mythic.admin allow
+
+# Noclip
+add_ace group.admin mythic.noclip allow
+
+# God mode
+add_ace group.admin mythic.godmode allow
+
+# Invisibility
+add_ace group.admin mythic.invisible allow
+
+# Teleport commands
+add_ace group.admin mythic.teleport allow
+
+# Vehicle spawning
+add_ace group.admin mythic.vehicle.spawn allow
+add_ace group.admin mythic.vehicle.delete allow
+
+# Player management
+add_ace group.admin mythic.player.kick allow
+add_ace group.admin mythic.player.ban allow
+add_ace group.admin mythic.player.warn allow
+add_ace group.admin mythic.player.spectate allow
+
+# Money management
+add_ace group.admin mythic.money.give allow
+add_ace group.admin mythic.money.remove allow
+
+# Inventory management
+add_ace group.admin mythic.inventory.give allow
+add_ace group.admin mythic.inventory.clear allow
+
+# Character management
+add_ace group.admin mythic.character.create allow
+add_ace group.admin mythic.character.delete allow
+add_ace group.admin mythic.character.modify allow
+
+# Job management
+add_ace group.admin mythic.job.set allow
+add_ace group.admin mythic.job.fire allow
+
+# Server management
+add_ace group.admin mythic.server.announce allow
+add_ace group.admin mythic.server.restart allow
+add_ace group.admin mythic.server.maintenance allow
+```
+
+### Moderator Permissions (Limited)
+
+```bash
+# Player moderation only
+add_ace group.moderator mythic.player.kick allow
+add_ace group.moderator mythic.player.warn allow
+add_ace group.moderator mythic.player.freeze allow
+add_ace group.moderator mythic.player.spectate allow
+
+# Basic teleportation
+add_ace group.moderator mythic.teleport.goto allow
+add_ace group.moderator mythic.teleport.bring allow
+
+# View-only access
+add_ace group.moderator mythic.logs.view allow
+add_ace group.moderator mythic.reports.view allow
+```
+
+### Support Permissions (Very Limited)
+
+```bash
+# Only helping tools
+add_ace group.support mythic.teleport.goto allow
+add_ace group.support mythic.teleport.bring allow
+add_ace group.support mythic.reports.view allow
+add_ace group.support mythic.chat.staff allow
+```
+
+## Resource-Level Permissions
+
+Control which resources can access sensitive functions:
+
+```bash
+# Allow mythic-admin to access all admin functions
+add_ace resource.mythic-admin command allow
+add_ace resource.mythic-admin admin allow
+
+# Allow mythic-anticheat to ban players
+add_ace resource.mythic-pwnzor mythic.player.ban allow
+
+# Allow specific resources to modify money
+add_ace resource.mythic-jobs mythic.money.give allow
+add_ace resource.mythic-businesses mythic.money.give allow
+```
+
+<Warning>
+**Security:** Only grant resource-level permissions to trusted resources. A compromised resource with these permissions can cause significant damage.
+</Warning>
+
+## Command-Specific Permissions
+
+Grant access to individual commands:
+
+```bash
+# Teleport commands
+add_ace group.admin command.tp allow
+add_ace group.admin command.tpm allow
+add_ace group.admin command.goto allow
+add_ace group.admin command.bring allow
+
+# Vehicle commands
+add_ace group.admin command.car allow
+add_ace group.admin command.dv allow
+add_ace group.admin command.fix allow
+
+# Player commands
+add_ace group.admin command.kick allow
+add_ace group.admin command.ban allow
+add_ace group.admin command.unban allow
+add_ace group.admin command.warn allow
+
+# Utility commands
+add_ace group.admin command.announce allow
+add_ace group.admin command.revive allow
+add_ace group.admin command.heal allow
+
+# Moderator commands (subset)
+add_ace group.moderator command.kick allow
+add_ace group.moderator command.warn allow
+add_ace group.moderator command.goto allow
+add_ace group.moderator command.spectate allow
+```
+
+## Player Identifier Types
+
+FiveM supports multiple identifier types. Use the most stable for your needs:
+
+<Tabs>
+  <Tab title="Steam ID">
+    **Format:** `identifier.steam:110000XXXXXXXX`
+
+    **Pros:**
+    - Most stable and unique
+    - Recommended for primary identification
+    - Required for Steam authentication
+
+    **Cons:**
+    - Players must have Steam open
+
+    **How to Find:**
+    - Use [steamid.io](https://steamid.io)
+    - Console: `print(GetPlayerIdentifier(source, 0))`
+  </Tab>
+
+  <Tab title="License">
+    **Format:** `identifier.license:XXXXXXXXXXXXXXXX`
+
+    **Pros:**
+    - Unique per FiveM account
+    - Works without Steam
+
+    **Cons:**
+    - Can change if player reinstalls FiveM
+    - Less stable than Steam
+
+    **How to Find:**
+    - Console: Find in player identifiers
+  </Tab>
+
+  <Tab title="Discord">
+    **Format:** `identifier.discord:123456789012345678`
+
+    **Pros:**
+    - Easy to find (right-click user)
+    - Stable identifier
+
+    **Cons:**
+    - Requires Discord integration
+    - Player must be in your Discord
+
+    **How to Find:**
+    - Enable Developer Mode in Discord
+    - Right-click user → Copy ID
+  </Tab>
+
+  <Tab title="IP Address">
+    **Format:** `identifier.ip:192.168.1.100`
+
+    **Pros:**
+    - Immediate identification
+
+    **Cons:**
+    - **NOT RECOMMENDED:** IPs change frequently
+    - Can be shared by multiple players
+    - Unreliable for permissions
+
+    **Use Cases:**
+    - Temporary testing only
+    - IP bans (separate system)
+  </Tab>
+</Tabs>
+
+## Finding Player Identifiers
+
+<CodeGroup>
+```lua Server-Side
+-- Get all identifiers for a player
+RegisterCommand('getid', function(source, args, rawCommand)
+    local identifiers = GetPlayerIdentifiers(source)
+
+    print('=== Player Identifiers ===')
+    for i, id in ipairs(identifiers) do
+        print(id)
+    end
+end, true)
+
+-- Output:
+-- steam:110000XXXXXXXX
+-- license:XXXXXXXXXXXXXXXX
+-- discord:123456789012345678
+-- ip:192.168.1.100
+```
+
+```bash Server Console
+# In server console, use resmon or status
+status
+
+# Output includes identifiers:
+# [1] Player Name (steam:110000XXX, license:XXX, discord:XXX)
+```
+
+```bash In-Game Command
+# Create admin command to show identifiers
+/getid [player ID]
+
+# Shows all identifiers for target player
+```
+</CodeGroup>
+
+## Dynamic Permission Management
+
+Mythic Framework includes runtime permission management:
+
+### In-Game Commands (if mythic-admin installed)
+
+```bash
+# Add player to admin group
+/addadmin [player ID]
+
+# Remove player from admin group
+/removeadmin [player ID]
+
+# Add player to moderator group
+/addmoderator [player ID]
+
+# Check player's permissions
+/checkperms [player ID]
+```
+
+### Programmatic Permission Checks
+
+```lua
+-- Server-side: Check if player has permission
+if IsPlayerAceAllowed(source, 'admin') then
+    -- Player has admin permission
+    TriggerClientEvent('mythic-admin:openPanel', source)
+else
+    -- Player doesn't have permission
+    TriggerClientEvent('mythic-notifications:client:SendError', source, 'No permission')
+end
+
+-- Check specific permission
+if IsPlayerAceAllowed(source, 'mythic.noclip') then
+    -- Player can use noclip
+end
+
+-- Check command permission
+if IsPlayerAceAllowed(source, 'command.ban') then
+    -- Player can use /ban command
+end
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Permission Not Working" icon="xmark">
+    **Problem:** Player has permission in server.cfg but can't use command
+
+    **Solutions:**
+    1. **Verify server restart:**
+       - Permissions are loaded on start
+       - Must restart server after changes
+
+    2. **Check identifier format:**
+       ```bash
+       # ❌ Wrong
+       add_principal steam:110000XXX group.admin
+
+       # ✅ Correct
+       add_principal identifier.steam:110000XXX group.admin
+       ```
+
+    3. **Verify identifier is correct:**
+       ```lua
+       -- Print player's identifiers
+       RegisterCommand('myid', function(source)
+           print(json.encode(GetPlayerIdentifiers(source)))
+       end)
+       ```
+
+    4. **Check permission syntax:**
+       ```bash
+       # ❌ Wrong
+       add_ace group.admin mythic.admin true
+
+       # ✅ Correct
+       add_ace group.admin mythic.admin allow
+       ```
+  </Accordion>
+
+  <Accordion title="Can't Find Steam ID" icon="steam">
+    **Problem:** Don't know player's Steam ID
+
+    **Solutions:**
+    1. **Use [steamid.io](https://steamid.io):**
+       - Enter Steam profile URL
+       - Copy SteamID64
+
+    2. **Server console when player connects:**
+       ```
+       Player connecting: Name (steam:110000XXXXXXXX)
+       ```
+
+    3. **Create identifier command:**
+       ```lua
+       RegisterCommand('mysteam', function(source)
+           local ids = GetPlayerIdentifiers(source)
+           for _, id in ipairs(ids) do
+               if string.match(id, 'steam:') then
+                   print('Steam ID:', id)
+               end
+           end
+       end)
+       ```
+  </Accordion>
+
+  <Accordion title="Permission Denied for Resource" icon="ban">
+    **Error:** `Resource mythic-xyz attempted to use restricted command`
+
+    **Cause:** Resource trying to use function it doesn't have permission for
+
+    **Solution:**
+    ```bash
+    # Grant resource permission
+    add_ace resource.mythic-xyz command allow
+
+    # Or specific permission
+    add_ace resource.mythic-xyz mythic.player.ban allow
+    ```
+  </Accordion>
+
+  <Accordion title="Inheritance Not Working" icon="sitemap">
+    **Problem:** Player in group but doesn't get group permissions
+
+    **Solutions:**
+    1. **Check principal assignment:**
+       ```bash
+       # Must use add_principal, not add_ace
+       add_principal identifier.steam:XXX group.admin
+       ```
+
+    2. **Verify group has permissions:**
+       ```bash
+       # Group must have ACEs
+       add_ace group.admin command allow
+       ```
+
+    3. **Check order in server.cfg:**
+       ```bash
+       # ✅ Correct order: Define group ACEs before principals
+       add_ace group.admin command allow
+       add_principal identifier.steam:XXX group.admin
+
+       # ❌ Wrong order
+       add_principal identifier.steam:XXX group.admin
+       add_ace group.admin command allow  # Too late!
+       ```
+  </Accordion>
+</AccordionGroup>
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Least Privilege" icon="shield">
+    Grant minimum permissions needed. Don't give everyone admin.
+  </Card>
+
+  <Card title="Use Groups" icon="users">
+    Organize permissions in groups. Easier to manage than individual permissions.
+  </Card>
+
+  <Card title="Regular Audits" icon="magnifying-glass">
+    Review permissions monthly. Remove ex-staff, inactive admins.
+  </Card>
+
+  <Card title="Separate Duties" icon="layer-group">
+    Different roles for different functions (moderation vs development).
+  </Card>
+
+  <Card title="Document Changes" icon="file-lines">
+    Keep a log of who was given permissions and when.
+  </Card>
+
+  <Card title="Test Permissions" icon="vial">
+    Test with alt account before granting to real players.
+  </Card>
+</CardGroup>
+
+## Complete Example Configuration
+
+<Accordion title="View Full Permission Setup">
+```bash
+# ====================================
+# MYTHIC FRAMEWORK - PERMISSIONS
+# ====================================
+
+# === GROUPS & HIERARCHY ===
+
+# Super Admin (Full Control)
+add_ace group.superadmin command allow
+add_ace group.superadmin admin allow
+add_ace group.superadmin rcon allow
+add_ace group.superadmin mythic.admin allow
+
+# Admin (Management)
+add_ace group.admin command allow
+add_ace group.admin admin allow
+add_ace group.admin mythic.admin allow
+add_ace group.admin mythic.noclip allow
+add_ace group.admin mythic.godmode allow
+add_ace group.admin mythic.teleport allow
+add_ace group.admin mythic.vehicle.spawn allow
+add_principal group.admin group.staff
+
+# Moderator (Moderation)
+add_ace group.moderator mythic.player.kick allow
+add_ace group.moderator mythic.player.ban allow
+add_ace group.moderator mythic.player.warn allow
+add_ace group.moderator mythic.player.spectate allow
+add_ace group.moderator mythic.teleport.goto allow
+add_principal group.moderator group.staff
+
+# Support (Helper)
+add_ace group.support mythic.teleport.goto allow
+add_ace group.support mythic.teleport.bring allow
+add_ace group.support mythic.reports.view allow
+add_principal group.support group.staff
+
+# Staff (Base)
+add_ace group.staff mythic.chat.staff allow
+add_ace group.staff mythic.logs.view allow
+
+# Member (Players)
+add_ace group.member command.me allow
+add_ace group.member command.do allow
+
+# === ASSIGN PRINCIPALS ===
+
+# Super Admins
+add_principal identifier.steam:110000AAAAAAA group.superadmin  # Owner
+
+# Admins
+add_principal identifier.steam:110000BBBBBBB group.admin  # HeadAdmin1
+add_principal identifier.steam:110000CCCCCCC group.admin  # HeadAdmin2
+
+# Moderators
+add_principal identifier.steam:110000DDDDDDD group.moderator  # Mod1
+add_principal identifier.steam:110000EEEEEEE group.moderator  # Mod2
+add_principal identifier.steam:110000FFFFFFF group.moderator  # Mod3
+
+# Support
+add_principal identifier.steam:110000GGGGGGG group.support  # Support1
+add_principal identifier.steam:110000HHHHHHH group.support  # Support2
+
+# Default: All players are members
+add_principal identifier.* group.member
+
+# === RESOURCE PERMISSIONS ===
+
+# Admin resource
+add_ace resource.mythic-admin command allow
+add_ace resource.mythic-admin admin allow
+
+# Anti-cheat resource
+add_ace resource.mythic-pwnzor mythic.player.ban allow
+add_ace resource.mythic-pwnzor mythic.player.kick allow
+
+# Economy resources
+add_ace resource.mythic-jobs mythic.money.give allow
+add_ace resource.mythic-businesses mythic.money.give allow
+```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Server Configuration" icon="server" href="/configuration/server-cfg">
+    Complete server.cfg guide
+  </Card>
+  <Card title="Admin Commands" icon="terminal" href="/features/admin/commands">
+    Available admin commands
+  </Card>
+  <Card title="Resource Management" icon="boxes-stacked" href="/configuration/resource-management">
+    Manage resource permissions
+  </Card>
+  <Card title="Security Guide" icon="shield-halved" href="/guides/server-owners/security">
+    Server security best practices
+  </Card>
+</CardGroup>
+
+<Tip>
+**Permission Testing:** Create a test account and assign it to each group to verify permissions work correctly before giving to real staff members.
+</Tip>

@@ -1,0 +1,644 @@
+---
+title: Database Connections
+description: Configure MongoDB and MySQL database connections for Mythic Framework
+icon: 'database'
+---
+
+Mythic Framework uses a dual-database architecture with MongoDB as the primary database and MySQL for compatibility with legacy resources and relational data needs.
+
+## Database Requirements
+
+<CardGroup cols={2}>
+  <Card title="MongoDB" icon="leaf">
+    **Version:** 3.6.6 or higher
+    **Purpose:** Primary database for auth, characters, inventory, game data
+    **Required:** YES
+  </Card>
+  <Card title="MySQL" icon="database">
+    **Version:** 5.7 or higher (MariaDB 10.2+)
+    **Purpose:** Persistent data, compatibility layer
+    **Required:** Highly Recommended
+  </Card>
+</CardGroup>
+
+## MongoDB Configuration
+
+### Connection String Format
+
+MongoDB uses a URI connection string format:
+
+```bash
+mongodb://[username:password@]host[:port]/database[?options]
+```
+
+### Basic Connection
+
+**No Authentication (Development Only):**
+
+```bash
+# server.cfg
+set mongodb_url "mongodb://localhost:27017/mythic"
+set mongodb_database "mythic"
+```
+
+<Warning>
+**Never use no-auth in production!** Always enable authentication for security.
+</Warning>
+
+### Authenticated Connection
+
+**With Username/Password (Production):**
+
+```bash
+# server.cfg
+set mongodb_url "mongodb://mythic_user:SecurePassword123@localhost:27017/mythic?authSource=admin"
+set mongodb_database "mythic"
+```
+
+<AccordionGroup>
+  <Accordion title="Connection String Parameters" icon="gear">
+    | Parameter | Description | Example |
+    |-----------|-------------|---------|
+    | `username` | Database username | `mythic_user` |
+    | `password` | Database password | `SecurePassword123` |
+    | `host` | MongoDB server address | `localhost`, `192.168.1.100` |
+    | `port` | MongoDB port | `27017` (default) |
+    | `database` | Database name | `mythic` |
+    | `authSource` | Authentication database | `admin` |
+  </Accordion>
+
+  <Accordion title="Common Options" icon="sliders">
+    **authSource:** Where user credentials are stored
+    ```bash
+    ?authSource=admin
+    ```
+
+    **replicaSet:** Replica set name (for clusters)
+    ```bash
+    ?replicaSet=myReplica
+    ```
+
+    **ssl:** Enable SSL/TLS encryption
+    ```bash
+    ?ssl=true
+    ```
+
+    **retryWrites:** Automatic retry for write operations
+    ```bash
+    ?retryWrites=true
+    ```
+
+    **Multiple options:** Separate with `&`
+    ```bash
+    ?authSource=admin&retryWrites=true&ssl=true
+    ```
+  </Accordion>
+
+  <Accordion title="Remote MongoDB" icon="cloud">
+    **Connecting to Remote Server:**
+    ```bash
+    set mongodb_url "mongodb://mythic_user:password@192.168.1.100:27017/mythic?authSource=admin"
+    ```
+
+    **MongoDB Atlas (Cloud):**
+    ```bash
+    set mongodb_url "mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/mythic?retryWrites=true&w=majority"
+    ```
+
+    **Note:** Atlas uses `mongodb+srv://` protocol for automatic DNS resolution.
+  </Accordion>
+</AccordionGroup>
+
+### Creating MongoDB User
+
+<Steps>
+  <Step title="Connect to MongoDB">
+    ```bash
+    mongo
+    ```
+  </Step>
+
+  <Step title="Switch to Admin Database">
+    ```javascript
+    use admin
+    ```
+  </Step>
+
+  <Step title="Create User">
+    ```javascript
+    db.createUser({
+      user: "mythic_user",
+      pwd: "SecurePassword123",
+      roles: [
+        { role: "readWrite", db: "mythic" },
+        { role: "dbAdmin", db: "mythic" }
+      ]
+    })
+    ```
+  </Step>
+
+  <Step title="Verify Connection">
+    ```bash
+    mongo mongodb://mythic_user:SecurePassword123@localhost:27017/mythic?authSource=admin
+    ```
+  </Step>
+</Steps>
+
+### MongoDB Connection Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection Refused" icon="xmark">
+    **Error:** `MongoNetworkError: connect ECONNREFUSED 127.0.0.1:27017`
+
+    **Causes:**
+    - MongoDB service not running
+    - Wrong host/port
+    - Firewall blocking connection
+
+    **Solutions:**
+    ```bash
+    # Check if MongoDB is running (Linux)
+    sudo systemctl status mongod
+
+    # Start MongoDB (Linux)
+    sudo systemctl start mongod
+
+    # Check if MongoDB is running (Windows)
+    Get-Service MongoDB
+
+    # Verify port is listening
+    netstat -an | grep 27017
+    ```
+  </Accordion>
+
+  <Accordion title="Authentication Failed" icon="key">
+    **Error:** `MongoError: Authentication failed`
+
+    **Causes:**
+    - Wrong username/password
+    - User doesn't exist
+    - Wrong authSource
+
+    **Solutions:**
+    - Verify credentials are correct
+    - Check user exists: `db.getUsers()` in mongo shell
+    - Ensure `authSource=admin` is specified
+    - Verify user has correct roles:
+    ```javascript
+    use admin
+    db.getUser("mythic_user")
+    ```
+  </Accordion>
+
+  <Accordion title="Database Not Found" icon="database">
+    **Error:** Database doesn't exist
+
+    **Solution:** MongoDB creates databases automatically on first write. The database will be created when the framework first inserts data.
+
+    **Manual Creation (Optional):**
+    ```javascript
+    use mythic
+    db.createCollection("init")
+    ```
+  </Accordion>
+
+  <Accordion title="Connection Timeout" icon="clock">
+    **Error:** `MongoNetworkError: connection timeout`
+
+    **Causes:**
+    - Firewall blocking port
+    - MongoDB not bound to correct interface
+    - Network issues
+
+    **Solutions:**
+    - Check MongoDB bind address in `/etc/mongod.conf`:
+    ```yaml
+    net:
+      bindIp: 0.0.0.0  # Listen on all interfaces
+      port: 27017
+    ```
+    - Check firewall:
+    ```bash
+    # Allow MongoDB port (Linux)
+    sudo ufw allow 27017/tcp
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## MySQL Configuration
+
+### Connection String Format
+
+Mythic Framework uses oxmysql which supports standard MySQL connection strings:
+
+```bash
+mysql://username:password@host:port/database?options
+```
+
+### Basic Configuration
+
+**Local MySQL Server:**
+
+```bash
+# server.cfg
+set mysql_connection_string "mysql://root:password@localhost:3306/mythic?charset=utf8mb4"
+```
+
+**Important:** Always use `charset=utf8mb4` for proper emoji and character support.
+
+### Connection String Components
+
+<CardGroup cols={2}>
+  <Card title="Protocol" icon="link">
+    **mysql://** - Standard MySQL protocol
+
+    Always use `mysql://` (not `mysqli://` or others)
+  </Card>
+
+  <Card title="Credentials" icon="user-lock">
+    **username:password@** - Authentication
+
+    Example: `root:MyPassword123@`
+  </Card>
+
+  <Card title="Host & Port" icon="server">
+    **host:port** - Server address
+
+    Default port: `3306`
+
+    Examples:
+    - `localhost:3306`
+    - `192.168.1.100:3306`
+    - `db.example.com:3306`
+  </Card>
+
+  <Card title="Database & Options" icon="database">
+    **/database?options** - Database name and settings
+
+    Example: `/mythic?charset=utf8mb4`
+  </Card>
+</CardGroup>
+
+### Common Connection Options
+
+```bash
+# Basic with charset
+mysql://user:pass@localhost/mythic?charset=utf8mb4
+
+# With connection pooling
+mysql://user:pass@localhost/mythic?charset=utf8mb4&connectionLimit=10
+
+# With timeout settings
+mysql://user:pass@localhost/mythic?charset=utf8mb4&connectTimeout=10000
+
+# Complete example with all options
+mysql://user:pass@localhost/mythic?charset=utf8mb4&connectionLimit=10&connectTimeout=10000&acquireTimeout=10000&debug=false
+```
+
+<AccordionGroup>
+  <Accordion title="Connection Options Explained" icon="gear">
+    | Option | Description | Default | Recommended |
+    |--------|-------------|---------|-------------|
+    | `charset` | Character encoding | `utf8` | `utf8mb4` |
+    | `connectionLimit` | Max concurrent connections | `10` | `10-20` |
+    | `connectTimeout` | Connection timeout (ms) | `10000` | `10000` |
+    | `acquireTimeout` | Query timeout (ms) | `10000` | `10000` |
+    | `waitForConnections` | Wait if pool is full | `true` | `true` |
+    | `queueLimit` | Max queued connections | `0` | `0` (unlimited) |
+    | `debug` | Debug SQL queries | `false` | `false` (prod) |
+  </Accordion>
+</AccordionGroup>
+
+### Creating MySQL Database and User
+
+<Tabs>
+  <Tab title="Command Line">
+    ```bash
+    # Login to MySQL
+    mysql -u root -p
+
+    # Create database
+    CREATE DATABASE mythic CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+    # Create user
+    CREATE USER 'mythic_user'@'localhost' IDENTIFIED BY 'SecurePassword123';
+
+    # Grant permissions
+    GRANT ALL PRIVILEGES ON mythic.* TO 'mythic_user'@'localhost';
+
+    # Apply changes
+    FLUSH PRIVILEGES;
+
+    # Verify
+    SHOW GRANTS FOR 'mythic_user'@'localhost';
+    ```
+  </Tab>
+
+  <Tab title="phpMyAdmin">
+    <Steps>
+      <Step title="Create Database">
+        1. Click "Databases" tab
+        2. Enter database name: `mythic`
+        3. Select collation: `utf8mb4_unicode_ci`
+        4. Click "Create"
+      </Step>
+
+      <Step title="Create User">
+        1. Click "User accounts" tab
+        2. Click "Add user account"
+        3. Enter username: `mythic_user`
+        4. Select host: `localhost`
+        5. Enter password
+        6. Under "Database for user account":
+           - Select "Grant all privileges on database mythic"
+        7. Click "Go"
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+### Remote MySQL Connection
+
+**Connecting to Remote Server:**
+
+```bash
+# server.cfg
+set mysql_connection_string "mysql://mythic_user:password@192.168.1.100:3306/mythic?charset=utf8mb4"
+```
+
+**Allow Remote Connections (MySQL Server):**
+
+```bash
+# Edit MySQL config (Linux: /etc/mysql/mysql.conf.d/mysqld.cnf)
+[mysqld]
+bind-address = 0.0.0.0  # Listen on all interfaces
+
+# Restart MySQL
+sudo systemctl restart mysql
+
+# Create user for remote access
+mysql -u root -p
+CREATE USER 'mythic_user'@'%' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON mythic.* TO 'mythic_user'@'%';
+FLUSH PRIVILEGES;
+
+# Allow port through firewall
+sudo ufw allow 3306/tcp
+```
+
+<Warning>
+**Security Warning:** Exposing MySQL to the internet is risky. Use:
+- Strong passwords
+- SSH tunneling for remote access
+- VPN connections
+- Whitelist specific IPs only
+</Warning>
+
+### MySQL Connection Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Access Denied" icon="ban">
+    **Error:** `Access denied for user 'username'@'host'`
+
+    **Solutions:**
+    - Verify username and password are correct
+    - Check user exists and has correct permissions:
+    ```sql
+    SELECT User, Host FROM mysql.user WHERE User='mythic_user';
+    SHOW GRANTS FOR 'mythic_user'@'localhost';
+    ```
+    - Ensure password special characters are URL-encoded:
+    ```bash
+    # Password: My$ecure@Pass
+    # Encoded: My%24ecure%40Pass
+    mysql://user:My%24ecure%40Pass@localhost/mythic
+    ```
+  </Accordion>
+
+  <Accordion title="Unknown Database" icon="circle-question">
+    **Error:** `Unknown database 'mythic'`
+
+    **Solution:**
+    - Database doesn't exist, create it:
+    ```sql
+    CREATE DATABASE mythic CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    ```
+    - Verify database name matches connection string exactly
+  </Accordion>
+
+  <Accordion title="Connection Timeout" icon="hourglass">
+    **Error:** `Connection timeout`
+
+    **Causes:**
+    - MySQL not running
+    - Wrong host/port
+    - Firewall blocking
+    - Network issues
+
+    **Solutions:**
+    ```bash
+    # Check MySQL is running (Linux)
+    sudo systemctl status mysql
+
+    # Check port is open
+    netstat -tulpn | grep 3306
+
+    # Test connection
+    mysql -h localhost -u mythic_user -p
+
+    # Increase timeout in connection string
+    ?connectTimeout=30000
+    ```
+  </Accordion>
+
+  <Accordion title="Too Many Connections" icon="users-slash">
+    **Error:** `Too many connections`
+
+    **Solution:**
+    - Increase MySQL max connections:
+    ```sql
+    SET GLOBAL max_connections = 200;
+    ```
+    - Or edit `/etc/mysql/mysql.conf.d/mysqld.cnf`:
+    ```ini
+    [mysqld]
+    max_connections = 200
+    ```
+    - Reduce connectionLimit in oxmysql:
+    ```bash
+    ?connectionLimit=5
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Testing Database Connections
+
+### Test MongoDB Connection
+
+<CodeGroup>
+```bash Linux/Mac
+mongo "mongodb://mythic_user:password@localhost:27017/mythic?authSource=admin"
+```
+
+```powershell Windows
+mongo mongodb://mythic_user:password@localhost:27017/mythic?authSource=admin
+```
+
+```javascript Node.js Test Script
+const { MongoClient } = require('mongodb');
+
+const uri = 'mongodb://mythic_user:password@localhost:27017/mythic?authSource=admin';
+const client = new MongoClient(uri);
+
+async function test() {
+    try {
+        await client.connect();
+        console.log('✅ MongoDB connection successful!');
+        await client.db('mythic').collection('test').insertOne({ test: true });
+        console.log('✅ Write test successful!');
+    } catch (error) {
+        console.error('❌ Connection failed:', error.message);
+    } finally {
+        await client.close();
+    }
+}
+
+test();
+```
+</CodeGroup>
+
+### Test MySQL Connection
+
+<CodeGroup>
+```bash Command Line
+mysql -h localhost -u mythic_user -p mythic
+```
+
+```sql SQL Test
+-- After connecting
+SELECT 1;
+SHOW TABLES;
+```
+
+```javascript Node.js Test Script
+const mysql = require('mysql2/promise');
+
+async function test() {
+    try {
+        const connection = await mysql.createConnection({
+            host: 'localhost',
+            user: 'mythic_user',
+            password: 'password',
+            database: 'mythic'
+        });
+        console.log('✅ MySQL connection successful!');
+        await connection.execute('SELECT 1');
+        console.log('✅ Query test successful!');
+        await connection.end();
+    } catch (error) {
+        console.error('❌ Connection failed:', error.message);
+    }
+}
+
+test();
+```
+</CodeGroup>
+
+## Connection String Security
+
+<Warning>
+**Never commit database credentials to version control!**
+</Warning>
+
+### Best Practices
+
+<Steps>
+  <Step title="Use Environment Variables">
+    ```bash
+    # .env file (add to .gitignore)
+    MONGODB_URL=mongodb://user:pass@localhost:27017/mythic?authSource=admin
+    MYSQL_URL=mysql://user:pass@localhost:3306/mythic?charset=utf8mb4
+    ```
+
+    ```bash
+    # server.cfg references variables
+    set mongodb_url "${MONGODB_URL}"
+    set mysql_connection_string "${MYSQL_URL}"
+    ```
+  </Step>
+
+  <Step title="Use Strong Passwords">
+    - Minimum 16 characters
+    - Mix of uppercase, lowercase, numbers, symbols
+    - No dictionary words
+    - Use password manager to generate
+  </Step>
+
+  <Step title="Limit Access">
+    - Create separate database users for different environments
+    - Grant minimum required privileges
+    - Use `localhost` when possible instead of `%`
+    - Enable MySQL bind-address restrictions
+  </Step>
+
+  <Step title="Enable Encryption">
+    **MongoDB SSL/TLS:**
+    ```bash
+    mongodb://user:pass@host/db?ssl=true&authSource=admin
+    ```
+
+    **MySQL SSL:**
+    ```bash
+    mysql://user:pass@host/db?ssl={"rejectUnauthorized":true}
+    ```
+  </Step>
+</Steps>
+
+## Production Checklist
+
+<Steps>
+  <Step title="MongoDB">
+    ✅ Authentication enabled
+    ✅ Strong password set
+    ✅ User has minimum required permissions
+    ✅ Connection string includes `authSource`
+    ✅ Database firewall rules configured
+    ✅ SSL/TLS enabled (if remote)
+    ✅ Regular backups configured
+  </Step>
+
+  <Step title="MySQL">
+    ✅ Root login disabled for remote connections
+    ✅ Strong password set
+    ✅ User limited to specific database
+    ✅ `utf8mb4` charset used
+    ✅ Connection pooling configured
+    ✅ Firewall rules in place
+    ✅ Regular backups configured
+  </Step>
+
+  <Step title="server.cfg">
+    ✅ Connection strings not committed to git
+    ✅ Credentials stored securely
+    ✅ Connection timeouts configured
+    ✅ Debug mode disabled in production
+    ✅ Connection limits appropriate for server load
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Server Configuration" icon="server" href="/configuration/server-cfg">
+    Complete server.cfg settings guide
+  </Card>
+  <Card title="Database Architecture" icon="diagram-project" href="/concepts/database-architecture">
+    Learn how Mythic uses databases
+  </Card>
+  <Card title="Resource Management" icon="boxes-stacked" href="/configuration/resource-management">
+    Configure resource load order
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/installation/troubleshooting">
+    Common database issues and fixes
+  </Card>
+</CardGroup>

@@ -1,0 +1,672 @@
+---
+title: Core - Callbacks
+description: Client-server callback system for request-response communication patterns
+icon: 'phone'
+---
+
+The Callbacks component provides a request-response pattern for communication between client and server, allowing one side to request data from the other and receive a response.
+
+<Warning>
+**Important:** The component name is `COMPONENTS.Callbacks` (plural), not `Callback` (singular).
+</Warning>
+
+## Overview
+
+Callbacks solve the problem of asynchronous request-response communication in FiveM, where events are one-way.
+
+<CardGroup cols={2}>
+  <Card title="Request-Response" icon="arrows-left-right">
+    Ask for data and receive a response
+  </Card>
+  <Card title="Bi-Directional" icon="arrows-rotate">
+    Client → Server or Server → Client
+  </Card>
+  <Card title="Type-Safe" icon="shield-check">
+    Structured data exchange
+  </Card>
+  <Card title="Auto-Cleanup" icon="trash">
+    Callbacks removed after execution
+  </Card>
+</CardGroup>
+
+---
+
+## Server-Side Methods
+
+### RegisterServerCallback
+
+Register a callback that clients can invoke.
+
+**Signature:**
+```lua
+COMPONENTS.Callbacks:RegisterServerCallback(event, callback)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| event | string | Yes | Unique callback name |
+| callback | function | Yes | Handler function(source, data, cb) |
+
+**Callback Parameters:**
+- `source` (number) - Player source who triggered callback
+- `data` (any) - Data sent from client
+- `cb` (function) - Response function to call with results
+
+**Example:**
+```lua
+-- Server side
+COMPONENTS.Callbacks:RegisterServerCallback('myresource:getData', function(source, data, cb)
+    local player = Fetch:Source(source)
+    local char = player:GetData('Character')
+
+    if not char then
+        return cb(false)
+    end
+
+    local responseData = {
+        name = string.format('%s %s', char:GetData('First'), char:GetData('Last')),
+        cash = char:GetData('Cash'),
+        bank = char:GetData('Bank')
+    }
+
+    cb(true, responseData)
+end)
+```
+
+---
+
+### ClientCallback
+
+Send a callback request to a client and receive response.
+
+**Signature:**
+```lua
+COMPONENTS.Callbacks:ClientCallback(source, event, data, callback, extraId)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Player source to send to |
+| event | string | Yes | Callback name |
+| data | any | No | Data to send (default: {}) |
+| callback | function | Yes | Function to receive response |
+| extraId | string | No | Disambiguation ID for multiple calls |
+
+**Example:**
+```lua
+-- Server side - Request data from client
+COMPONENTS.Callbacks:ClientCallback(source, 'myresource:getClientData', {
+    requestType = 'playerInfo'
+}, function(success, clientData)
+    if success then
+        print('Received from client:', json.encode(clientData))
+    end
+end)
+```
+
+---
+
+## Client-Side Methods
+
+### ServerCallback
+
+Send a callback request to server and receive response.
+
+**Signature:**
+```lua
+COMPONENTS.Callbacks:ServerCallback(event, data, callback, extraId)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| event | string | Yes | Callback name registered on server |
+| data | any | No | Data to send (default: {}) |
+| callback | function | Yes | Function to receive response |
+| extraId | string | No | Disambiguation ID |
+
+**Example:**
+```lua
+-- Client side - Request data from server
+COMPONENTS.Callbacks:ServerCallback('myresource:getData', {
+    type = 'inventory'
+}, function(success, responseData)
+    if success then
+        print('Player name:', responseData.name)
+        print('Cash:', responseData.cash)
+    else
+        print('Failed to get data')
+    end
+end)
+```
+
+---
+
+### RegisterClientCallback
+
+Register a callback that server can invoke.
+
+**Signature:**
+```lua
+COMPONENTS.Callbacks:RegisterClientCallback(event, callback)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| event | string | Yes | Unique callback name |
+| callback | function | Yes | Handler function(data, cb) |
+
+**Callback Parameters:**
+- `data` (any) - Data sent from server
+- `cb` (function) - Response function to call with results
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Callbacks:RegisterClientCallback('myresource:getClientData', function(data, cb)
+    local playerCoords = GetEntityCoords(PlayerPedId())
+    local playerHeading = GetEntityHeading(PlayerPedId())
+
+    cb(true, {
+        coords = playerCoords,
+        heading = playerHeading,
+        vehicle = IsPedInAnyVehicle(PlayerPedId(), false),
+        requestType = data.requestType
+    })
+end)
+```
+
+---
+
+## ExtraId Parameter
+
+The `extraId` parameter prevents callback conflicts when the same event is triggered multiple times simultaneously.
+
+**Without extraId (can cause conflicts):**
+```lua
+-- If both fire at same time, callbacks may get mixed up
+COMPONENTS.Callbacks:ServerCallback('getData', {}, callback1)
+COMPONENTS.Callbacks:ServerCallback('getData', {}, callback2)
+```
+
+**With extraId (safe):**
+```lua
+-- Each callback is uniquely identified
+COMPONENTS.Callbacks:ServerCallback('getData', {}, callback1, 'request-1')
+COMPONENTS.Callbacks:ServerCallback('getData', {}, callback2, 'request-2')
+```
+
+**When to use:**
+- Multiple simultaneous calls to same callback
+- Loops that trigger callbacks
+- Rapid successive calls
+
+**Example:**
+```lua
+-- Client side - Multiple requests in loop
+for i = 1, 5 do
+    COMPONENTS.Callbacks:ServerCallback('getData', {
+        index = i
+    }, function(success, data)
+        print('Response for index:', i, success)
+    end, tostring(i))  -- extraId prevents mix-up
+end
+```
+
+---
+
+## Complete Examples
+
+### Character Data Request
+
+**Server:**
+```lua
+-- Register callback
+COMPONENTS.Callbacks:RegisterServerCallback('characters:getCharacterData', function(source, data, cb)
+    local player = Fetch:Source(source)
+    if not player then
+        return cb(false, 'Player not found')
+    end
+
+    local char = player:GetData('Character')
+    if not char then
+        return cb(false, 'No character selected')
+    end
+
+    local characterData = {
+        sid = char:GetData('SID'),
+        name = string.format('%s %s', char:GetData('First'), char:GetData('Last')),
+        dob = char:GetData('DOB'),
+        phone = char:GetData('Phone'),
+        job = char:GetData('Job'),
+        cash = char:GetData('Cash'),
+        bank = char:GetData('Bank')
+    }
+
+    cb(true, characterData)
+end)
+```
+
+**Client:**
+```lua
+-- Request character data
+COMPONENTS.Callbacks:ServerCallback('characters:getCharacterData', {}, function(success, data, error)
+    if success then
+        print('Character:', data.name)
+        print('Money:', data.cash + data.bank)
+        print('Job:', data.job)
+    else
+        print('Error:', error)
+    end
+end)
+```
+
+---
+
+### Inventory Check
+
+**Server:**
+```lua
+-- Register inventory check callback
+COMPONENTS.Callbacks:RegisterServerCallback('inventory:hasItem', function(source, data, cb)
+    local player = Fetch:Source(source)
+    local char = player:GetData('Character')
+
+    if not char then
+        return cb(false)
+    end
+
+    local hasItem = COMPONENTS.Inventory:HasItem(char:GetData('SID'), data.itemName, data.count)
+
+    cb(hasItem, {
+        itemName = data.itemName,
+        required = data.count,
+        has = hasItem
+    })
+end)
+```
+
+**Client:**
+```lua
+-- Check if player has item before action
+COMPONENTS.Callbacks:ServerCallback('inventory:hasItem', {
+    itemName = 'lockpick',
+    count = 1
+}, function(hasItem, details)
+    if hasItem then
+        -- Start lockpick minigame
+        print('Starting lockpick...')
+    else
+        TriggerEvent('mythic-notifications:client:Send', {
+            message = 'You need a lockpick',
+            type = 'error'
+        })
+    end
+end)
+```
+
+---
+
+### Vehicle Spawn Request
+
+**Server:**
+```lua
+-- Register vehicle spawn callback
+COMPONENTS.Callbacks:RegisterServerCallback('garage:spawnVehicle', function(source, data, cb)
+    local player = Fetch:Source(source)
+    local char = player:GetData('Character')
+
+    if not char then
+        return cb(false, 'Not logged in')
+    end
+
+    -- Verify ownership
+    COMPONENTS.Vehicles.Owned:GetVIN(data.VIN, function(vehicle)
+        if not vehicle then
+            return cb(false, 'Vehicle not found')
+        end
+
+        if vehicle.Owner.Type ~= 0 or vehicle.Owner.Id ~= char:GetData('SID') then
+            return cb(false, 'Not your vehicle')
+        end
+
+        -- Spawn vehicle
+        COMPONENTS.Vehicles.Owned:Spawn(
+            source,
+            data.VIN,
+            data.coords,
+            data.heading,
+            function(success, vehData, entityId)
+                if success then
+                    COMPONENTS.Vehicles.Keys:Add(source, data.VIN)
+                    cb(true, {
+                        entity = entityId,
+                        plate = vehData.RegisteredPlate
+                    })
+                else
+                    cb(false, 'Spawn failed')
+                end
+            end
+        )
+    end)
+end)
+```
+
+**Client:**
+```lua
+-- Request vehicle spawn
+local spawnCoords = GetEntityCoords(PlayerPedId())
+local spawnHeading = GetEntityHeading(PlayerPedId())
+
+COMPONENTS.Callbacks:ServerCallback('garage:spawnVehicle', {
+    VIN = selectedVehicle.VIN,
+    coords = spawnCoords,
+    heading = spawnHeading
+}, function(success, data, error)
+    if success then
+        print('Vehicle spawned:', data.plate)
+        -- Give notification
+        TriggerEvent('mythic-notifications:client:Send', {
+            message = 'Vehicle spawned',
+            type = 'success'
+        })
+    else
+        print('Failed:', error)
+        TriggerEvent('mythic-notifications:client:Send', {
+            message = error or 'Failed to spawn vehicle',
+            type = 'error'
+        })
+    end
+end)
+```
+
+---
+
+### Shop Purchase
+
+**Server:**
+```lua
+-- Register shop purchase callback
+COMPONENTS.Callbacks:RegisterServerCallback('shop:purchaseItem', function(source, data, cb)
+    local player = Fetch:Source(source)
+    local char = player:GetData('Character')
+
+    if not char then
+        return cb(false, 'Not logged in')
+    end
+
+    local itemData = GetShopItem(data.shopId, data.itemName)
+    if not itemData then
+        return cb(false, 'Item not available')
+    end
+
+    local totalCost = itemData.price * data.count
+    local currentCash = char:GetData('Cash')
+
+    if currentCash < totalCost then
+        return cb(false, 'Not enough money')
+    end
+
+    -- Deduct money
+    char:SetData('Cash', currentCash - totalCost)
+
+    -- Add item
+    local success, slot = COMPONENTS.Inventory:AddItem(
+        char:GetData('SID'),
+        data.itemName,
+        data.count
+    )
+
+    if success then
+        cb(true, {
+            item = data.itemName,
+            count = data.count,
+            cost = totalCost,
+            remaining = currentCash - totalCost
+        })
+    else
+        -- Refund on failure
+        char:SetData('Cash', currentCash)
+        cb(false, 'Inventory full')
+    end
+end)
+```
+
+**Client:**
+```lua
+-- Purchase item from shop
+local function PurchaseItem(shopId, itemName, count)
+    COMPONENTS.Callbacks:ServerCallback('shop:purchaseItem', {
+        shopId = shopId,
+        itemName = itemName,
+        count = count
+    }, function(success, data, error)
+        if success then
+            TriggerEvent('mythic-notifications:client:Send', {
+                message = string.format('Purchased %dx %s for $%d', data.count, data.item, data.cost),
+                type = 'success'
+            })
+            -- Refresh UI
+            RefreshShopUI()
+        else
+            TriggerEvent('mythic-notifications:client:Send', {
+                message = error or 'Purchase failed',
+                type = 'error'
+            })
+        end
+    end)
+end
+```
+
+---
+
+### Client-to-Server Notification
+
+**Client (Register):**
+```lua
+-- Register callback for server to get client info
+COMPONENTS.Callbacks:RegisterClientCallback('getPlayerPosition', function(data, cb)
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local heading = GetEntityHeading(ped)
+    local vehicle = GetVehiclePedIsIn(ped, false)
+
+    cb(true, {
+        coords = coords,
+        heading = heading,
+        inVehicle = vehicle ~= 0,
+        vehicleModel = vehicle ~= 0 and GetEntityModel(vehicle) or nil
+    })
+end)
+```
+
+**Server (Request):**
+```lua
+-- Request position from client
+AddEventHandler('admin:getPlayerPosition', function(targetId)
+    local src = source
+
+    COMPONENTS.Callbacks:ClientCallback(targetId, 'getPlayerPosition', {}, function(success, data)
+        if success then
+            TriggerClientEvent('mythic-notifications:client:Send', src, {
+                message = string.format('Player at: %s', data.coords),
+                type = 'info'
+            })
+        else
+            TriggerClientEvent('mythic-notifications:client:Send', src, {
+                message = 'Failed to get position',
+                type = 'error'
+            })
+        end
+    end)
+end)
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always Handle Failure Cases" icon="shield-check">
+    **Check for errors in callback responses:**
+
+    ```lua
+    -- ✅ Good - handles both success and failure
+    COMPONENTS.Callbacks:ServerCallback('getData', {}, function(success, data, error)
+        if success then
+            -- Handle success
+        else
+            print('Error:', error)
+            -- Handle failure
+        end
+    end)
+
+    -- ❌ Bad - assumes success
+    COMPONENTS.Callbacks:ServerCallback('getData', {}, function(success, data)
+        print('Name:', data.name)  -- Crashes if data is nil!
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Use Descriptive Callback Names" icon="tag">
+    **Name callbacks by resource and action:**
+
+    ```lua
+    -- ✅ Good - clear and organized
+    'inventory:hasItem'
+    'characters:getCharacterData'
+    'vehicles:spawnVehicle'
+    'shop:purchaseItem'
+
+    -- ❌ Bad - vague names
+    'getData'
+    'checkStuff'
+    'doThing'
+    ```
+  </Accordion>
+
+  <Accordion title="Validate Input Data" icon="check">
+    **Always validate callback data:**
+
+    ```lua
+    COMPONENTS.Callbacks:RegisterServerCallback('myCallback', function(source, data, cb)
+        -- ✅ Good - validate input
+        if not data or not data.itemName or not data.count then
+            return cb(false, 'Invalid data')
+        end
+
+        if type(data.count) ~= 'number' or data.count <= 0 then
+            return cb(false, 'Invalid count')
+        end
+
+        -- Process valid data
+        cb(true, result)
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Use ExtraId for Loops" icon="rotate">
+    **Prevent callback conflicts in loops:**
+
+    ```lua
+    -- ✅ Good - unique extraId
+    for i, vehicleVIN in ipairs(vehicles) do
+        COMPONENTS.Callbacks:ServerCallback('vehicles:getData', {
+            VIN = vehicleVIN
+        }, function(success, data)
+            -- Process data
+        end, vehicleVIN)  -- Unique extraId
+    end
+
+    -- ❌ Bad - callbacks may get mixed up
+    for i, vehicleVIN in ipairs(vehicles) do
+        COMPONENTS.Callbacks:ServerCallback('vehicles:getData', {
+            VIN = vehicleVIN
+        }, function(success, data)
+            -- Which vehicle is this?
+        end)
+    end
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Troubleshooting
+
+### Callback Not Firing
+
+1. **Check component name:**
+   - Use `COMPONENTS.Callbacks` (plural), not `Callback`
+
+2. **Verify callback is registered:**
+   - Server callbacks must be registered before client calls them
+   - Register callbacks in resource startup, not in event handlers
+
+3. **Check event names match exactly:**
+   ```lua
+   -- Must match exactly
+   RegisterServerCallback('myCallback', handler)  -- Server
+   ServerCallback('myCallback', data, callback)   -- Client
+   ```
+
+### Getting Wrong Data
+
+1. **Use extraId for disambiguation:**
+   - Multiple simultaneous calls need unique extraIds
+
+2. **Check callback cleanup:**
+   - Callbacks auto-delete after execution
+   - Don't reuse the same callback multiple times
+
+### Timeout Issues
+
+1. **Callbacks timeout if no response:**
+   - Always call `cb()` in your handler
+   - Don't forget callback in async operations:
+
+   ```lua
+   RegisterServerCallback('getData', function(source, data, cb)
+       Database.Game:findOne({...}, function(success, results)
+           cb(success, results)  -- Don't forget!
+       end)
+   end)
+   ```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Core - Fetch" icon="magnifying-glass" href="/api/core/fetch">
+    Player and character data access
+  </Card>
+  <Card title="Core - Logger" icon="file-lines" href="/api/core/logger">
+    Logging system
+  </Card>
+  <Card title="Events System" icon="bolt" href="/concepts/event-system">
+    Understanding events
+  </Card>
+  <Card title="Middleware" icon="filter" href="/api/core/middleware">
+    Event middleware
+  </Card>
+</CardGroup>
+
+<Tip>
+**Pro Tip:** Create wrapper functions for common callbacks to reduce boilerplate:
+```lua
+function GetCharacterData(callback)
+    COMPONENTS.Callbacks:ServerCallback('characters:getCharacterData', {}, callback)
+end
+
+-- Usage
+GetCharacterData(function(success, data)
+    if success then
+        print('Character:', data.name)
+    end
+end)
+```
+</Tip>

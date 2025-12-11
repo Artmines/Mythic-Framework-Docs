@@ -1,0 +1,585 @@
+---
+title: Server Configuration
+description: Complete guide to configuring server.cfg for Mythic Framework
+icon: 'gear'
+---
+
+This guide walks you through every section of `server.cfg`, explaining what each setting does and how to configure it for your server.
+
+## Understanding server.cfg
+
+The `server.cfg` file is the main configuration file for your FiveM server. It:
+- Sets server identity (name, license, tags)
+- Configures database connections
+- Defines server resources to load
+- Sets gameplay variables
+- Configures admin permissions
+
+<Note>
+The server.cfg file is located in your server root directory. Changes require a server restart to take effect.
+</Note>
+
+## Essential Configuration
+
+These settings are **required** for the server to start.
+
+### License & Identity
+
+```bash server.cfg
+# FiveM License Key (REQUIRED)
+sv_licenseKey "YOUR_LICENSE_KEY_HERE"
+
+# Server name (shown in server browser)
+sv_hostname "My Mythic Roleplay Server"
+
+# Steam Web API Key (REQUIRED for Steam integration)
+set steam_webApiKey "YOUR_STEAM_API_KEY"
+```
+
+<Steps>
+  <Step title="Get FiveM License">
+    Generate at [keymaster.fivem.net](https://keymaster.fivem.net)
+  </Step>
+  <Step title="Get Steam API Key">
+    Generate at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey)
+  </Step>
+  <Step title="Replace placeholders">
+    Replace `YOUR_LICENSE_KEY_HERE` and `YOUR_STEAM_API_KEY` with your actual keys
+  </Step>
+</Steps>
+
+<Warning>
+**Never share your license key publicly!** Anyone with your key can impersonate your server. Treat it like a password.
+</Warning>
+
+### Network Configuration
+
+```bash server.cfg
+# Server endpoints (IP:Port)
+endpoint_add_tcp "0.0.0.0:30120"
+endpoint_add_udp "0.0.0.0:30120"
+
+# Maximum players
+sv_maxclients 48
+```
+
+**Endpoint Configuration:**
+- `0.0.0.0` = Listen on all network interfaces
+- `30120` = Default FiveM port (change if needed)
+- Both TCP and UDP are required
+
+**Player Slots:**
+- Adjust `sv_maxclients` based on your server capacity
+- Consider: 8GB RAM supports ~48 players, 16GB supports ~80+
+- More players = more database load and network bandwidth
+
+<Accordion title="Using a different port">
+  If port 30120 is taken:
+  ```bash
+  endpoint_add_tcp "0.0.0.0:30121"
+  endpoint_add_udp "0.0.0.0:30121"
+  ```
+
+  Don't forget to:
+  - Open the new port in firewall
+  - Update port forwarding
+  - Players connect with: `connect your_ip:30121`
+</Accordion>
+
+### Database Configuration
+
+```bash server.cfg
+# MongoDB - Auth Database
+set mongodb_auth_url "mongodb://localhost:27017/?readPreference=primary&ssl=false"
+set mongodb_auth_database "auth"
+
+# MongoDB - Game Database
+set mongodb_game_url "mongodb://localhost:27017/?readPreference=primary&ssl=false"
+set mongodb_game_database "fivem"
+
+# MySQL Connection
+set mysql_connection_string "mysql://root:password@localhost/MythicFramework_345AE9?charset=utf8mb4"
+set mysql_slow_query_warning 300
+set mysql_ui true
+```
+
+**MongoDB Settings:**
+- `mongodb_auth_url` - Connection string for authentication database
+- `mongodb_auth_database` - Database name for auth (default: `auth`)
+- `mongodb_game_url` - Connection string for game data
+- `mongodb_game_database` - Database name for game data (default: `fivem`)
+
+**MySQL Settings:**
+- `mysql_connection_string` - Full connection URL with credentials
+- `mysql_slow_query_warning` - Warn about queries taking longer than X ms
+- `mysql_ui` - Enable web UI for database inspection
+
+<Tip>
+See [Database Setup](/installation/database-setup) for detailed connection string configuration.
+</Tip>
+
+## Environment & Mode
+
+```bash server.cfg
+# Environment mode: dev, test, or prod
+set sv_environment dev
+
+# Access role (0 = public, higher = more restrictive)
+set sv_access_role 0
+
+# Logging level (0 = minimal, 1 = normal, 2 = verbose)
+setr log_level 1
+```
+
+**Environment Modes:**
+
+| Mode | Purpose | Features |
+|------|---------|----------|
+| `dev` | Development | Verbose logging, hot reload, debug info |
+| `test` | Testing | Moderate logging, some debug features |
+| `prod` | Production | Minimal logging, optimized performance |
+
+<Warning>
+Always use `dev` mode during setup and development. Switch to `prod` for live servers to improve performance and reduce log spam.
+</Warning>
+
+## Discord Webhooks
+
+Configure Discord webhooks for server logging:
+
+```bash server.cfg
+# Discord Webhook URLs
+set discord_admin_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+set discord_connection_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+set discord_log_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+set discord_kill_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+set discord_pwnzor_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+set discord_error_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+```
+
+**Webhook Types:**
+
+<AccordionGroup>
+  <Accordion title="admin_webhook" icon="shield">
+    Logs admin actions:
+    - Noclip usage
+    - Teleports
+    - Give item commands
+    - Player kicks/bans
+  </Accordion>
+
+  <Accordion title="connection_webhook" icon="plug">
+    Logs player connections:
+    - Join events with identifiers
+    - Leave events
+    - Connection failures
+  </Accordion>
+
+  <Accordion title="log_webhook" icon="file-lines">
+    General server logs:
+    - Resource starts/stops
+    - Database events
+    - System messages
+  </Accordion>
+
+  <Accordion title="kill_webhook" icon="skull">
+    Logs player deaths/kills:
+    - Killer and victim info
+    - Weapon used
+    - Death location
+  </Accordion>
+
+  <Accordion title="pwnzor_webhook" icon="shield-halved">
+    Anti-cheat detections:
+    - Suspicious activity
+    - Detected cheats
+    - Automated bans
+  </Accordion>
+
+  <Accordion title="error_webhook" icon="triangle-exclamation">
+    Server errors:
+    - Lua errors
+    - Database errors
+    - Critical failures
+  </Accordion>
+</AccordionGroup>
+
+**Creating Discord Webhooks:**
+
+<Steps>
+  <Step title="Open Discord Server Settings">
+    In your Discord server, go to Server Settings > Integrations
+  </Step>
+  <Step title="Create Webhooks">
+    Click "Create Webhook" or "Webhooks" > "New Webhook"
+  </Step>
+  <Step title="Configure Webhook">
+    - Name it (e.g., "Mythic Logs")
+    - Select channel
+    - Copy webhook URL
+  </Step>
+  <Step title="Add to server.cfg">
+    Paste URL in appropriate webhook setting
+  </Step>
+</Steps>
+
+<Tip>
+You can use the same webhook URL for all types, or create separate channels for organization. Separate channels help with Discord rate limiting on busy servers.
+</Tip>
+
+## API Configuration
+
+```bash server.cfg
+# External API (if using Mythic web panel)
+set api_address "https://your-panel.com/api/mythic/"
+set api_token "your_secret_api_token"
+```
+
+**Purpose:**
+- Connects to external Mythic web panel (if available)
+- Used for whitelist management, bans, server stats
+- Optional - leave as default if not using
+
+## Server Listing
+
+```bash server.cfg
+# Comment out to hide from server list
+sv_master1 ""
+
+# Server tags for listing
+sets tags "rp,roleplay,mythic,whitelist"
+
+# Project information
+sets sv_projectName "[Mythic Framework] Your Server Name"
+sets sv_projectDesc "A premium roleplay experience powered by Mythic Framework"
+
+# Locale
+sets locale "en-US"
+```
+
+**Visibility:**
+- `sv_master1 ""` = Hidden from public server list (recommended during setup)
+- Remove or comment out to appear in server browser
+- `tags` = Searchable tags in server browser
+- `sv_projectName` = Name shown in server list
+- `sv_projectDesc` = Description shown in server list
+
+## Game Build & Security
+
+```bash server.cfg
+# Enforce game build (3095 = latest compatible build)
+sv_enforceGameBuild 3095
+
+# Hide server IP from players
+sv_endpointPrivacy true
+
+# Disable script hook (prevent cheats)
+sv_scriptHookAllowed 0
+```
+
+**Build Enforcement:**
+- `3095` = Current recommended build for Mythic Framework
+- Ensures all players use compatible game version
+- Update this if framework requires newer build
+
+**Security:**
+- `sv_endpointPrivacy true` = Hides server IP from client
+- `sv_scriptHookAllowed 0` = Blocks Script Hook V (anti-cheat)
+
+<Warning>
+Always keep `sv_scriptHookAllowed 0` unless you have a specific reason. Script Hook V can be used for cheating.
+</Warning>
+
+## Voice Configuration
+
+```bash server.cfg
+# Use native audio system
+setr voice_useNativeAudio true
+
+# Only send voice to players in range
+setr voice_useSendingRangeOnly true
+```
+
+**Voice Settings:**
+- `voice_useNativeAudio` = Use FiveM's built-in voice system
+- `voice_useSendingRangeOnly` = Optimize bandwidth by limiting range
+
+<Note>
+Mythic Framework includes voice integration. These settings optimize voice chat performance.
+</Note>
+
+## ACE Permissions
+
+```bash server.cfg
+# Give admin group all commands
+add_ace group.admin command allow
+add_ace group.admin command.quit deny  # But deny server quit
+
+# Give admin group anti-cheat bypass
+add_ace group.admin sqz_ac.bypass allow
+add_ace group.admin sqz_ac.admin allow
+
+# Give mythic-base resource admin permissions
+add_principal resource.mythic-base group.admin
+```
+
+**Adding Admins:**
+
+```bash server.cfg
+# Add by FiveM identifier
+add_principal identifier.fivem:123456 group.admin
+
+# Add by Discord ID (recommended)
+add_principal identifier.discord:123456789012345678 group.admin
+
+# Add by Steam Hex
+add_principal identifier.steam:110000112345678 group.admin
+
+# Add by License
+add_principal identifier.license:abc123def456 group.admin
+```
+
+**Finding Your Identifiers:**
+
+<Steps>
+  <Step title="Start the server">
+    Start your server (even if it has errors)
+  </Step>
+  <Step title="Join the server">
+    Connect with FiveM client
+  </Step>
+  <Step title="Check console">
+    In server console, type: `status`
+  </Step>
+  <Step title="Find your identifiers">
+    Look for your name in the output, copy your identifiers
+  </Step>
+  <Step title="Add to server.cfg">
+    Add `add_principal identifier.TYPE:ID group.admin` to server.cfg
+  </Step>
+</Steps>
+
+<Tip>
+**Recommended:** Use Discord ID for admin permissions. It's consistent across server wipes and easy to verify.
+</Tip>
+
+## Server Branding
+
+```bash server.cfg
+# Server banners (shown in FiveM loading)
+sets banner_detail "https://i.imgur.com/your-banner.png"
+sets banner_connecting "https://i.imgur.com/your-banner.png"
+
+# Server icon (96x96 PNG)
+load_server_icon logo96.png
+
+# MOTD (Message of the Day)
+sets motd "Welcome to our Mythic Framework server!"
+```
+
+**Banner Requirements:**
+- Image URL (must be HTTPS)
+- Recommended size: 1920x1080
+- Supported formats: PNG, JPG
+
+**Icon Requirements:**
+- File: `logo96.png` in server root
+- Size: 96x96 pixels
+- Format: PNG
+
+## Resource Loading
+
+```bash server.cfg
+# Execute resource loading configuration
+exec ./configs/resources.cfg
+
+# Set framework version
+setr mfw_version 1.0.0
+```
+
+<Note>
+The actual resource loading is done in `configs/resources.cfg`. This keeps server.cfg cleaner and easier to manage.
+</Note>
+
+## Network & Performance Tuning
+
+```bash server.cfg
+# Increase connection limit (for high-player servers)
+set net_tcpConnLimit 65535
+
+# Disable onesync (Mythic uses its own sync)
+set onesync off
+
+# Profiler setting
+setr profile_skfx 0
+```
+
+**Advanced Settings:**
+- `net_tcpConnLimit` = Max TCP connections (increase for 48+ players)
+- `onesync` = Not needed for Mythic (uses custom sync)
+- `profile_skfx` = Performance profiling (0 = off)
+
+## Complete Example Configuration
+
+Here's a complete, production-ready server.cfg:
+
+<Accordion title="View Complete server.cfg Example">
+```bash server.cfg
+# ======================
+# ESSENTIAL CONFIGURATION
+# ======================
+
+# Network endpoints
+endpoint_add_tcp "0.0.0.0:30120"
+endpoint_add_udp "0.0.0.0:30120"
+
+# License keys
+sv_licenseKey "YOUR_FIVEM_LICENSE_KEY"
+set steam_webApiKey "YOUR_STEAM_API_KEY"
+
+# Server identity
+sv_hostname "My Mythic Roleplay Server"
+sets sv_projectName "[Mythic Framework] My Server"
+sets sv_projectDesc "A premium roleplay experience"
+
+# Player limit
+sv_maxclients 48
+
+# ======================
+# ENVIRONMENT
+# ======================
+
+set sv_environment prod
+set sv_access_role 0
+setr log_level 1
+
+# ======================
+# DATABASE CONFIGURATION
+# ======================
+
+# MongoDB
+set mongodb_auth_url "mongodb://mythic:SecurePass123@localhost:27017/?authSource=admin&readPreference=primary&ssl=false"
+set mongodb_auth_database "auth"
+set mongodb_game_url "mongodb://mythic:SecurePass123@localhost:27017/?authSource=admin&readPreference=primary&ssl=false"
+set mongodb_game_database "fivem"
+
+# MySQL
+set mysql_connection_string "mysql://mythic:SecurePass456@localhost/MythicFramework_345AE9?charset=utf8mb4"
+set mysql_slow_query_warning 300
+set mysql_ui true
+
+# ======================
+# DISCORD WEBHOOKS
+# ======================
+
+set discord_admin_webhook "https://discord.com/api/webhooks/xxx/xxx"
+set discord_connection_webhook "https://discord.com/api/webhooks/xxx/xxx"
+set discord_log_webhook "https://discord.com/api/webhooks/xxx/xxx"
+set discord_kill_webhook "https://discord.com/api/webhooks/xxx/xxx"
+set discord_pwnzor_webhook "https://discord.com/api/webhooks/xxx/xxx"
+set discord_error_webhook "https://discord.com/api/webhooks/xxx/xxx"
+
+# ======================
+# GAME & SECURITY
+# ======================
+
+sv_enforceGameBuild 3095
+sv_endpointPrivacy true
+sv_scriptHookAllowed 0
+
+# ======================
+# VOICE
+# ======================
+
+setr voice_useNativeAudio true
+setr voice_useSendingRangeOnly true
+
+# ======================
+# PERMISSIONS
+# ======================
+
+# Admin group permissions
+add_ace group.admin command allow
+add_ace group.admin command.quit deny
+add_ace group.admin sqz_ac.bypass allow
+add_ace group.admin sqz_ac.admin allow
+
+# Resource permissions
+add_principal resource.mythic-base group.admin
+
+# Admin users (CHANGE THESE!)
+add_principal identifier.discord:123456789012345678 group.admin
+
+# ======================
+# BRANDING
+# ======================
+
+sets banner_detail "https://i.imgur.com/your-banner.png"
+sets banner_connecting "https://i.imgur.com/your-banner.png"
+load_server_icon logo96.png
+sets motd "Welcome to Mythic Framework!"
+sets locale "en-US"
+sets tags "rp,roleplay,mythic"
+
+# ======================
+# NETWORK & PERFORMANCE
+# ======================
+
+set net_tcpConnLimit 65535
+setr profile_skfx 0
+
+# ======================
+# RESOURCES
+# ======================
+
+exec ./configs/resources.cfg
+setr mfw_version 1.0.0
+```
+</Accordion>
+
+## Configuration Checklist
+
+Before starting your server, verify:
+
+<Steps>
+  <Step title="License keys configured">
+    - [ ] FiveM license key added
+    - [ ] Steam Web API key added
+  </Step>
+  <Step title="Database strings updated">
+    - [ ] MongoDB connection strings correct
+    - [ ] MySQL connection string correct
+    - [ ] Passwords changed from defaults
+  </Step>
+  <Step title="Admin permissions added">
+    - [ ] At least one admin identifier added
+    - [ ] Identifiers are correct (tested via `status` command)
+  </Step>
+  <Step title="Server identity set">
+    - [ ] Hostname customized
+    - [ ] Project name/description set
+    - [ ] Tags configured
+  </Step>
+  <Step title="Optional settings">
+    - [ ] Discord webhooks configured (optional but recommended)
+    - [ ] Branding/logos added (optional)
+    - [ ] Environment set correctly (dev/prod)
+  </Step>
+</Steps>
+
+## Next Steps
+
+Configuration complete! Now start your server:
+
+<CardGroup cols={2}>
+  <Card title="First Start" icon="rocket" href="/installation/first-start">
+    Start your Mythic Framework server for the first time
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/installation/troubleshooting">
+    Common issues and solutions
+  </Card>
+</CardGroup>
+
+<Tip>
+**Save a backup** of your configured server.cfg before starting. If something goes wrong, you can quickly restore your settings.
+</Tip>

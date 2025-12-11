@@ -1,0 +1,804 @@
+---
+title: Vehicles - Configuration
+description: Vehicle data structures, types, storage configuration, and entity state
+icon: 'sliders'
+---
+
+This page documents the vehicle data structures, type constants, storage configuration, and vehicle state management in Mythic Framework.
+
+## Vehicle Data Structure
+
+Vehicles stored in the database have the following structure:
+
+```lua
+{
+    _id = ObjectId,                 -- MongoDB document ID
+    Type = 0,                       -- Vehicle type (0=car, 1=boat, 2=aircraft)
+    Vehicle = 1234567,              -- Vehicle model hash
+    VIN = "ABC123456789",           -- Vehicle Identification Number
+    RegisteredPlate = "12ABC345",   -- License plate
+    FakePlate = false,              -- Fake plate (string or false)
+    Fuel = 95,                      -- Fuel level (0-100)
+
+    Owner = {                       -- Ownership data
+        Type = 0,                   -- Owner type (0=character, 1=fleet)
+        Id = 123,                   -- Character SID or job ID
+        Workplace = false,          -- Workplace ID (fleet only)
+        Level = 0,                  -- Grade level requirement (fleet only)
+        Qualification = nil,        -- Required certification (fleet only)
+    },
+
+    Storage = {                     -- Storage location
+        Type = 1,                   -- Storage type (0=impound, 1=garage, 2=property)
+        Id = "legion_square",       -- Storage location ID
+        Fine = 0,                   -- Impound fine (impound only)
+        TimeHold = false,           -- Hold timer (impound only)
+    },
+
+    Make = "Truffade",              -- Vehicle manufacturer
+    Model = "Adder",                -- Vehicle model name
+    Class = "Super",                -- Vehicle class
+    Value = 1000000,                -- Vehicle value
+
+    FirstSpawn = true,              -- Never spawned before
+    Properties = table,             -- Vehicle customization (see below)
+
+    RegistrationDate = 1700000000,  -- Unix timestamp
+    Mileage = 12500,                -- Miles driven
+    DirtLevel = 5.0,                -- Dirt level (0-15)
+
+    Damage = {                      -- Damage state
+        Engine = 950,               -- Engine health (0-1000)
+        Body = 850,                 -- Body health (0-1000)
+    },
+    DamagedParts = {                -- Individual part damage
+        [0] = 50,                   -- Part index to damage value
+        [1] = 100,
+    },
+
+    WheelFitment = table,           -- Custom wheel fitment data
+    Polish = {                      -- Polish/wax state
+        Expires = 1700000000,       -- Expiration timestamp
+    },
+
+    Harness = 100,                  -- Racing harness durability (0-100)
+    Nitrous = {                     -- NOS system
+        level = 100,                -- NOS amount (0-100)
+    },
+
+    NeonsDisabled = false,          -- Neon lights disabled
+    ForcedAudio = nil,              -- Custom engine audio
+
+    Seized = false,                 -- Vehicle seized (loans)
+    SeizedTime = false,             -- Seizure timestamp
+}
+```
+
+---
+
+## Type Constants
+
+### Owner Types
+
+Owner type determines who owns the vehicle.
+
+| Value | Type | Description |
+|-------|------|-------------|
+| 0 | Character | Owned by a player character |
+| 1 | Fleet | Owned by a job/faction |
+
+**Character Ownership:**
+```lua
+Owner = {
+    Type = 0,
+    Id = 123,  -- Character SID
+}
+```
+
+**Fleet Ownership:**
+```lua
+Owner = {
+    Type = 1,
+    Id = "police",            -- Job ID
+    Workplace = "lspd",       -- Optional workplace restriction
+    Level = 10,               -- Minimum grade level
+    Qualification = "pilot",  -- Optional certification requirement
+}
+```
+
+---
+
+### Storage Types
+
+Storage type determines where the vehicle is stored.
+
+| Value | Type | Description |
+|-------|------|-------------|
+| 0 | Impound | Vehicle impounded with fine |
+| 1 | Garage | Public/job garage |
+| 2 | Property | Private property garage |
+
+**Impound Storage:**
+```lua
+Storage = {
+    Type = 0,
+    Id = 0,                   -- Impound lot
+    Fine = 2500,              -- Impound fine
+    TimeHold = 24,            -- Hours before retrieval (0=immediate)
+}
+```
+
+**Garage Storage:**
+```lua
+Storage = {
+    Type = 1,
+    Id = "legion_square",     -- Garage ID
+}
+```
+
+**Property Storage:**
+```lua
+Storage = {
+    Type = 2,
+    Id = "property_123",      -- Property ID
+}
+```
+
+---
+
+### Vehicle Types
+
+Vehicle type determines handling and storage locations.
+
+| Value | Type | Description |
+|-------|------|-------------|
+| 0 | Car/Truck | Standard ground vehicles |
+| 1 | Boat | Watercraft |
+| 2 | Aircraft | Planes and helicopters |
+
+**Usage:**
+```lua
+-- When adding vehicle
+COMPONENTS.Vehicles.Owned:AddToCharacter(
+    characterId,
+    vehicleHash,
+    0,  -- Car type
+    infoData,
+    callback
+)
+
+-- Boat
+COMPONENTS.Vehicles.Owned:AddToCharacter(
+    characterId,
+    GetHashKey('seashark'),
+    1,  -- Boat type
+    infoData,
+    callback
+)
+
+-- Aircraft
+COMPONENTS.Vehicles.Owned:AddToCharacter(
+    characterId,
+    GetHashKey('frogger'),
+    2,  -- Aircraft type
+    infoData,
+    callback
+)
+```
+
+---
+
+## Vehicle Properties
+
+Vehicle customization properties follow the standard FiveM format:
+
+```lua
+Properties = {
+    model = 123456,
+    plate = "12ABC345",
+    plateIndex = 0,
+
+    bodyHealth = 1000.0,
+    engineHealth = 1000.0,
+    tankHealth = 1000.0,
+    fuelLevel = 65.0,
+    dirtLevel = 0.0,
+
+    -- Colors
+    color1 = 0,
+    color2 = 0,
+    pearlescentColor = 0,
+    wheelColor = 0,
+    dashboardColor = 0,
+    interiorColor = 0,
+
+    -- Paint types
+    paintType1 = 0,
+    paintType2 = 0,
+
+    -- Custom colors
+    customPrimaryColor = {255, 0, 0},
+    customSecondaryColor = {0, 0, 255},
+
+    -- Wheels
+    wheels = 0,
+    wheelType = 0,
+
+    -- Mods
+    modEngine = 3,
+    modBrakes = 2,
+    modTransmission = 2,
+    modSuspension = 3,
+    modArmor = 4,
+    modTurbo = true,
+    modXenon = true,
+
+    -- Extras
+    extras = {
+        [1] = true,
+        [2] = false,
+        [3] = true,
+    },
+
+    -- Neons
+    neonEnabled = {true, true, true, true},
+    neonColor = {255, 0, 255},
+
+    -- Tire smoke
+    tyreSmokeColor = {255, 255, 255},
+
+    -- Windows
+    windowTint = 0,
+
+    -- Livery
+    livery = 0,
+    livery2 = 0,
+}
+```
+
+---
+
+## Vehicle Entity State
+
+Spawned vehicles have state stored in `Entity(vehicle).state`:
+
+### Core State Fields
+
+```lua
+-- Identity
+VIN = "ABC123456789",          -- Vehicle Identification Number
+Plate = "12ABC345",            -- Visible plate
+RegisteredPlate = "12ABC345",  -- Real registered plate
+FakePlate = false,             -- Fake plate if installed
+
+-- Ownership
+Owned = true,                  -- Is owned vehicle
+Owner = {Type = 0, Id = 123},  -- Owner data
+GroupKeys = false,             -- Group key access ("police", "ems")
+
+-- Vehicle Info
+Make = "Truffade",
+Model = "Adder",
+Class = "Super",
+Value = 1000000,
+
+-- State
+Locked = true,                 -- Door locks
+Fuel = 65,                     -- Fuel level
+Mileage = 12500,               -- Miles driven
+DirtLevel = 5.0,               -- Dirt accumulation
+
+-- Damage
+Damage = {
+    Engine = 950,
+    Body = 850,
+},
+DamagedParts = {
+    [0] = 50,
+},
+
+-- Special Equipment
+Harness = 100,                 -- Racing harness
+Nitrous = {level = 100},       -- NOS level
+Polish = {Expires = ...},      -- Polish expiration
+
+-- Flags
+VEH_IGNITION = false,          -- Engine on/off
+PlayerDriven = true,           -- Was driven by player
+wasThermited = false,          -- Locks thermited
+Hotwired = false,              -- Successfully hotwired
+HotwiredSuccess = false,       -- Hotwire in progress
+Deleted = false,               -- Marked for deletion
+BlownUp = false,               -- Exploded
+
+-- Sync
+neonsDisabled = false,         -- Neon lights disabled
+ForcedAudio = nil,             -- Custom engine sound
+Trailer = false,               -- Is a trailer
+```
+
+### Accessing Vehicle State
+
+**Server Side:**
+```lua
+local vehicle = entity
+local vState = Entity(vehicle).state
+
+print('VIN:', vState.VIN)
+print('Fuel:', vState.Fuel)
+print('Locked:', vState.Locked)
+print('Owner:', vState.Owner.Type, vState.Owner.Id)
+
+-- Modify state
+vState.Fuel = 50
+vState.Locked = true
+```
+
+**Client Side:**
+```lua
+local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+local vState = Entity(vehicle).state
+
+if vState.VIN then
+    print('Vehicle VIN:', vState.VIN)
+    print('Fuel:', vState.Fuel)
+    print('Locked:', vState.Locked)
+
+    -- Check ownership
+    if vState.Owned then
+        print('This is an owned vehicle')
+    end
+end
+```
+
+---
+
+## Garage Configuration
+
+Garages are defined in `shared/vehicleStorage.lua`:
+
+```lua
+_vehicleStorage = {
+    ['garage_id'] = {
+        name = 'Garage Display Name',
+        vehType = 0,                  -- Vehicle type (0=car, 1=boat, 2=aircraft)
+        default = false,              -- Is default storage
+        coords = vector3(x, y, z),    -- Interaction point
+
+        -- Interaction zone
+        zone = {
+            type = 'box',
+            center = vector3(x, y, z),
+            heading = 0,
+            length = 10.0,
+            width = 10.0,
+            minZ = 20.0,
+            maxZ = 25.0,
+        },
+
+        -- Spawn points
+        spaces = {
+            vector4(x, y, z, heading),
+            vector4(x, y, z, heading),
+            -- ...
+        },
+
+        -- Access restrictions (optional)
+        restricted = {
+            {
+                job = "police",
+                workplace = "lspd",  -- Optional
+            },
+        },
+
+        -- Fleet storage (optional)
+        fleet = {
+            {
+                JobId = "police",
+                WorkplaceId = "lspd",  -- Optional
+                HQ = true,              -- Is headquarters
+            },
+        },
+
+        retrievalOnly = false,        -- Can only retrieve, not store
+    },
+}
+```
+
+### Garage Example (Public)
+
+```lua
+['legion_square'] = {
+    name = 'Legion Square Parking',
+    vehType = 0,
+    default = true,
+    coords = vector3(215.9, -808.5, 30.8),
+    zone = {
+        type = 'box',
+        center = vector3(215.0, -805.0, 30.8),
+        heading = 340,
+        length = 10.0,
+        width = 5.0,
+        minZ = 29.8,
+        maxZ = 32.8,
+    },
+    spaces = {
+        vector4(229.7, -800.1, 30.6, 160.0),
+        vector4(233.5, -798.9, 30.6, 160.0),
+        vector4(237.3, -797.7, 30.6, 160.0),
+    },
+}
+```
+
+### Garage Example (Job Fleet)
+
+```lua
+['mrpd_garage'] = {
+    name = 'MRPD Vehicle Fleet',
+    vehType = 0,
+    coords = vector3(452.0, -1018.0, 28.5),
+    zone = {
+        type = 'box',
+        center = vector3(452.0, -1020.0, 28.5),
+        heading = 0,
+        length = 15.0,
+        width = 10.0,
+        minZ = 27.5,
+        maxZ = 30.5,
+    },
+    spaces = {
+        vector4(438.4, -1018.3, 28.7, 90.0),
+        vector4(438.4, -1014.3, 28.7, 90.0),
+        vector4(438.4, -1010.3, 28.7, 90.0),
+    },
+    restricted = {
+        {job = "police"},
+    },
+    fleet = {
+        {
+            JobId = "police",
+            HQ = true,
+        },
+    },
+}
+```
+
+### Garage Example (Boat Dock)
+
+```lua
+['paleto_boat'] = {
+    name = 'Paleto Bay Boat Dock',
+    vehType = 1,  -- Boats
+    coords = vector3(-277.0, 6637.0, 7.5),
+    zone = {
+        type = 'box',
+        center = vector3(-280.0, 6635.0, 7.5),
+        heading = 45,
+        length = 8.0,
+        width = 6.0,
+        minZ = 6.0,
+        maxZ = 10.0,
+    },
+    spaces = {
+        vector4(-289.5, 6623.4, -0.5, 45.0),
+        vector4(-293.2, 6627.1, -0.5, 45.0),
+    },
+}
+```
+
+### Garage Example (Helipad)
+
+```lua
+['hospital_helipad'] = {
+    name = 'Pillbox Hill Medical Center Helipad',
+    vehType = 2,  -- Aircraft
+    coords = vector3(351.8, -588.2, 74.2),
+    zone = {
+        type = 'box',
+        center = vector3(351.0, -588.0, 74.2),
+        heading = 0,
+        length = 12.0,
+        width = 12.0,
+        minZ = 73.0,
+        maxZ = 76.0,
+    },
+    spaces = {
+        vector4(351.7, -587.8, 74.2, 160.0),
+    },
+    restricted = {
+        {job = "ems"},
+    },
+    fleet = {
+        {
+            JobId = "ems",
+            HQ = true,
+        },
+    },
+}
+```
+
+---
+
+## Impound Configuration
+
+Impound system configuration in `shared/vehicleImpound.lua`:
+
+```lua
+_vehicleImpound = {
+    name = 'Impound Yard',
+    coords = vector3(-217.7, -1179.0, 23.0),
+    spaces = {
+        vector4(-197.8, -1174.7, 22.6, 200.8),
+        vector4(-194.4, -1174.5, 22.6, 200.8),
+        -- ...
+    },
+    interactionBoxZone = {
+        center = vector3(-192.6, -1162.3, 23.7),
+        length = 3.0,
+        width = 0.8,
+        heading = 0,
+        minZ = 23.5,
+        maxZ = 23.9,
+    },
+}
+
+_impoundConfig = {
+    RequiredPermission = 'impound',
+    RegularFine = 750,
+    Police = {
+        RequiredPermission = 'impound_police',
+        Levels = {
+            {
+                Fine = {Min = 2000, Percent = false},
+                Holding = 0,  -- Hours
+            },
+            {
+                Fine = {Min = 3500, Percent = false},
+                Holding = 6,
+            },
+            {
+                Fine = {Min = 5000, Percent = false},
+                Holding = 12,
+            },
+            {
+                Fine = {Min = 8500, Percent = false},
+                Holding = 24,
+            },
+        },
+    },
+}
+```
+
+### Impound Levels
+
+Police can impound vehicles at different severity levels:
+
+**Level 1: Minor Violation**
+- Fine: $2,000
+- Holding: 0 hours (immediate retrieval)
+
+**Level 2: Moderate Violation**
+- Fine: $3,500
+- Holding: 6 hours
+
+**Level 3: Serious Violation**
+- Fine: $5,000
+- Holding: 12 hours
+
+**Level 4: Severe Violation**
+- Fine: $8,500
+- Holding: 24 hours
+
+**Regular Impound (Non-Police):**
+- Fine: $750
+- Holding: 0 hours
+
+---
+
+## Vehicle Identification
+
+### VIN Generation
+
+VINs are auto-generated for owned vehicles:
+
+```lua
+-- Format: 3 letters + 9 numbers
+-- Example: "ABC123456789"
+
+-- Generation code
+function GenerateVIN()
+    local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    local nums = "0123456789"
+    local vin = ""
+
+    -- 3 letters
+    for i = 1, 3 do
+        vin = vin .. chars:sub(math.random(1, #chars), math.random(1, #chars))
+    end
+
+    -- 9 numbers
+    for i = 1, 9 do
+        vin = vin .. nums:sub(math.random(1, #nums), math.random(1, #nums))
+    end
+
+    return vin
+end
+```
+
+### Plate Generation
+
+License plates are auto-generated:
+
+```lua
+-- Format: 8 characters (numbers and letters)
+-- Example: "12ABC345"
+
+function GeneratePlate()
+    local charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    local plate = ""
+
+    for i = 1, 8 do
+        local rand = math.random(1, #charset)
+        plate = plate .. charset:sub(rand, rand)
+    end
+
+    return plate
+end
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always Check VIN Exists" icon="shield-check">
+    **Before performing vehicle operations:**
+
+    ```lua
+    -- Check if vehicle is owned
+    local vState = Entity(vehicle).state
+    if not vState.VIN then
+        print('Not an owned vehicle')
+        return
+    end
+
+    -- Get vehicle data
+    COMPONENTS.Vehicles.Owned:GetVIN(vState.VIN, function(vehData)
+        if vehData then
+            -- Vehicle exists in database
+        end
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Verify Ownership Before Actions" icon="key">
+    **Check ownership before allowing actions:**
+
+    ```lua
+    local player = Fetch:Source(source)
+    if not player then return end
+
+    local char = player:GetData('Character')
+    if not char then return end
+
+    local stateId = char:GetData('SID')
+
+    COMPONENTS.Vehicles.Owned:GetVIN(VIN, function(vehData)
+        if vehData.Owner.Type == 0 and vehData.Owner.Id == stateId then
+            -- Player owns this vehicle
+        else
+            -- Not the owner
+        end
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Use Entity State for Real-Time Data" icon="gauge-high">
+    **Entity state is synced automatically:**
+
+    ```lua
+    -- Update fuel (auto-synced to all clients)
+    Entity(vehicle).state.Fuel = 50
+
+    -- Read on client (automatically updated)
+    local vState = Entity(vehicle).state
+    print('Fuel:', vState.Fuel)
+    ```
+  </Accordion>
+
+  <Accordion title="Save Before Deletion" icon="floppy-disk">
+    **Always save vehicle before deleting:**
+
+    ```lua
+    -- ✅ Good - Uses Delete export (saves automatically)
+    COMPONENTS.Vehicles.Owned:Delete(VIN, function(success)
+        if success then
+            print('Vehicle saved and deleted')
+        end
+    end)
+
+    -- ❌ Bad - Direct deletion without saving
+    DeleteEntity(vehicle)
+    ```
+  </Accordion>
+
+  <Accordion title="Handle Fleet Access Properly" icon="users">
+    **Check grade level and workplace:**
+
+    ```lua
+    local player = Fetch:Source(source)
+    if not player then return end
+
+    local char = player:GetData('Character')
+    if not char then return end
+
+    local jobId = char:GetData('Job')
+    local jobGrade = char:GetData('JobGrade')
+    local jobWorkplace = char:GetData('JobWorkplace')
+
+    COMPONENTS.Vehicles.Owned:GetVIN(VIN, function(vehData)
+        if vehData.Owner.Type == 1 then
+            -- Fleet vehicle
+            if jobId == vehData.Owner.Id then
+                if vehData.Owner.Level and jobGrade >= vehData.Owner.Level then
+                    -- Has required grade
+                    if not vehData.Owner.Workplace or vehData.Owner.Workplace == jobWorkplace then
+                        -- Has access
+                    end
+                end
+            end
+        end
+    end)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Data Migration
+
+When modifying vehicle data structures, use database migrations:
+
+```lua
+-- Example migration: Add new field
+Database.Game:updateMany({
+    collection = 'vehicles',
+    query = {
+        NewField = {['$exists'] = false}
+    },
+    update = {
+        ['$set'] = {
+            NewField = defaultValue
+        }
+    }
+}, function(success, modifiedCount)
+    print('Updated', modifiedCount, 'vehicles')
+end)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Vehicles - Exports" icon="cube" href="/api/vehicles/exports">
+    Vehicle management methods
+  </Card>
+  <Card title="Vehicles - Events" icon="bolt" href="/api/vehicles/events">
+    Vehicle-related events
+  </Card>
+  <Card title="Garages Feature" icon="warehouse" href="/features/vehicles/garages">
+    Complete garage system
+  </Card>
+  <Card title="Impound System" icon="car-burst" href="/features/vehicles/impound">
+    Vehicle impound mechanics
+  </Card>
+</CardGroup>
+
+<Tip>
+**Entity State Performance:** Entity state is automatically networked. Avoid storing large tables or frequently changing data in entity state to minimize network traffic.
+</Tip>
+
+<Warning>
+**VIN Uniqueness:** VINs must be globally unique. Never manually assign VINs without checking for duplicates in the database first.
+</Warning>

@@ -1,0 +1,886 @@
+---
+title: Jobs - Exports
+description: Job management component API for employment, grades, and job operations
+icon: 'briefcase'
+---
+
+The Jobs component manages character employment, job grades, on-duty status, and job-related operations. It's essential for roleplay servers with different job roles and responsibilities.
+
+## Overview
+
+Access via `COMPONENTS.Jobs` (server-side only).
+
+<CardGroup cols={2}>
+  <Card title="Multiple Jobs" icon="briefcase">
+    Support for various job types and grades
+  </Card>
+  <Card title="Grade System" icon="ranking-star">
+    Hierarchical rank structure per job
+  </Card>
+  <Card title="On-Duty Status" icon="toggle-on">
+    Clock in/out system
+  </Card>
+  <Card title="Permissions" icon="shield-check">
+    Job-based access control
+  </Card>
+</CardGroup>
+
+<Warning>
+**Server-Side Only:** All job operations must be performed on the server. Never attempt to modify job data from the client.
+</Warning>
+
+---
+
+## Job Management
+
+### GetJob
+
+Get a character's current job information.
+
+```lua
+COMPONENTS.Jobs:GetJob(characterId)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ResponseField name="jobData" type="table|nil">
+  Job information or `nil` if character has no job
+
+  **Job Data Structure:**
+  ```lua
+  {
+      job = "police",           -- Job identifier
+      jobLabel = "Police",      -- Display name
+      grade = 2,                -- Current grade/rank
+      gradeLabel = "Officer",   -- Grade display name
+      onDuty = true,            -- On-duty status
+      salary = 5000,            -- Paycheck amount
+      permissions = {...}       -- Job permissions
+  }
+  ```
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Get character's job
+local jobData = COMPONENTS.Jobs:GetJob(char.SID)
+
+if jobData then
+    print('Job:', jobData.jobLabel)
+    print('Rank:', jobData.gradeLabel)
+    print('On Duty:', jobData.onDuty)
+    print('Salary: $' .. jobData.salary)
+else
+    print('Character is unemployed')
+end
+
+-- Check if character has specific job
+function HasJob(characterId, jobName)
+    local jobData = COMPONENTS.Jobs:GetJob(characterId)
+    return jobData and jobData.job == jobName
+end
+
+-- Check if on duty
+function IsOnDuty(characterId)
+    local jobData = COMPONENTS.Jobs:GetJob(characterId)
+    return jobData and jobData.onDuty == true
+end
+```
+
+---
+
+### SetJob
+
+Set a character's job and grade.
+
+```lua
+COMPONENTS.Jobs:SetJob(characterId, jobName, grade)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ParamField path="jobName" type="string" required>
+  Job identifier (e.g., 'police', 'ems', 'mechanic', 'unemployed')
+</ParamField>
+
+<ParamField path="grade" type="number" optional default="0">
+  Job grade/rank (0 = lowest)
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if job was set successfully
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Set character to police officer (grade 1)
+COMPONENTS.Jobs:SetJob(char.SID, 'police', 1)
+
+-- Set character to unemployed
+COMPONENTS.Jobs:SetJob(char.SID, 'unemployed', 0)
+
+-- Promote character
+local currentJob = COMPONENTS.Jobs:GetJob(char.SID)
+COMPONENTS.Jobs:SetJob(char.SID, currentJob.job, currentJob.grade + 1)
+
+-- Hire player callback
+COMPONENTS.Callbacks:RegisterServerCallback('jobs:hire', function(source, data, cb)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return cb(false, 'Player not found')
+    end
+
+    local char = player:GetData('Character')
+
+    if not char then
+        return cb(false, 'No character')
+    end
+
+    -- Validate job exists
+    if not COMPONENTS.Jobs:DoesJobExist(data.job) then
+        return cb(false, 'Invalid job')
+    end
+
+    -- Set job
+    local stateId = char:GetData('SID')
+    local success = COMPONENTS.Jobs:SetJob(stateId, data.job, data.grade or 0)
+
+    if success then
+        -- Give job items
+        GiveJobItems(source, data.job)
+
+        -- Notify player
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'You have been hired!',
+            type = 'success'
+        })
+
+        cb({ success = true })
+    else
+        cb({ success = false, error = 'Failed to set job' })
+    end
+end)
+```
+
+---
+
+### SetGrade
+
+Update a character's job grade without changing their job.
+
+```lua
+COMPONENTS.Jobs:SetGrade(characterId, grade)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ParamField path="grade" type="number" required>
+  New grade/rank
+</ParamField>
+
+**Examples:**
+
+```lua
+-- Promote character
+COMPONENTS.Jobs:SetGrade(char.SID, 3)
+
+-- Demote character
+COMPONENTS.Jobs:SetGrade(char.SID, 1)
+
+-- Promote command
+RegisterCommand('promote', function(source, args)
+    if not IsPlayerAceAllowed(source, 'admin') then
+        return
+    end
+
+    local targetId = tonumber(args[1])
+    local targetPlayer = Fetch:Source(targetId)
+
+    if not targetPlayer then
+        return
+    end
+
+    local targetChar = targetPlayer:GetData('Character')
+
+    if not targetChar then
+        return
+    end
+
+    local targetSID = targetChar:GetData('SID')
+    local currentJob = COMPONENTS.Jobs:GetJob(targetSID)
+    local newGrade = currentJob.grade + 1
+
+    -- Check max grade
+    local maxGrade = COMPONENTS.Jobs:GetMaxGrade(currentJob.job)
+
+    if newGrade > maxGrade then
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'Already at max rank',
+            type = 'error'
+        })
+        return
+    end
+
+    COMPONENTS.Jobs:SetGrade(targetSID, newGrade)
+
+    TriggerClientEvent('mythic-notifications:client:Send', targetId, {
+        message = 'You have been promoted!',
+        type = 'success'
+    })
+end, true)
+```
+
+---
+
+### ClockIn
+
+Clock a character in (set on-duty).
+
+```lua
+COMPONENTS.Jobs:ClockIn(characterId)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if successfully clocked in
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Clock in
+COMPONENTS.Jobs:ClockIn(char.SID)
+
+-- Clock in with validation
+function ClockInPlayer(source)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return false, 'Player not found'
+    end
+
+    local char = player:GetData('Character')
+
+    if not char then
+        return false, 'No character'
+    end
+
+    local stateId = char:GetData('SID')
+    local jobData = COMPONENTS.Jobs:GetJob(stateId)
+
+    if not jobData or jobData.job == 'unemployed' then
+        return false, 'No job'
+    end
+
+    if jobData.onDuty then
+        return false, 'Already on duty'
+    end
+
+    local success = COMPONENTS.Jobs:ClockIn(stateId)
+
+    if success then
+        -- Give job equipment
+        GiveJobEquipment(source, jobData.job)
+
+        -- Notify
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'You are now on duty',
+            type = 'success'
+        })
+
+        -- Update client
+        TriggerClientEvent('mythic-jobs:client:SetDuty', source, true)
+
+        return true
+    else
+        return false, 'Failed to clock in'
+    end
+end
+
+-- Clock in at job location
+RegisterNetEvent('mythic-jobs:server:clockIn', function()
+    ClockInPlayer(source)
+end)
+```
+
+---
+
+### ClockOut
+
+Clock a character out (set off-duty).
+
+```lua
+COMPONENTS.Jobs:ClockOut(characterId)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if successfully clocked out
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Clock out
+COMPONENTS.Jobs:ClockOut(char.SID)
+
+-- Clock out with cleanup
+function ClockOutPlayer(source)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return false
+    end
+
+    local char = player:GetData('Character')
+
+    if not char then
+        return false
+    end
+
+    local stateId = char:GetData('SID')
+    local jobData = COMPONENTS.Jobs:GetJob(stateId)
+
+    if not jobData or not jobData.onDuty then
+        return false, 'Not on duty'
+    end
+
+    local success = COMPONENTS.Jobs:ClockOut(stateId)
+
+    if success then
+        -- Remove job equipment
+        RemoveJobEquipment(source, jobData.job)
+
+        -- End active jobs/tasks
+        TriggerEvent('mythic-jobs:server:EndActiveTasks', source)
+
+        -- Notify
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'You are now off duty',
+            type = 'info'
+        })
+
+        -- Update client
+        TriggerClientEvent('mythic-jobs:client:SetDuty', source, false)
+
+        return true
+    else
+        return false, 'Failed to clock out'
+    end
+end
+
+-- Auto clock out on disconnect
+AddEventHandler('playerDropped', function()
+    local player = Fetch:Source(source)
+
+    if player then
+        local char = player:GetData('Character')
+
+        if char then
+            local stateId = char:GetData('SID')
+            COMPONENTS.Jobs:ClockOut(stateId)
+        end
+    end
+end)
+```
+
+---
+
+## Job Information
+
+### DoesJobExist
+
+Check if a job exists in the system.
+
+```lua
+COMPONENTS.Jobs:DoesJobExist(jobName)
+```
+
+<ParamField path="jobName" type="string" required>
+  Job identifier
+</ParamField>
+
+<ResponseField name="exists" type="boolean">
+  `true` if job exists
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Check if job exists
+if COMPONENTS.Jobs:DoesJobExist('police') then
+    print('Police job exists')
+end
+
+-- Validate before setting job
+function SafeSetJob(characterId, jobName, grade)
+    if not COMPONENTS.Jobs:DoesJobExist(jobName) then
+        return false, 'Job does not exist'
+    end
+
+    return COMPONENTS.Jobs:SetJob(characterId, jobName, grade)
+end
+```
+
+---
+
+### GetJobLabel
+
+Get the display name of a job.
+
+```lua
+COMPONENTS.Jobs:GetJobLabel(jobName)
+```
+
+<ParamField path="jobName" type="string" required>
+  Job identifier
+</ParamField>
+
+<ResponseField name="label" type="string|nil">
+  Job display name or `nil` if job doesn't exist
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Get job label
+local label = COMPONENTS.Jobs:GetJobLabel('police')
+print(label)  -- "Police Department"
+
+-- Display job to player
+local jobData = COMPONENTS.Jobs:GetJob(char.SID)
+local label = COMPONENTS.Jobs:GetJobLabel(jobData.job)
+
+TriggerClientEvent('mythic-notifications:client:Send', source, {
+    message = 'Your job: ' .. label,
+    type = 'info'
+})
+```
+
+---
+
+### GetGradeLabel
+
+Get the display name of a job grade.
+
+```lua
+COMPONENTS.Jobs:GetGradeLabel(jobName, grade)
+```
+
+<ParamField path="jobName" type="string" required>
+  Job identifier
+</ParamField>
+
+<ParamField path="grade" type="number" required>
+  Grade number
+</ParamField>
+
+<ResponseField name="label" type="string|nil">
+  Grade display name or `nil` if not found
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Get grade label
+local gradeLabel = COMPONENTS.Jobs:GetGradeLabel('police', 2)
+print(gradeLabel)  -- "Officer"
+
+-- Display full job info
+local jobData = COMPONENTS.Jobs:GetJob(char.SID)
+local jobLabel = COMPONENTS.Jobs:GetJobLabel(jobData.job)
+local gradeLabel = COMPONENTS.Jobs:GetGradeLabel(jobData.job, jobData.grade)
+
+print(jobLabel .. ' - ' .. gradeLabel)  -- "Police Department - Officer"
+```
+
+---
+
+### GetMaxGrade
+
+Get the maximum grade for a job.
+
+```lua
+COMPONENTS.Jobs:GetMaxGrade(jobName)
+```
+
+<ParamField path="jobName" type="string" required>
+  Job identifier
+</ParamField>
+
+<ResponseField name="maxGrade" type="number">
+  Highest grade number for the job
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Get max grade
+local maxGrade = COMPONENTS.Jobs:GetMaxGrade('police')
+print('Max police rank:', maxGrade)  -- 5
+
+-- Check if can promote
+function CanPromote(characterId)
+    local jobData = COMPONENTS.Jobs:GetJob(characterId)
+    local maxGrade = COMPONENTS.Jobs:GetMaxGrade(jobData.job)
+
+    return jobData.grade < maxGrade
+end
+```
+
+---
+
+### GetSalary
+
+Get the salary amount for a job and grade.
+
+```lua
+COMPONENTS.Jobs:GetSalary(jobName, grade)
+```
+
+<ParamField path="jobName" type="string" required>
+  Job identifier
+</ParamField>
+
+<ParamField path="grade" type="number" required>
+  Grade number
+</ParamField>
+
+<ResponseField name="salary" type="number">
+  Salary amount in dollars
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Get salary
+local salary = COMPONENTS.Jobs:GetSalary('police', 2)
+print('Officer salary: $' .. salary)  -- $5000
+
+-- Calculate paycheck
+function CalculatePaycheck(characterId, hoursWorked)
+    local jobData = COMPONENTS.Jobs:GetJob(characterId)
+    local hourlySalary = COMPONENTS.Jobs:GetSalary(jobData.job, jobData.grade)
+
+    return hourlySalary * hoursWorked
+end
+```
+
+---
+
+## Player Queries
+
+### GetOnDutyPlayers
+
+Get all players currently on duty for a specific job.
+
+```lua
+COMPONENTS.Jobs:GetOnDutyPlayers(jobName)
+```
+
+<ParamField path="jobName" type="string" required>
+  Job identifier
+</ParamField>
+
+<ResponseField name="players" type="table">
+  Array of character SIDs currently on duty
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Get on-duty police
+local onDutyPolice = COMPONENTS.Jobs:GetOnDutyPlayers('police')
+
+print('On-duty police:', #onDutyPolice)
+
+for _, characterId in ipairs(onDutyPolice) do
+    local player = Fetch:SID(characterId)
+    if player then
+        local source = player:GetData('Source')
+        print('Officer:', GetPlayerName(source))
+    end
+end
+
+-- Check if any police are online
+function AnyPoliceOnline()
+    local police = COMPONENTS.Jobs:GetOnDutyPlayers('police')
+    return #police > 0
+end
+
+-- Notify all on-duty police
+function NotifyPolice(message)
+    local police = COMPONENTS.Jobs:GetOnDutyPlayers('police')
+
+    for _, characterId in ipairs(police) do
+        local player = Fetch:SID(characterId)
+        if not player then goto continue end
+        local source = player:GetData('Source')
+
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = message,
+            type = 'info'
+        })
+
+        ::continue::
+    end
+end
+
+-- Dispatch system
+function DispatchCall(callType, location)
+    local police = COMPONENTS.Jobs:GetOnDutyPlayers('police')
+
+    for _, characterId in ipairs(police) do
+        local player = Fetch:SID(characterId)
+
+        if player then
+            local source = player:GetData('Source')
+            TriggerClientEvent('mythic-dispatch:client:NewCall', source, {
+                type = callType,
+                location = location,
+                timestamp = os.time()
+            })
+        end
+    end
+end
+```
+
+---
+
+### GetJobPlayers
+
+Get all players with a specific job (regardless of duty status).
+
+```lua
+COMPONENTS.Jobs:GetJobPlayers(jobName)
+```
+
+<ParamField path="jobName" type="string" required>
+  Job identifier
+</ParamField>
+
+<ResponseField name="players" type="table">
+  Array of character SIDs with the job
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Get all police (on and off duty)
+local allPolice = COMPONENTS.Jobs:GetJobPlayers('police')
+
+print('Total police officers:', #allPolice)
+
+-- Check if player has coworkers online
+function GetCoworkers(characterId)
+    local jobData = COMPONENTS.Jobs:GetJob(characterId)
+    local coworkers = COMPONENTS.Jobs:GetJobPlayers(jobData.job)
+
+    -- Remove self
+    for i, sid in ipairs(coworkers) do
+        if sid == characterId then
+            table.remove(coworkers, i)
+            break
+        end
+    end
+
+    return coworkers
+end
+```
+
+---
+
+## Paycheck System
+
+### IssuePaycheck
+
+Issue a paycheck to a character.
+
+```lua
+COMPONENTS.Jobs:IssuePaycheck(characterId)
+```
+
+<ParamField path="characterId" type="number" required>
+  Character SID
+</ParamField>
+
+<ResponseField name="amount" type="number|nil">
+  Paycheck amount issued, or `nil` if unemployed
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Issue paycheck
+local amount = COMPONENTS.Jobs:IssuePaycheck(char.SID)
+
+if amount then
+    print('Paycheck issued: $' .. amount)
+end
+
+-- Automatic paycheck system
+CreateThread(function()
+    while true do
+        Wait(1800000)  -- 30 minutes
+
+        for _, playerId in ipairs(GetPlayers()) do
+            local source = tonumber(playerId)
+            local player = Fetch:Source(source)
+
+            if player then
+                local char = player:GetData('Character')
+
+                if char then
+                    local stateId = char:GetData('SID')
+                    local jobData = COMPONENTS.Jobs:GetJob(stateId)
+
+                    -- Only pay if on duty
+                    if jobData and jobData.onDuty and jobData.job ~= 'unemployed' then
+                        local amount = COMPONENTS.Jobs:IssuePaycheck(stateId)
+
+                        if amount then
+                            TriggerClientEvent('mythic-notifications:client:Send', source, {
+                                message = 'Paycheck received: $' .. amount,
+                                type = 'success'
+                            })
+
+                            COMPONENTS.Logger:Info('Jobs', 'Paycheck issued', {
+                                console = true,
+                                file = true
+                            }, {
+                                character = stateId,
+                                job = jobData.jobLabel,
+                                amount = amount
+                            })
+                        end
+                end
+            end
+        end
+    end
+end)
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Validate Job Exists" icon="shield-check">
+    **Always validate before setting:**
+    ```lua
+    function SafeHire(characterId, jobName, grade)
+        if not COMPONENTS.Jobs:DoesJobExist(jobName) then
+            return false, 'Invalid job'
+        end
+
+        local maxGrade = COMPONENTS.Jobs:GetMaxGrade(jobName)
+        if grade > maxGrade then
+            return false, 'Invalid grade'
+        end
+
+        return COMPONENTS.Jobs:SetJob(characterId, jobName, grade)
+    end
+    ```
+  </Accordion>
+
+  <Accordion title="Clean Up on Clock Out" icon="broom">
+    ```lua
+    function CleanClockOut(source)
+        local player = Fetch:Source(source)
+        if not player then return false end
+
+        local char = player:GetData('Character')
+        if not char then return false end
+
+        local stateId = char:GetData('SID')
+
+        -- Clock out
+        COMPONENTS.Jobs:ClockOut(stateId)
+
+        -- Remove job items
+        RemoveJobItems(source)
+
+        -- End active tasks
+        EndActiveTasks(source)
+
+        -- Remove job vehicles
+        RemoveJobVehicles(source)
+    end
+    ```
+  </Accordion>
+
+  <Accordion title="Track Job Changes" icon="file-lines">
+    ```lua
+    AddEventHandler('mythic-characters:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
+        COMPONENTS.Database:insertOne('job_history', {
+            character = characterId,
+            oldJob = oldJob,
+            oldGrade = oldGrade,
+            newJob = newJob,
+            newGrade = newGrade,
+            timestamp = os.time()
+        })
+    end)
+    ```
+  </Accordion>
+
+  <Accordion title="Job-Specific Permissions" icon="key">
+    ```lua
+    function HasJobPermission(source, permission)
+        local player = Fetch:Source(source)
+        if not player then return false end
+
+        local char = player:GetData('Character')
+        if not char then return false end
+
+        local stateId = char:GetData('SID')
+        local jobData = COMPONENTS.Jobs:GetJob(stateId)
+
+        if not jobData then
+            return false
+        end
+
+        -- Check job permissions
+        return jobData.permissions and jobData.permissions[permission] == true
+    end
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Jobs - Events" icon="bolt" href="/api/jobs/events">
+    Job-related events
+  </Card>
+  <Card title="Jobs - Configuration" icon="gear" href="/api/jobs/configuration">
+    Job definitions and setup
+  </Card>
+  <Card title="Characters API" icon="user" href="/api/characters/exports">
+    Character management
+  </Card>
+  <Card title="Job System Guide" icon="book" href="/features/jobs/overview">
+    Complete job system guide
+  </Card>
+</CardGroup>
+
+<Tip>
+**Job Integration:** Most job-specific features should listen to job change events and on-duty status changes rather than constantly checking the character's job.
+</Tip>

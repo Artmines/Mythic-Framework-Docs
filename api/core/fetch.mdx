@@ -1,0 +1,647 @@
+---
+title: Core - Fetch
+description: Player and character data retrieval using the DataStore pattern
+icon: 'magnifying-glass'
+---
+
+The Fetch component is the **primary way to access player and character data** in Mythic Framework. It retrieves DataStore objects that provide methods to get and set data for players and characters.
+
+<Warning>
+**Critical:** Do NOT use `COMPONENTS.Characters:GetCharacter()` - this method does not exist. Always use `Fetch:Source()` or `Fetch:SID()` to access character data.
+</Warning>
+
+## Understanding the DataStore Pattern
+
+Mythic Framework uses a DataStore pattern for managing player and character state:
+
+```lua
+-- Get player DataStore
+local player = Fetch:Source(source)
+
+-- Get character DataStore from player
+local character = player:GetData('Character')
+
+-- Access character data
+local stateId = character:GetData('SID')
+local firstName = character:GetData('First')
+```
+
+DataStore objects provide:
+- `GetData(key)` - Retrieve data
+- `SetData(key, value)` - Update data
+- `DeleteStore()` - Remove DataStore
+
+---
+
+## Player Access Methods
+
+### Source
+
+Get player DataStore by server source ID.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Player server source |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| DataStore/nil | Player DataStore object or nil if not found |
+
+**Example:**
+```lua
+-- Server side
+local player = Fetch:Source(source)
+
+if player then
+    print('Account ID:', player:GetData('AccountID'))
+    print('Player Name:', player:GetData('Name'))
+    print('Identifier:', player:GetData('Identifier'))
+
+    -- Get character
+    local char = player:GetData('Character')
+    if char then
+        print('Character Name:', char:GetData('First'), char:GetData('Last'))
+    end
+end
+```
+
+---
+
+### PlayerData
+
+Find player by arbitrary data field.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| key | string | Yes | Data field name |
+| value | any | Yes | Value to match |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| DataStore/nil | Player DataStore or nil if not found |
+
+**Example:**
+```lua
+-- Server side
+local player = Fetch:PlayerData('AccountID', 12345)
+
+if player then
+    print('Found player by account ID')
+    local source = player:GetData('Source')
+end
+```
+
+---
+
+### All
+
+Get all online players.
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table | Table of player DataStores indexed by source |
+
+**Example:**
+```lua
+-- Server side
+local players = Fetch:All()
+
+for source, player in pairs(players) do
+    print(source, player:GetData('Name'))
+
+    local char = player:GetData('Character')
+    if char then
+        print('  Character:', char:GetData('First'), char:GetData('Last'))
+    end
+end
+```
+
+---
+
+### Count
+
+Get count of online players.
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| number | Number of online players |
+
+**Example:**
+```lua
+-- Server side
+local playerCount = Fetch:Count()
+print('Players online:', playerCount)
+```
+
+---
+
+## Character Access Methods
+
+<Note>
+These methods are added by the Characters resource and extend the base Fetch component.
+</Note>
+
+### CharacterData
+
+Find player by character data field.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| key | string | Yes | Character field name |
+| value | any | Yes | Value to match |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| DataStore/nil | Player DataStore (not character!) or nil |
+
+**Example:**
+```lua
+-- Server side
+local player = Fetch:CharacterData('Phone', '555-0123')
+
+if player then
+    local char = player:GetData('Character')
+    print('Found character:', char:GetData('First'), char:GetData('Last'))
+end
+```
+
+---
+
+### SID
+
+Find player by character State ID.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| stateId | number | Yes | Character SID |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| DataStore/nil | Player DataStore or nil if not found |
+
+**Example:**
+```lua
+-- Server side
+local player = Fetch:SID(123)
+
+if player then
+    local char = player:GetData('Character')
+    print('Character:', char:GetData('First'), char:GetData('Last'))
+
+    -- Send notification
+    local source = player:GetData('Source')
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'You received a notification',
+        type = 'info'
+    })
+end
+```
+
+---
+
+### ID
+
+Find player by character document ID.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| characterId | number | Yes | Character document ID |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| DataStore/nil | Player DataStore or nil if not found |
+
+**Example:**
+```lua
+-- Server side
+local player = Fetch:ID(456)
+
+if player then
+    local char = player:GetData('Character')
+    -- Work with character
+end
+```
+
+---
+
+### Next
+
+Get next player in iteration (for loops).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| prev | number | Yes | Previous source (0 for first) |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| DataStore/nil | Next player DataStore or nil if end |
+
+**Example:**
+```lua
+-- Server side - Iterate through all players
+local player = Fetch:Next(0)
+while player do
+    local char = player:GetData('Character')
+    if char then
+        print(char:GetData('First'), char:GetData('Last'))
+    end
+
+    player = Fetch:Next(player:GetData('Source'))
+end
+```
+
+---
+
+### CountCharacters
+
+Get count of online characters (players with selected character).
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| number | Number of online characters |
+
+**Example:**
+```lua
+-- Server side
+local charCount = Fetch:CountCharacters()
+print('Characters online:', charCount)
+```
+
+---
+
+### GetOfflineData
+
+Get specific data from offline character (database query).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| stateId | number | Yes | Character SID |
+| key | string | Yes | Field to retrieve |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| any | Requested field value or nil |
+
+**Example:**
+```lua
+-- Server side (blocking/synchronous)
+local phone = Fetch:GetOfflineData(123, 'Phone')
+print('Offline character phone:', phone)
+
+-- Get multiple fields
+local cash = Fetch:GetOfflineData(123, 'Cash')
+local bank = Fetch:GetOfflineData(123, 'Bank')
+```
+
+<Warning>
+`GetOfflineData` is synchronous and blocks the thread. Use sparingly and only when player is offline.
+</Warning>
+
+---
+
+## DataStore Object Methods
+
+Once you have a DataStore object (player or character), you can use these methods:
+
+### GetData
+
+Retrieve data from the DataStore.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| key | string | No | Specific field (omit for all data) |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| any | Field value, or entire data table if key omitted |
+
+**Example:**
+```lua
+-- Get specific field
+local firstName = character:GetData('First')
+local stateId = character:GetData('SID')
+
+-- Get all data
+local allData = character:GetData()
+print(json.encode(allData, {indent = true}))
+```
+
+---
+
+### SetData
+
+Update data in the DataStore.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| key | string | Yes | Field name |
+| value | any | Yes | New value |
+
+**Example:**
+```lua
+-- Update character data
+character:SetData('Cash', 5000)
+character:SetData('Bank', 25000)
+character:SetData('Phone', '555-1234')
+
+-- Update nested data
+local metadata = character:GetData('MetaData')
+metadata.hunger = 100
+character:SetData('MetaData', metadata)
+```
+
+<Note>
+Character SetData automatically syncs to client with `Characters:Client:SetData` event.
+</Note>
+
+---
+
+## Complete Usage Examples
+
+### Getting Character in Event Handler
+
+```lua
+-- Server side
+AddEventHandler('myresource:server:DoSomething', function()
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then
+        print('Player not found')
+        return
+    end
+
+    local char = player:GetData('Character')
+    if not char then
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'You must be logged in as a character',
+            type = 'error'
+        })
+        return
+    end
+
+    -- Access character data
+    local stateId = char:GetData('SID')
+    local cash = char:GetData('Cash')
+    local job = char:GetData('Job')
+
+    -- Modify character data
+    char:SetData('Cash', cash - 100)
+
+    -- Success
+    TriggerClientEvent('mythic-notifications:client:Send', src, {
+        message = 'Action completed',
+        type = 'success'
+    })
+end)
+```
+
+---
+
+### Finding Character by Phone Number
+
+```lua
+-- Server side
+AddEventHandler('phone:server:CallNumber', function(phoneNumber)
+    local src = source
+    local caller = Fetch:Source(src):GetData('Character')
+
+    -- Find recipient by phone number
+    local recipient = Fetch:CharacterData('Phone', phoneNumber)
+
+    if recipient then
+        local recipientChar = recipient:GetData('Character')
+        local recipientSource = recipient:GetData('Source')
+
+        -- Start call
+        TriggerClientEvent('phone:client:IncomingCall', recipientSource, {
+            from = caller:GetData('Phone'),
+            name = string.format('%s %s', caller:GetData('First'), caller:GetData('Last'))
+        })
+    else
+        TriggerClientEvent('phone:client:Notification', src, 'Number not in service')
+    end
+end)
+```
+
+---
+
+### Sending Money to Offline Player
+
+```lua
+-- Server side
+AddEventHandler('banking:server:TransferToSID', function(targetSID, amount, memo)
+    local src = source
+    local sender = Fetch:Source(src):GetData('Character')
+    local senderSID = sender:GetData('SID')
+
+    -- Check if recipient is online
+    local recipient = Fetch:SID(targetSID)
+
+    if recipient then
+        -- Online - use DataStore
+        local recipientChar = recipient:GetData('Character')
+        local currentBank = recipientChar:GetData('Bank')
+        recipientChar:SetData('Bank', currentBank + amount)
+
+        -- Notify
+        TriggerClientEvent('mythic-notifications:client:Send', recipient:GetData('Source'), {
+            message = string.format('Received $%d: %s', amount, memo),
+            type = 'success'
+        })
+    else
+        -- Offline - update database directly
+        Database.Game:updateOne({
+            collection = 'characters',
+            query = {SID = targetSID},
+            update = {
+                ['$inc'] = {Bank = amount}
+            }
+        }, function(success, updated)
+            if success then
+                print('Transferred to offline player')
+            end
+        end)
+    end
+
+    -- Deduct from sender
+    local senderBank = sender:GetData('Bank')
+    sender:SetData('Bank', senderBank - amount)
+end)
+```
+
+---
+
+### Iterating All Characters for Server-Wide Event
+
+```lua
+-- Server side
+AddEventHandler('events:server:TriggerServerWideEvent', function(eventName, eventData)
+    local players = Fetch:All()
+
+    for source, player in pairs(players) do
+        local char = player:GetData('Character')
+
+        if char then
+            -- Send event to all characters
+            TriggerClientEvent('events:client:ServerWideEvent', source, eventName, eventData)
+
+            -- Give reward
+            local currentCash = char:GetData('Cash')
+            char:SetData('Cash', currentCash + 1000)
+        end
+    end
+
+    print(string.format('Event sent to %d characters', Fetch:CountCharacters()))
+end)
+```
+
+---
+
+## Common Patterns
+
+### Safe Character Access
+
+Always check if player and character exist:
+
+```lua
+local player = Fetch:Source(source)
+if not player then return end
+
+local char = player:GetData('Character')
+if not char then
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'You must be logged in',
+        type = 'error'
+    })
+    return
+end
+
+-- Safe to use char now
+```
+
+---
+
+### Getting Player Source from Character SID
+
+```lua
+-- You have a character SID, need the player source
+local player = Fetch:SID(stateId)
+if player then
+    local source = player:GetData('Source')
+    -- Use source for TriggerClientEvent, etc.
+end
+```
+
+---
+
+### Checking if Character is Online
+
+```lua
+function IsCharacterOnline(stateId)
+    return Fetch:SID(stateId) ~= nil
+end
+
+-- Usage
+if IsCharacterOnline(123) then
+    print('Character is online')
+else
+    print('Character is offline')
+end
+```
+
+---
+
+## Important Notes
+
+<AccordionGroup>
+  <Accordion title="DataStore vs Database" icon="database">
+    **DataStore:** In-memory state for online players/characters (fast)
+    **Database:** Persistent storage (slower, for offline access)
+
+    - Use Fetch methods for online players (instant)
+    - Use Database queries for offline players (requires callback)
+  </Accordion>
+
+  <Accordion title="Player vs Character" icon="user">
+    **Player:** Account-level data (AccountID, Identifier, Name)
+    **Character:** In-game character (SID, First, Last, Cash, Bank)
+
+    Players can have multiple characters. Always get Character from Player:
+    ```lua
+    local player = Fetch:Source(source)
+    local char = player:GetData('Character')  -- May be nil!
+    ```
+  </Accordion>
+
+  <Accordion title="SetData Persistence" icon="floppy-disk">
+    `SetData` updates in-memory DataStore only. Characters auto-save to database every ~10 minutes.
+
+    For critical data, manually save:
+    ```lua
+    character:SetData('ImportantField', value)
+    -- Characters component handles auto-save
+    ```
+  </Accordion>
+
+  <Accordion title="Performance" icon="gauge-high">
+    Fetch methods are **very fast** (in-memory lookup). Use them liberally:
+
+    ```lua
+    -- Fast - no database query
+    local char = Fetch:SID(123):GetData('Character')
+
+    -- Slow - database query
+    local phone = Fetch:GetOfflineData(123, 'Phone')
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Characters API" icon="user" href="/api/characters/exports">
+    Character-specific methods
+  </Card>
+  <Card title="DataStore Pattern" icon="layer-group" href="/concepts/datastore-pattern">
+    Deep dive into DataStore architecture
+  </Card>
+  <Card title="Core - Database" icon="database" href="/api/core/database">
+    Database queries for offline data
+  </Card>
+  <Card title="Player State" icon="server" href="/concepts/player-state">
+    Understanding player state management
+  </Card>
+</CardGroup>
+
+<Tip>
+**Pro Tip:** Bookmark this pattern - you'll use it constantly:
+```lua
+local player = Fetch:Source(source)
+if not player then return end
+local char = player:GetData('Character')
+if not char then return end
+```
+</Tip>

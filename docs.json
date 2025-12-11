@@ -1,88 +1,13 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Mythic Framework",
+  "theme": "willow",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#36A3EC",
+    "light": "#5BB5F0",
+    "dark": "#2B88C8"
   },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "tabs": [
-      {
-        "tab": "Guides",
-        "groups": [
-          {
-            "group": "Getting started",
-            "pages": [
-              "index",
-              "quickstart",
-              "development"
-            ]
-          },
-          {
-            "group": "Customization",
-            "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
-          },
-          {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "API reference",
-        "groups": [
-          {
-            "group": "API documentation",
-            "pages": [
-              "api-reference/introduction"
-            ]
-          },
-          {
-            "group": "Endpoint examples",
-            "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
-            ]
-          }
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
+  "favicon": "/mythic-new.svg",
   "logo": {
     "light": "/logo/light.svg",
     "dark": "/logo/dark.svg"
@@ -90,33 +15,134 @@
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "label": "Discord",
+        "href": "https://discord.gg/mythicframework"
+      },
+      {
+        "label": "GitHub",
+        "href": "https://github.com/mythicframework"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "label": "Get Started",
+      "href": "https://github.com/mythicframework"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "interactive-tools"
+            ]
+          },
+          {
+            "group": "Installation",
+            "pages": [
+              "installation/prerequisites",
+              "installation/server-setup",
+              "installation/database-setup",
+              "installation/configuration",
+              "installation/first-start",
+              "installation/troubleshooting"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/component-system",
+              "concepts/proxy-pattern",
+              "concepts/event-system",
+              "concepts/resource-structure",
+              "concepts/database-architecture",
+              "concepts/ui-framework"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/server-cfg",
+              "configuration/database-connections",
+              "configuration/discord-webhooks",
+              "configuration/resource-management",
+              "configuration/permissions",
+              "configuration/environment-variables"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api/core/base",
+              "api/core/fetch",
+              "api/core/callback",
+              "api/core/logger",
+              "api/core/database",
+              "api/core/middleware"
+            ]
+          },
+          {
+            "group": "Characters",
+            "pages": [
+              "api/characters/exports",
+              "api/characters/events",
+              "api/characters/data-structure"
+            ]
+          },
+          {
+            "group": "Inventory",
+            "pages": [
+              "api/inventory/exports",
+              "api/inventory/events",
+              "api/inventory/item-definition"
+            ]
+          },
+          {
+            "group": "Jobs",
+            "pages": [
+              "api/jobs/exports",
+              "api/jobs/events",
+              "api/jobs/configuration"
+            ]
+          },
+          {
+            "group": "Vehicles",
+            "pages": [
+              "api/vehicles/exports",
+              "api/vehicles/events",
+              "api/vehicles/configuration"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "contextual": {
     "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
+      "copy",
+      "chatgpt",
+      "claude",
+      "cursor"
+    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/mythicframework",
+      "discord": "https://discord.gg/mythicframework"
     }
+  },
+  "search": {
+    "prompt": "Search Mythic Framework docs..."
   }
 }

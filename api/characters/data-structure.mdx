@@ -1,0 +1,704 @@
+---
+title: Characters - Data Structure
+description: Complete character data schema and metadata structure
+icon: 'database'
+---
+
+Understanding the character data structure is essential for working with character data in Mythic Framework.
+
+## Character Object
+
+The complete character object structure stored in MongoDB:
+
+```lua
+{
+    _id = ObjectId("..."),              -- MongoDB document ID
+    SID = 1,                             -- State ID (Character ID)
+    Owner = "steam:110000XXXXXXXX",      -- Player identifier who owns this character
+    First = "John",                      -- First name
+    Last = "Doe",                        -- Last name
+    DOB = "1990-01-15",                  -- Date of birth (YYYY-MM-DD)
+    Gender = "Male",                     -- Gender ("Male" or "Female")
+    Phone = 5551234567,                  -- Phone number (unique)
+
+    -- Job Information
+    job = "police",                      -- Current job identifier
+    jobGrade = 2,                        -- Job rank/grade
+    onDuty = false,                      -- On-duty status
+
+    -- Gang Information (optional)
+    gang = "ballas",                     -- Gang affiliation
+    gangGrade = 1,                       -- Gang rank
+
+    -- Money
+    cash = 5000,                         -- Cash on hand
+    bank = 25000,                        -- Bank balance
+
+    -- Position
+    position = {
+        x = 123.45,
+        y = -678.90,
+        z = 21.00,
+        heading = 180.0
+    },
+
+    -- Metadata (flexible additional data)
+    metadata = {
+        -- Appearance
+        appearance = {
+            -- Freemode ped data
+            model = "mp_m_freemode_01",
+            headBlend = {...},
+            faceFeatures = {...},
+            headOverlays = {...},
+            components = {...},
+            props = {...}
+        },
+
+        -- Licenses
+        licenses = {
+            "drivers_license",
+            "weapon_license"
+        },
+
+        -- Stats
+        playtime = 36000,                -- Total playtime in seconds
+        arrests = 5,                     -- Times arrested
+        kills = 10,                      -- Player kills
+        deaths = 2,                      -- Deaths
+
+        -- Reputation
+        reputation = {
+            police = 100,
+            gang = -50
+        },
+
+        -- Status effects
+        isDead = false,
+        inJail = false,
+        jailTime = 0,
+
+        -- Needs (hunger, thirst, etc.)
+        hunger = 100,
+        thirst = 100,
+        stress = 0,
+
+        -- Custom data
+        lastLogin = 1705334400,
+        tutorial_completed = true
+    },
+
+    -- Timestamps
+    createdAt = 1700000000,              -- Character creation timestamp
+    updatedAt = 1705334400               -- Last update timestamp
+}
+```
+
+---
+
+## Required Fields
+
+These fields are required when creating a character:
+
+<ParamField path="First" type="string" required>
+  First name
+
+  **Validation:**
+  - 2-20 characters
+  - Letters only (may include spaces, hyphens, apostrophes)
+
+  **Example:** `"John"`, `"Mary-Jane"`, `"O'Brien"`
+</ParamField>
+
+<ParamField path="Last" type="string" required>
+  Last name
+
+  **Validation:**
+  - 2-30 characters
+  - Letters only (may include spaces, hyphens, apostrophes)
+
+  **Example:** `"Doe"`, `"Van Der Linde"`, `"O'Sullivan"`
+</ParamField>
+
+<ParamField path="DOB" type="string" required>
+  Date of birth in YYYY-MM-DD format
+
+  **Validation:**
+  - Must be at least 18 years old
+  - Format: `YYYY-MM-DD`
+
+  **Example:** `"1990-01-15"`, `"1985-12-31"`
+</ParamField>
+
+<ParamField path="Gender" type="string" required>
+  Gender
+
+  **Values:** `"Male"` or `"Female"`
+</ParamField>
+
+---
+
+## Auto-Generated Fields
+
+These fields are automatically set by the system:
+
+<ResponseField name="SID" type="number">
+  State ID - unique character identifier
+
+  **Auto-incremented** starting from 1
+</ResponseField>
+
+<ResponseField name="Owner" type="string">
+  Player identifier who owns this character
+
+  **Automatically set** from the player's identifiers (usually Steam ID)
+</ResponseField>
+
+<ResponseField name="Phone" type="number">
+  Phone number - unique 10-digit number
+
+  **Auto-generated** when character is created
+</ResponseField>
+
+<ResponseField name="createdAt" type="number">
+  Unix timestamp of character creation
+
+  **Set automatically** to `os.time()` on creation
+</ResponseField>
+
+<ResponseField name="updatedAt" type="number">
+  Unix timestamp of last update
+
+  **Updated automatically** on every save
+</ResponseField>
+
+---
+
+## Default Values
+
+Fields with default values if not specified:
+
+```lua
+{
+    job = "unemployed",        -- Default job
+    jobGrade = 0,              -- Lowest grade
+    onDuty = false,            -- Off duty by default
+    gang = nil,                -- No gang
+    gangGrade = nil,           -- No gang grade
+    cash = 0,                  -- No starting cash
+    bank = 0,                  -- No starting bank money
+    position = {               -- Default spawn position
+        x = -258.211,
+        y = -293.738,
+        z = 21.6114,
+        heading = 206.0
+    },
+    metadata = {}              -- Empty metadata
+}
+```
+
+---
+
+## Metadata Structure
+
+The `metadata` field is a flexible object for storing additional character data:
+
+### Appearance
+
+```lua
+metadata.appearance = {
+    model = "mp_m_freemode_01",  -- Or "mp_f_freemode_01" for female
+
+    -- Head blend (heritage)
+    headBlend = {
+        shapeFirst = 0,
+        shapeSecond = 0,
+        skinFirst = 0,
+        skinSecond = 0,
+        shapeMix = 0.5,
+        skinMix = 0.5
+    },
+
+    -- Face features
+    faceFeatures = {
+        noseWidth = 0.0,
+        nosePeakHeight = 0.0,
+        nosePeakLength = 0.0,
+        -- ... (20 total features)
+    },
+
+    -- Head overlays (tattoos, makeup, etc.)
+    headOverlays = {
+        {  -- Blemishes
+            style = 0,
+            opacity = 0.0,
+            color = 0
+        },
+        -- ... (13 total overlays)
+    },
+
+    -- Clothing components
+    components = {
+        { drawable = 0, texture = 0, palette = 0 },  -- Face
+        { drawable = 0, texture = 0, palette = 0 },  -- Mask
+        -- ... (12 total components)
+    },
+
+    -- Props (hats, glasses, etc.)
+    props = {
+        { drawable = -1, texture = 0 },  -- Hats/helmets
+        { drawable = -1, texture = 0 },  -- Glasses
+        -- ... (7 total props)
+    }
+}
+```
+
+### Licenses
+
+```lua
+metadata.licenses = {
+    "drivers_license",
+    "weapon_license",
+    "hunting_license",
+    "fishing_license",
+    "pilots_license"
+}
+```
+
+### Statistics
+
+```lua
+metadata.stats = {
+    playtime = 36000,          -- Total playtime (seconds)
+    arrests = 5,               -- Times arrested
+    kills = 10,                -- PVP kills
+    deaths = 2,                -- Times died
+    robberies = 3,             -- Robberies completed
+    drugsDealt = 50,           -- Drugs sold
+    vehiclesSold = 2,          -- Vehicles sold
+}
+```
+
+### Reputation
+
+```lua
+metadata.reputation = {
+    police = 100,              -- Positive = good standing
+    ems = 50,
+    gang = -50,                -- Negative = bad reputation
+    civilian = 75
+}
+```
+
+### Needs/Status
+
+```lua
+metadata.needs = {
+    hunger = 100,              -- 0-100
+    thirst = 100,              -- 0-100
+    stress = 0,                -- 0-100
+    energy = 100               -- 0-100
+}
+
+metadata.status = {
+    isDead = false,
+    inJail = false,
+    jailTime = 0,              -- Remaining jail time (seconds)
+    injuryLevel = 0,           -- 0-100
+    bleeding = false,
+    broken_bones = {}
+}
+```
+
+### Achievements
+
+```lua
+metadata.achievements = {
+    "first_job",
+    "first_vehicle",
+    "millionaire",
+    "police_veteran"
+}
+```
+
+### Custom Data
+
+You can store any custom data in metadata:
+
+```lua
+metadata.customData = {
+    tutorial_completed = true,
+    favorite_vehicle = "adder",
+    home_location = { x = 100, y = 200, z = 30 },
+    friends = { 2, 5, 10 },    -- Character SIDs
+    last_robbery = 1705334400,
+    settings = {
+        hud_visible = true,
+        minimap_zoom = 2
+    }
+}
+```
+
+---
+
+## Working with Character Data
+
+### Accessing Fields
+
+```lua
+-- Get character using Fetch component
+local player = Fetch:Source(source)
+if not player then return end
+
+local char = player:GetData('Character')
+if not char then return end
+
+-- Access fields using GetData()
+local firstName = char:GetData('First')
+local lastName = char:GetData('Last')
+print(firstName, lastName)             -- Name
+
+local stateId = char:GetData('SID')    -- Character ID
+local job = char:GetData('Job')        -- Job
+local jobGrade = char:GetData('JobGrade')
+local cash = char:GetData('Cash')      -- Money
+local bank = char:GetData('Bank')
+
+-- Access metadata
+local metadata = char:GetData('MetaData') or {}
+print(metadata.playtime)               -- Playtime
+print(metadata.hunger)                 -- Hunger
+```
+
+### Updating Fields
+
+```lua
+-- Update basic fields using SetData()
+local currentCash = char:GetData('Cash')
+char:SetData('Cash', 5000)
+
+local currentBank = char:GetData('Bank')
+char:SetData('Bank', 10000)
+
+-- Update nested metadata
+local metadata = char:GetData('MetaData') or {}
+metadata.hunger = 75
+metadata.thirst = 80
+char:SetData('MetaData', metadata)
+
+-- Update job
+char:SetData('Job', 'police')
+char:SetData('JobGrade', 2)
+```
+
+### Adding to Metadata
+
+```lua
+-- Add license
+local player = Fetch:Source(source)
+local char = player:GetData('Character')
+
+local metadata = char:GetData('MetaData') or {}
+local licenses = metadata.licenses or {}
+
+table.insert(licenses, 'pilots_license')
+metadata.licenses = licenses
+
+char:SetData('MetaData', metadata)
+
+-- Increment stat
+local metadata = char:GetData('MetaData') or {}
+local arrests = (metadata.arrests or 0) + 1
+metadata.arrests = arrests
+
+char:SetData('MetaData', metadata)
+```
+
+---
+
+## Database Queries
+
+### Find by Name
+
+```lua
+local characters = COMPONENTS.Database:find('characters', {
+    First = 'John',
+    Last = 'Doe'
+})
+```
+
+### Find by Owner
+
+```lua
+local identifier = GetPlayerIdentifier(source, 0)
+local characters = COMPONENTS.Database:find('characters', {
+    Owner = identifier
+})
+```
+
+### Find by Job
+
+```lua
+local police = COMPONENTS.Database:find('characters', {
+    job = 'police'
+}, {
+    sort = { jobGrade = -1 }  -- Sort by rank (highest first)
+})
+```
+
+### Find Rich Players
+
+```lua
+local rich = COMPONENTS.Database:aggregate('characters', {
+    {
+        ['$project'] = {
+            name = { ['$concat'] = { '$First', ' ', '$Last' } },
+            totalMoney = { ['$add'] = { '$cash', '$bank' } }
+        }
+    },
+    {
+        ['$match'] = {
+            totalMoney = { ['$gte'] = 1000000 }  -- $1M+
+        }
+    },
+    {
+        ['$sort'] = { totalMoney = -1 }
+    }
+})
+```
+
+---
+
+## Validation
+
+### Name Validation
+
+```lua
+function ValidateName(name)
+    -- Length check
+    if #name < 2 or #name > 30 then
+        return false, 'Name must be 2-30 characters'
+    end
+
+    -- Character check (letters, spaces, hyphens, apostrophes only)
+    if not string.match(name, "^[a-zA-Z%s%-']+$") then
+        return false, 'Name contains invalid characters'
+    end
+
+    return true
+end
+```
+
+### DOB Validation
+
+```lua
+function ValidateDOB(dob)
+    -- Format check
+    local year, month, day = dob:match('(%d+)-(%d+)-(%d+)')
+
+    if not year or not month or not day then
+        return false, 'Invalid date format (use YYYY-MM-DD)'
+    end
+
+    -- Age check (must be 18+)
+    local birthYear = tonumber(year)
+    local currentYear = tonumber(os.date('%Y'))
+    local age = currentYear - birthYear
+
+    if age < 18 then
+        return false, 'Character must be at least 18 years old'
+    end
+
+    return true
+end
+```
+
+### Gender Validation
+
+```lua
+function ValidateGender(gender)
+    if gender ~= 'Male' and gender ~= 'Female' then
+        return false, 'Gender must be "Male" or "Female"'
+    end
+
+    return true
+end
+```
+
+---
+
+## Example: Complete Character Query
+
+```lua
+-- Get character with all related data (for online character)
+function GetCompleteCharacterData(source)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return nil
+    end
+
+    local char = player:GetData('Character')
+
+    if not char then
+        return nil
+    end
+
+    local stateId = char:GetData('SID')
+
+    -- Get inventory
+    local inventory = COMPONENTS.Inventory:Get(stateId)
+
+    -- Get vehicles (database query)
+    local vehicles = Database.Game:findOne({
+        collection = 'vehicles',
+        query = {owner = stateId}
+    })
+
+    -- Get properties (database query)
+    local properties = Database.Game:findOne({
+        collection = 'property_ownership',
+        query = {owner = stateId}
+    })
+
+    -- Get bank accounts (database query)
+    local bankAccounts = Database.Game:findOne({
+        collection = 'bank_accounts',
+        query = {owner = stateId}
+    })
+
+    return {
+        character = {
+            SID = char:GetData('SID'),
+            First = char:GetData('First'),
+            Last = char:GetData('Last'),
+            Cash = char:GetData('Cash'),
+            Bank = char:GetData('Bank'),
+            Job = char:GetData('Job'),
+            JobGrade = char:GetData('JobGrade'),
+            -- Add other fields as needed
+        },
+        inventory = inventory,
+        vehicles = vehicles,
+        properties = properties,
+        bankAccounts = bankAccounts
+    }
+end
+
+-- For offline character (database query)
+function GetCompleteOfflineCharacterData(stateId)
+    -- Query database directly
+    local char = Database.Game:findOne({
+        collection = 'characters',
+        query = {SID = stateId}
+    })
+
+    if not char then
+        return nil
+    end
+
+    -- Get related data
+    local inventory = COMPONENTS.Inventory:Get(stateId)
+
+    return {
+        character = char,
+        inventory = inventory
+    }
+end
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Metadata for Flexible Data" icon="brackets-curly">
+    **✅ Good:**
+    ```lua
+    -- Store flexible data in metadata
+    metadata.customFeatures = {
+        premium = true,
+        vipLevel = 3,
+        customSkin = 'skin_1'
+    }
+    ```
+
+    **❌ Bad:**
+    ```lua
+    -- Don't add new root-level fields
+    premium = true,           -- This pollutes the schema
+    vipLevel = 3,
+    customSkin = 'skin_1'
+    ```
+  </Accordion>
+
+  <Accordion title="Validate Before Updates" icon="shield-check">
+    ```lua
+    function UpdateCharacterMoney(source, account, amount)
+        -- Validate character exists
+        local player = Fetch:Source(source)
+        if not player then
+            return false, 'Player not found'
+        end
+
+        local char = player:GetData('Character')
+        if not char then
+            return false, 'Character not loaded'
+        end
+
+        -- Validate account
+        local accountField
+        if account == 'cash' then
+            accountField = 'Cash'
+        elseif account == 'bank' then
+            accountField = 'Bank'
+        else
+            return false, 'Invalid account (must be "cash" or "bank")'
+        end
+
+        -- Validate amount
+        if type(amount) ~= 'number' or amount < 0 then
+            return false, 'Amount must be a positive number'
+        end
+
+        -- Update using DataStore
+        char:SetData(accountField, amount)
+
+        return true
+    end
+    ```
+  </Accordion>
+
+  <Accordion title="Index Commonly Queried Fields" icon="magnifying-glass">
+    ```javascript
+    // MongoDB - Create indexes for performance
+    db.characters.createIndex({ SID: 1 }, { unique: true })
+    db.characters.createIndex({ Owner: 1 })
+    db.characters.createIndex({ job: 1 })
+    db.characters.createIndex({ Phone: 1 }, { unique: true })
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Characters - Exports" icon="cube" href="/api/characters/exports">
+    Character management methods
+  </Card>
+  <Card title="Characters - Events" icon="bolt" href="/api/characters/events">
+    Character lifecycle events
+  </Card>
+  <Card title="Database API" icon="database" href="/api/core/database">
+    Database operations
+  </Card>
+  <Card title="Inventory Data Structure" icon="box" href="/api/inventory/item-definition">
+    Inventory and item data
+  </Card>
+</CardGroup>
+
+<Tip>
+**Metadata Flexibility:** The metadata field is perfect for storing custom data without modifying the core schema. Use it for resource-specific data, stats, settings, and any dynamic information.
+</Tip>
