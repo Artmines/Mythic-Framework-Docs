@@ -92,9 +92,24 @@ Essential framework components that other resources depend on:
 COMPONENTS.Logger:Info('MyResource', 'Something happened', { data = 'value' })
 COMPONENTS.Logger:Error('MyResource', 'Error occurred', { console = true })
 
--- Database
-local character = COMPONENTS.Database:findOne('characters', { SID = 1 })
-COMPONENTS.Database:insertOne('logs', { action = 'login', player = source })
+-- Database (async with callbacks)
+COMPONENTS.Database.Game:findOne({
+    collection = 'characters',
+    query = { SID = 1 }
+}, function(success, character)
+    if success and character then
+        print('Found character:', character.First)
+    end
+end)
+
+COMPONENTS.Database.Game:insertOne({
+    collection = 'logs',
+    document = { action = 'login', player = source }
+}, function(success)
+    if success then
+        print('Log inserted')
+    end
+end)
 
 -- Callbacks
 COMPONENTS.Callback:RegisterCallback('getData', function(source, data, cb)
@@ -220,8 +235,15 @@ exports['mythic-base']:RegisterComponent('MyFeature', {
         return true
     end,
 
-    GetData = function(self, id)
-        return COMPONENTS.Database:findOne('myfeature', { _id = id })
+    GetData = function(self, id, callback)
+        COMPONENTS.Database.Game:findOne({
+            collection = 'myfeature',
+            query = { _id = id }
+        }, function(success, result)
+            if callback then
+                callback(success, result)
+            end
+        end)
     end
 })
 ```
@@ -631,9 +653,16 @@ end)
         end,
 
         -- Dependency injection - easy to mock
-        SaveResult = function(self, result, database)
-            database = database or COMPONENTS.Database
-            return database:insert('calculations', { result = result })
+        SaveResult = function(self, result, callback, database)
+            database = database or COMPONENTS.Database.Game
+            database:insertOne({
+                collection = 'calculations',
+                document = { result = result }
+            }, function(success, insertedDoc)
+                if callback then
+                    callback(success, insertedDoc)
+                end
+            end)
         end
     })
     ```

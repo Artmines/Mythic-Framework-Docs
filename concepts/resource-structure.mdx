@@ -294,10 +294,17 @@ exports['mythic-base']:RequestDependencies('Inventory', {
         _protected = true,
         _name = 'inventory',
 
-        Get = function(self, characterId)
-            return COMPONENTS.Database:findOne('inventory', {
-                owner = characterId
-            })
+        Get = function(self, characterId, callback)
+            COMPONENTS.Database.Game:findOne({
+                collection = 'inventory',
+                query = {
+                    owner = characterId
+                }
+            }, function(success, inventory)
+                if callback then
+                    callback(success, inventory)
+                end
+            end)
         end,
 
         AddItem = function(self, characterId, item, count, metadata)

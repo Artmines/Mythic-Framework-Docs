@@ -77,181 +77,276 @@ Mythic Framework uses two MongoDB databases:
 
 ### Accessing MongoDB
 
-MongoDB operations are handled through the Node.js wrapper in mythic-base:
+MongoDB operations are handled through the Node.js wrapper in mythic-base using **asynchronous callback patterns**.
 
 **Location:** `mythic-base/core/sv_database.js`
 
-```lua
--- Access MongoDB via Database component
-local Database = COMPONENTS.Database
+<Note>
+**Database Architecture:** Mythic uses two separate MongoDB databases:
+- `Database.Game` - Game data (characters, inventory, vehicles, etc.)
+- `Database.Auth` - Authentication data (users, roles, bans)
+</Note>
 
--- Find one document
-local character = Database:findOne('characters', {
-    SID = 1
-})
+```lua
+-- Find one document (with callback)
+Database.Game:findOne({
+    collection = 'characters',
+    query = {
+        SID = 1
+    }
+}, function(success, character)
+    if success and character then
+        print('Found character:', character.First, character.Last)
+    else
+        print('Character not found')
+    end
+end)
 
 -- Find multiple documents
-local vehicles = Database:find('vehicles', {
-    owner = characterId,
-    stored = false
-}, {
-    limit = 10,
-    sort = { purchaseDate = -1 }
-})
+Database.Game:find({
+    collection = 'vehicles',
+    query = {
+        owner = characterId,
+        stored = false
+    },
+    options = {
+        limit = 10,
+        sort = { purchaseDate = -1 }
+    }
+}, function(success, vehicles)
+    if success and vehicles then
+        for _, vehicle in ipairs(vehicles) do
+            print('Vehicle:', vehicle.model)
+        end
+    end
+end)
 
 -- Insert document
-Database:insertOne('logs', {
-    type = 'admin_action',
-    action = 'teleport',
-    admin = adminId,
-    target = targetId,
-    timestamp = os.time()
-})
+Database.Game:insertOne({
+    collection = 'logs',
+    document = {
+        type = 'admin_action',
+        action = 'teleport',
+        admin = adminId,
+        target = targetId,
+        timestamp = os.time()
+    }
+}, function(success, result)
+    if success then
+        print('Log inserted with ID:', result._id)
+    end
+end)
 
 -- Update document
-Database:updateOne('characters', {
-    SID = characterId
-}, {
-    ['$set'] = {
-        money = newMoney
+Database.Game:updateOne({
+    collection = 'characters',
+    query = {
+        SID = characterId
+    },
+    update = {
+        ['$set'] = {
+            Cash = newMoney
+        }
     }
-})
+}, function(success, result)
+    if success then
+        print('Character updated')
+    end
+end)
 
--- Delete document
-Database:deleteOne('bans', {
-    identifier = 'steam:110000...'
-})
+-- Delete document (Auth database example)
+Database.Auth:deleteOne({
+    collection = 'bans',
+    query = {
+        identifier = 'steam:110000...'
+    }
+}, function(success, result)
+    if success then
+        print('Ban record deleted')
+    end
+end)
 ```
 
 ### MongoDB Methods
 
 <AccordionGroup>
-  <Accordion title="findOne(collection, query)" icon="magnifying-glass">
+  <Accordion title="findOne(params, callback)" icon="magnifying-glass">
     Find a single document matching query.
 
     ```lua
-    local char = Database:findOne('characters', { SID = 1 })
-
-    if char then
-        print('Found character:', char.First, char.Last)
-    end
+    Database.Game:findOne({
+        collection = 'characters',
+        query = { SID = 1 }
+    }, function(success, char)
+        if success and char then
+            print('Found character:', char.First, char.Last)
+        end
+    end)
     ```
 
-    **Returns:** Document object or `nil`
+    **Callback receives:** `(success, document)`
   </Accordion>
 
-  <Accordion title="find(collection, query, options)" icon="magnifying-glass-plus">
+  <Accordion title="find(params, callback)" icon="magnifying-glass-plus">
     Find multiple documents.
 
     ```lua
-    local chars = Database:find('characters', {
-        Owner = 'license:abc123'
-    }, {
-        limit = 5,
-        sort = { created = -1 }
-    })
-
-    for _, char in ipairs(chars) do
-        print(char.First, char.Last)
-    end
+    Database.Game:find({
+        collection = 'characters',
+        query = {
+            User = accountId
+        },
+        options = {
+            limit = 5,
+            sort = { created = -1 }
+        }
+    }, function(success, chars)
+        if success and chars then
+            for _, char in ipairs(chars) do
+                print(char.First, char.Last)
+            end
+        end
+    end)
     ```
 
-    **Returns:** Array of documents
+    **Callback receives:** `(success, documents)`
   </Accordion>
 
-  <Accordion title="insertOne(collection, document)" icon="plus">
+  <Accordion title="insertOne(params, callback)" icon="plus">
     Insert a single document.
 
     ```lua
-    Database:insertOne('characters', {
-        SID = GetNextSID(),
-        Owner = 'license:abc123',
-        First = 'John',
-        Last = 'Doe',
-        Gender = 'Male',
-        DOB = '1990-01-01',
-        Phone = '555-1234',
-        Created = os.time()
-    })
+    Database.Game:insertOne({
+        collection = 'characters',
+        document = {
+            SID = GetNextSID(),
+            User = accountId,
+            First = 'John',
+            Last = 'Doe',
+            Gender = 0,
+            DOB = '1990-01-01',
+            Phone = 5551234,
+            Created = os.time()
+        }
+    }, function(success, result)
+        if success then
+            print('Character created with ID:', result._id)
+        end
+    end)
     ```
 
-    **Returns:** Inserted document with `_id`
+    **Callback receives:** `(success, insertedDocument)`
   </Accordion>
 
-  <Accordion title="updateOne(collection, query, update)" icon="pen">
+  <Accordion title="updateOne(params, callback)" icon="pen">
     Update a single document.
 
     ```lua
     -- Set fields
-    Database:updateOne('characters', {
-        SID = 1
-    }, {
-        ['$set'] = {
-            Phone = '555-9999',
-            LastSeen = os.time()
+    Database.Game:updateOne({
+        collection = 'characters',
+        query = { SID = 1 },
+        update = {
+            ['$set'] = {
+                Phone = 5559999,
+                LastSeen = os.time()
+            }
         }
-    })
+    }, function(success, result)
+        if success then
+            print('Character updated')
+        end
+    end)
 
     -- Increment field
-    Database:updateOne('characters', {
-        SID = 1
-    }, {
-        ['$inc'] = {
-            cash = 500
+    Database.Game:updateOne({
+        collection = 'characters',
+        query = { SID = 1 },
+        update = {
+            ['$inc'] = {
+                Cash = 500
+            }
         }
-    })
+    }, function(success, result)
+        print('Added $500 to character')
+    end)
 
     -- Push to array
-    Database:updateOne('characters', {
-        SID = 1
-    }, {
-        ['$push'] = {
-            licenses = 'weapon'
+    Database.Game:updateOne({
+        collection = 'characters',
+        query = { SID = 1 },
+        update = {
+            ['$push'] = {
+                ['Jobs'] = jobObject
+            }
         }
-    })
+    }, function(success, result)
+        print('Job added to character')
+    end)
     ```
+
+    **Callback receives:** `(success, updateResult)`
   </Accordion>
 
-  <Accordion title="deleteOne(collection, query)" icon="trash">
+  <Accordion title="deleteOne(params, callback)" icon="trash">
     Delete a single document.
 
     ```lua
-    Database:deleteOne('vehicles', {
-        _id = vehicleId
-    })
+    Database.Game:deleteOne({
+        collection = 'vehicles',
+        query = { _id = vehicleId }
+    }, function(success, result)
+        if success then
+            print('Vehicle deleted')
+        end
+    end)
     ```
 
-    **Returns:** Boolean success
+    **Callback receives:** `(success, deleteResult)`
   </Accordion>
 
-  <Accordion title="count(collection, query)" icon="hashtag">
+  <Accordion title="count(params, callback)" icon="hashtag">
     Count documents matching query.
 
     ```lua
-    local vehicleCount = Database:count('vehicles', {
-        owner = characterId
-    })
-
-    print('Player owns', vehicleCount, 'vehicles')
+    Database.Game:count({
+        collection = 'vehicles',
+        query = { owner = characterId }
+    }, function(success, count)
+        if success then
+            print('Player owns', count, 'vehicles')
+        end
+    end)
     ```
 
-    **Returns:** Number
+    **Callback receives:** `(success, count)`
   </Accordion>
 
-  <Accordion title="aggregate(collection, pipeline)" icon="filter">
+  <Accordion title="aggregate(params, callback)" icon="filter">
     Advanced aggregation queries.
 
     ```lua
-    local stats = Database:aggregate('characters', {
-        {
-            ['$group'] = {
-                _id = '$Gender',
-                count = { ['$sum'] = 1 },
-                avgCash = { ['$avg'] = '$cash' }
+    Database.Game:aggregate({
+        collection = 'characters',
+        aggregate = {
+            {
+                ['$group'] = {
+                    _id = '$Gender',
+                    count = { ['$sum'] = 1 },
+                    avgCash = { ['$avg'] = '$Cash' }
+                }
             }
         }
-    })
+    }, function(success, stats)
+        if success and stats then
+            for _, stat in ipairs(stats) do
+                print('Gender', stat._id, 'Count:', stat.count)
+            end
+        end
+    end)
     ```
+
+    **Callback receives:** `(success, results)`
   </Accordion>
 </AccordionGroup>
 
@@ -408,26 +503,60 @@ local result = exports.oxmysql:prepare('SELECT * FROM vehicles WHERE owner = ?',
 ```javascript
 {
     _id: ObjectId("..."),
-    SID: 1,                              // Character ID
-    Owner: "license:abc123",             // Player identifier
+    SID: 1,                              // Character ID (State ID)
+    User: 12345,                         // Account ID of player who owns character
     First: "John",
     Last: "Doe",
-    Phone: "555-1234",
-    Gender: "Male",
+    Phone: 5551234,                      // Phone number (numeric)
+    Gender: 0,                           // 0 = Male, 1 = Female
     DOB: "1990-01-01",
-    cash: 5000,
-    bank: 25000,
-    job: {
-        id: "police",
-        name: "Los Santos Police Department",
-        grade: {
-            id: "officer",
-            name: "Officer",
-            level: 1,
-            salary: 2500
+    Bio: "Character biography",
+    Origin: 1,
+    Cash: 5000,                          // Note: Capital C
+    Bank: 25000,                         // Note: Capital B
+
+    // Jobs array (can have multiple jobs)
+    Jobs: [
+        {
+            Id: "police",
+            Name: "Los Santos Police Department",
+            Grade: {
+                Id: "officer",
+                Name: "Officer",
+                Level: 1
+            },
+            Workplace: {
+                Id: "lspd",
+                Name: "LSPD Mission Row"
+            }
+        }
+    ],
+
+    // Licenses
+    Licenses: {
+        Drivers: {
+            Active: true,
+            Points: 0,
+            Suspended: false
+        },
+        Weapons: {
+            Active: false,
+            Suspended: false
+        },
+        Hunting: {
+            Active: false,
+            Suspended: false
+        },
+        Fishing: {
+            Active: false,
+            Suspended: false
+        },
+        Pilot: {
+            Active: false,
+            Suspended: false
         }
     },
-    licenses: ["driver", "weapon", "fishing"],
+
     metadata: {
         hunger: 80,
         thirst: 60,
@@ -443,8 +572,7 @@ local result = exports.oxmysql:prepare('SELECT * FROM vehicles WHERE owner = ?',
         z: 30.7,
         heading: 180.0
     },
-    created: 1234567890,
-    lastSeen: 1234567890
+    LastPlayed: 1234567890
 }
 ```
 
@@ -563,32 +691,43 @@ CREATE TABLE vehicles (
     Always use parameterized queries:
 
     ```lua
-    // ✅ GOOD - Parameterized
-    Database:findOne('characters', { SID = userInput })
+    -- ✅ GOOD - Parameterized (MongoDB)
+    Database.Game:findOne({
+        collection = 'characters',
+        query = { SID = userInput }
+    }, callback)
+
+    -- ✅ GOOD - Parameterized (MySQL)
     exports.oxmysql:single('SELECT * FROM users WHERE id = ?', { userInput })
 
-    // ❌ BAD - SQL injection risk
+    -- ❌ BAD - SQL injection risk
     exports.oxmysql:single('SELECT * FROM users WHERE id = ' .. userInput)
     ```
   </Accordion>
 
   <Accordion title="5. Handle Errors" icon="triangle-exclamation">
-    Database operations can fail. Handle errors:
+    Database operations can fail. Always handle errors in callbacks:
 
     ```lua
-    local success, result = pcall(function()
-        return Database:findOne('characters', { SID = charId })
+    Database.Game:findOne({
+        collection = 'characters',
+        query = { SID = charId }
+    }, function(success, character)
+        if not success then
+            COMPONENTS.Logger:Error('Database', 'Failed to fetch character', {
+                charId = charId
+            })
+            return
+        end
+
+        if not character then
+            print('Character not found')
+            return
+        end
+
+        -- Process character
+        print('Found:', character.First, character.Last)
     end)
-
-    if not success then
-        COMPONENTS.Logger:Error('Database', 'Failed to fetch character', {
-            error = result,
-            charId = charId
-        })
-        return nil
-    end
-
-    return result
     ```
   </Accordion>
 
@@ -596,17 +735,26 @@ CREATE TABLE vehicles (
     When possible, batch database operations:
 
     ```lua
-    // ❌ BAD - Multiple queries in loop
+    -- ❌ BAD - Multiple queries in loop
     for i = 1, 100 do
-        Database:insertOne('logs', { action = 'test_' .. i })
+        Database.Game:insertOne({
+            collection = 'logs',
+            document = { action = 'test_' .. i }
+        }, function() end)
     end
 
-    // ✅ GOOD - Single batch insert
+    -- ✅ GOOD - Single batch insert
     local documents = {}
     for i = 1, 100 do
         table.insert(documents, { action = 'test_' .. i })
     end
-    Database:insertMany('logs', documents)
+
+    Database.Game:insertMany({
+        collection = 'logs',
+        documents = documents
+    }, function(success, result)
+        print('Inserted', #documents, 'documents')
+    end)
     ```
   </Accordion>
 
@@ -617,14 +765,23 @@ CREATE TABLE vehicles (
     -- Cache example
     local itemCache = {}
 
-    function GetItem(itemId)
+    function GetItem(itemId, callback)
         if itemCache[itemId] then
-            return itemCache[itemId]
+            callback(itemCache[itemId])
+            return
         end
 
-        local item = Database:findOne('items', { id = itemId })
-        itemCache[itemId] = item
-        return item
+        Database.Game:findOne({
+            collection = 'items',
+            query = { id = itemId }
+        }, function(success, item)
+            if success and item then
+                itemCache[itemId] = item
+                callback(item)
+            else
+                callback(nil)
+            end
+        end)
     end
     ```
   </Accordion>
@@ -634,37 +791,54 @@ CREATE TABLE vehicles (
 
 ### MongoDB Optimization
 
-```javascript
-// 1. Use projection to limit returned fields
-Database:findOne('characters', { SID = 1 }, {
-    projection = { First = 1, Last = 1, cash = 1 }
-})
-
-// 2. Limit results
-Database:find('logs', { player = playerId }, {
-    limit = 100,
-    sort = { timestamp = -1 }
-})
-
-// 3. Use indexes (create once)
-db.characters.createIndex({ SID: 1 }, { unique: true })
-db.inventory.createIndex({ owner: 1 })
-
-// 4. Use aggregation for complex queries
-Database:aggregate('vehicles', {
-    {
-        ['$group'] = {
-            _id = '$model',
-            count = { ['$sum'] = 1 }
-        }
-    },
-    {
-        ['$sort'] = { count = -1 }
-    },
-    {
-        ['$limit'] = 10
+```lua
+-- 1. Use projection to limit returned fields
+Database.Game:findOne({
+    collection = 'characters',
+    query = { SID = 1 },
+    options = {
+        projection = { First = 1, Last = 1, Cash = 1 }
     }
-})
+}, callback)
+
+-- 2. Limit results
+Database.Game:find({
+    collection = 'logs',
+    query = { player = playerId },
+    options = {
+        limit = 100,
+        sort = { timestamp = -1 }
+    }
+}, callback)
+
+-- 3. Use indexes (create once in MongoDB shell)
+-- db.characters.createIndex({ SID: 1 }, { unique: true })
+-- db.inventory.createIndex({ owner: 1 })
+
+-- 4. Use aggregation for complex queries
+Database.Game:aggregate({
+    collection = 'vehicles',
+    aggregate = {
+        {
+            ['$group'] = {
+                _id = '$model',
+                count = { ['$sum'] = 1 }
+            }
+        },
+        {
+            ['$sort'] = { count = -1 }
+        },
+        {
+            ['$limit'] = 10
+        }
+    }
+}, function(success, results)
+    if success then
+        for _, result in ipairs(results) do
+            print(result._id, result.count)
+        end
+    end
+end)
 ```
 
 ### MySQL Optimization
@@ -692,25 +866,40 @@ When updating schemas:
 ```lua
 -- MongoDB migration example
 function MigrateCharacterSchema()
-    local chars = Database:find('characters', {})
-
-    for _, char in ipairs(chars) do
-        if not char.metadata then
-            Database:updateOne('characters', {
-                _id = char._id
-            }, {
-                ['$set'] = {
-                    metadata = {
-                        hunger = 100,
-                        thirst = 100,
-                        stress = 0
-                    }
-                }
-            })
+    Database.Game:find({
+        collection = 'characters',
+        query = {}
+    }, function(success, chars)
+        if not success or not chars then
+            print('Migration failed')
+            return
         end
-    end
 
-    print('Migration complete')
+        local count = 0
+        for _, char in ipairs(chars) do
+            if not char.metadata then
+                Database.Game:updateOne({
+                    collection = 'characters',
+                    query = { _id = char._id },
+                    update = {
+                        ['$set'] = {
+                            metadata = {
+                                hunger = 100,
+                                thirst = 100,
+                                stress = 0
+                            }
+                        }
+                    }
+                }, function(success)
+                    if success then
+                        count = count + 1
+                    end
+                end)
+            end
+        end
+
+        print('Migration complete:', count, 'characters updated')
+    end)
 end
 ```
 

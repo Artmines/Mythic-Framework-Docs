@@ -16,17 +16,17 @@
     "links": [
       {
         "label": "Discord",
-        "href": "https://discord.gg/mythicframework"
+        "href": "https://discord.gg/94apejXRe5"
       },
       {
         "label": "GitHub",
-        "href": "https://github.com/mythicframework"
+        "href": "https://github.com/Mythic-Framework"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Get Started",
-      "href": "https://github.com/mythicframework"
+      "href": "https://github.com/Mythic-Framework"
     }
   },
   "navigation": {
@@ -138,7 +138,7 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/mythicframework",
+      "github": "https://github.com/Mythic-Framework",
       "discord": "https://discord.gg/mythicframework"
     }
   },

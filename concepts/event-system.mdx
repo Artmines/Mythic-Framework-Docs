@@ -354,11 +354,19 @@ For request-response patterns, use callbacks instead of events.
 -- Register callback on server
 COMPONENTS.Callback:RegisterCallback('mythic-garage:GetVehicles', function(source, data, cb)
     local char = COMPONENTS.Characters:GetCharacter(source)
-    local vehicles = COMPONENTS.Database:fetchAll('vehicles', {
-        owner = char.SID
-    })
 
-    cb(vehicles)
+    COMPONENTS.Database.Game:find({
+        collection = 'vehicles',
+        query = {
+            owner = char.SID
+        }
+    }, function(success, vehicles)
+        if success and vehicles then
+            cb(vehicles)
+        else
+            cb({})
+        end
+    end)
 end)
 
 -- Client requests data
@@ -431,11 +439,18 @@ end)
 
 AddEventHandler('player:moneyChanged', function(source, new, old)
     -- Log to database
-    COMPONENTS.Database:insert('money_logs', {
-        player = source,
-        change = new - old,
-        timestamp = os.time()
-    })
+    COMPONENTS.Database.Game:insertOne({
+        collection = 'money_logs',
+        document = {
+            player = source,
+            change = new - old,
+            timestamp = os.time()
+        }
+    }, function(success)
+        if not success then
+            print('Failed to log money change')
+        end
+    end)
 end)
 
 AddEventHandler('player:moneyChanged', function(source, new, old)

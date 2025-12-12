@@ -69,18 +69,30 @@ exports['mythic-base']:RegisterComponent(component_name, component_data)
 -- In mythic-inventory/server/component.lua
 exports['mythic-base']:RegisterComponent('Inventory', {
     -- Component methods
-    Get = function(self, characterId)
+    Get = function(self, characterId, callback)
         -- Fetch inventory from database
-        return COMPONENTS.Database:fetchOne('inventory', {
-            owner = characterId
-        })
+        COMPONENTS.Database.Game:findOne({
+            collection = 'inventory',
+            query = {
+                owner = characterId
+            }
+        }, function(success, inventory)
+            if callback then
+                callback(success, inventory)
+            end
+        end)
     end,
 
-    AddItem = function(self, characterId, item, count, metadata)
-        -- Add item logic
-        local inventory = self:Get(characterId)
-        -- ... add item to inventory
-        return true
+    AddItem = function(self, characterId, item, count, metadata, callback)
+        -- Add item logic (async)
+        self:Get(characterId, function(success, inventory)
+            if success and inventory then
+                -- ... add item to inventory
+                if callback then callback(true) end
+            else
+                if callback then callback(false) end
+            end
+        end)
     end,
 
     RemoveItem = function(self, characterId, slot, count)
@@ -431,31 +443,45 @@ exports['mythic-base']:RequestDependencies('Garage', {
         _name = 'garage',
 
         -- Get player's vehicles
-        GetVehicles = function(self, characterId)
-            return COMPONENTS.Database:fetchAll('vehicles', {
-                owner = characterId
-            })
+        GetVehicles = function(self, characterId, callback)
+            COMPONENTS.Database.Game:find({
+                collection = 'vehicles',
+                query = {
+                    owner = characterId
+                }
+            }, function(success, vehicles)
+                if callback then
+                    callback(success, vehicles)
+                end
+            end)
         end,
 
         -- Spawn vehicle from garage
-        SpawnVehicle = function(self, player, vehicleId)
-            local vehicle = COMPONENTS.Database:fetchOne('vehicles', {
-                _id = vehicleId
-            })
+        SpawnVehicle = function(self, player, vehicleId, callback)
+            COMPONENTS.Database.Game:findOne({
+                collection = 'vehicles',
+                query = {
+                    _id = vehicleId
+                }
+            }, function(success, vehicle)
+                if not success or not vehicle then
+                    if callback then callback(false) end
+                    return
+                end
 
-            if not vehicle then return false end
+                -- Check ownership
+                local char = COMPONENTS.Characters:GetCharacter(player)
+                if vehicle.owner ~= char.SID then
+                    if callback then callback(false, 'Not your vehicle') end
+                    return
+                end
 
-            -- Check ownership
-            local char = COMPONENTS.Characters:GetCharacter(player)
-            if vehicle.owner ~= char.SID then
-                return false, 'Not your vehicle'
-            end
+                -- Spawn logic
+                local coords = GetEntityCoords(GetPlayerPed(player))
+                local veh = COMPONENTS.Vehicles:SpawnVehicle(vehicle.model, coords, vehicle.customization)
 
-            -- Spawn logic
-            local coords = GetEntityCoords(GetPlayerPed(player))
-            local veh = COMPONENTS.Vehicles:SpawnVehicle(vehicle.model, coords, vehicle.customization)
-
-            return true, veh
+                if callback then callback(true, veh) end
+            end)
         end,
 
         -- Store vehicle in garage
@@ -464,15 +490,23 @@ exports['mythic-base']:RequestDependencies('Garage', {
 
             -- Save customization
             local mods = COMPONENTS.Vehicles:GetVehicleMods(vehicleEntity)
-            COMPONENTS.Database:updateOne('vehicles', {
-                plate = plate
-            }, {
-                customization = mods,
-                stored = true
-            })
-
-            -- Delete vehicle
-            DeleteEntity(vehicleEntity)
+            COMPONENTS.Database.Game:updateOne({
+                collection = 'vehicles',
+                query = {
+                    plate = plate
+                },
+                update = {
+                    ['$set'] = {
+                        customization = mods,
+                        stored = true
+                    }
+                }
+            }, function(success)
+                if success then
+                    -- Delete vehicle after successful save
+                    DeleteEntity(vehicleEntity)
+                end
+            end)
             return true
         end
     })
