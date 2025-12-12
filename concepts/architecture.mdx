@@ -31,7 +31,6 @@ At its core, Mythic Framework is built on four architectural pillars:
 
 │              FiveM Server               │
 │                                         │
-│                                         │
 │             Server-Side (Lua)           │
 │                                         │
 │    mythic-base (Core)                   │
@@ -39,35 +38,31 @@ At its core, Mythic Framework is built on four architectural pillars:
 │     • Event Middleware                  │
 │     • Database Wrapper (Node.js)        │
 │     • Logger & Error Handling           │
-│                                         │
-│             ↓ Depends On ↓              │
-│                                         │
+                                           
+             ↓ Depends On ↓               
+                                           
 │     Feature Resources (60+)             │
 │     • mythic-characters | inventory     │
 │     • mythic-jobs | police | phone      │
-│                   ↕                     │
+│                                         │
 │        Client-Side (Lua)                │
 │     • Game Logic                        │
 │     • Event Handlers                    │
 │     • NUI Communication                 │
-│                   ↕                     │
+                    ↕                     
 │        NUI Layer (Browser)              │
 │     • React UIs                         │
 │     • HUD, Inventory, Phone             │
 │     • MDT, Character Creator            │
-└─────────────────────────────────────────┘
-                   ↕
-┌─────────────────────────────────────────┐
+                   ↕                       
 │           Database Layer                │
 │                                         │
-│  ┌──────────────┐     ┌──────────────┐  │
 │  │   MongoDB    │     │    MySQL     │  │
-│  ├──────────────┤     ├──────────────┤  │
+│                                         │
 │  │ • Auth DB    │     │ • Persistent │  │
 │  │ • Game DB    │     │ • Relational │  │
 │  │ • Flexible   │     │ • Legacy     │  │
-│  └──────────────┘     └──────────────┘  │
-└─────────────────────────────────────────┘
+│                                         │
 ```
 
 ## Core Layer: mythic-base
