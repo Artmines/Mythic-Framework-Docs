@@ -28,38 +28,33 @@ At its core, Mythic Framework is built on four architectural pillars:
 ## Architecture Diagram
 
 ```txt
-┌─────────────────────────────────────────┐
+
 │              FiveM Server               │
 │                                         │
-│      ───────────────────────────────    │
+│                                         │
 │             Server-Side (Lua)           │
-│    ┌────────────────────────────────┐   │
-│    │mythic-base (Core)              │   │
-│    │ • Component Proxy System       │   │
-│    │ • Event Middleware             │   │
-│    │ • Database Wrapper (Node.js)   │   │
-│    │ • Logger & Error Handling      │   │
-│    └────────────────────────────────┘   │
+│                                         │
+│    mythic-base (Core)                   │
+│     • Component Proxy System            │
+│     • Event Middleware                  │
+│     • Database Wrapper (Node.js)        │
+│     • Logger & Error Handling           │
+│                                         │
 │             ↓ Depends On ↓              │
-│    ┌────────────────────────────────┐   │
-│    │Feature Resources (60+)         │   │
-│    │• mythic-characters | inventory │   │
-│    │• mythic-jobs | police | phone  │   │
-│    └────────────────────────────────┘   │
+│                                         │
+│     Feature Resources (60+)             │
+│     • mythic-characters | inventory     │
+│     • mythic-jobs | police | phone      │
 │                   ↕                     │
-│  ┌────────────────────────────────────┐ │
-│  │      Client-Side (Lua)             │ │
-│  │  • Game Logic                      │ │
-│  │  • Event Handlers                  │ │
-│  │  • NUI Communication               │ │
-│  └────────────────────────────────────┘ │
+│        Client-Side (Lua)                │
+│     • Game Logic                        │
+│     • Event Handlers                    │
+│     • NUI Communication                 │
 │                   ↕                     │
-│  ┌────────────────────────────────────┐ │
-│  │      NUI Layer (Browser)           │ │
-│  │  • React UIs                       │ │
-│  │  • HUD, Inventory, Phone           │ │
-│  │  • MDT, Character Creator          │ │
-│  └────────────────────────────────────┘ │
+│        NUI Layer (Browser)              │
+│     • React UIs                         │
+│     • HUD, Inventory, Phone             │
+│     • MDT, Character Creator            │
 └─────────────────────────────────────────┘
                    ↕
 ┌─────────────────────────────────────────┐
@@ -161,25 +156,25 @@ mythic-base/
 ├── sv_config.lua               # Server configuration
 ├── cl_config.lua               # Client configuration
 ├── core/
-│   ├── sh_proxy.lua            # Component proxy system
-│   ├── sh_core.lua             # Core shared functions
-│   ├── sh_utils.lua            # Utility functions
-│   ├── sh_datastore.lua        # Data storage abstraction
-│   ├── sv_database.js          # MongoDB wrapper (Node.js)
-│   ├── sv_core.lua             # Core server functions
-│   ├── sv_player.lua           # Player management
-│   ├── sv_events.lua           # Server event handling
-│   ├── sv_middleware.lua       # Event middleware
-│   ├── sv_callback.lua         # Callback system
-│   ├── sv_logger.lua           # Server logging
-│   ├── sv_punishment.lua       # Ban/punishment system
-│   ├── cl_core.lua             # Core client functions
-│   ├── cl_player.lua           # Client player data
-│   ├── cl_events.lua           # Client event handling
-│   └── cl_logger.lua           # Client logging
-└── components/
-    ├── sv_*.lua                # Server-side components
-    └── cl_*.lua                # Client-side components
+ │   ├── sh_proxy.lua            # Component proxy system
+ │   ├── sh_core.lua             # Core shared functions
+ │   ├── sh_utils.lua            # Utility functions
+ │   ├── sh_datastore.lua        # Data storage abstraction
+ │   ├── sv_database.js          # MongoDB wrapper (Node.js)
+ │   ├── sv_core.lua             # Core server functions
+ │   ├── sv_player.lua           # Player management
+ │   ├── sv_events.lua           # Server event handling
+ │   ├── sv_middleware.lua       # Event middleware
+ │   ├── sv_callback.lua         # Callback system
+ │   ├── sv_logger.lua           # Server logging
+ │   ├── sv_punishment.lua       # Ban/punishment system
+ │   ├── cl_core.lua             # Core client functions
+ │   ├── cl_player.lua           # Client player data
+ │   ├── cl_events.lua           # Client event handling
+ │   └── cl_logger.lua           # Client logging
+ └── components/
+     ├── sv_*.lua                # Server-side components
+     └── cl_*.lua                # Client-side components
 ```
 
 ## Resource Layer
