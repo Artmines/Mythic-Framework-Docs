@@ -163,47 +163,44 @@ Display a list menu.
 ```lua
 -- Client side - Vehicle menu
 COMPONENTS.ListMenu:Show({
-    {
-        label = 'Vehicle Options',
-        description = 'Manage your vehicle',
-        icon = 'car',
-        submenu = {
+        main = {
+            label = 'Vehicle Menu',
+            items = {
+              {
+                  label = 'Lock/Unlock',
+                  description = 'Toggle vehicle lock',
+                  icon = "lock",
+                  event = 'vehicles:client:ToggleLock',
+              },
+              {
+                  label = 'Engine',
+                  description = 'Toggle engine',
+                  icon = "key",
+                  event = 'vehicles:client:ToggleEngine',
+              },
+              {
+                  label = 'Windows',
+                  description = 'Roll windows up/down',
+                  icon = 'window-maximize',
+                  submenu = 'windows'
+              },
+          }
+      },
+      windows = {
+          label = 'Roll windows up/down',
+          items = {
             {
-                label = 'Lock/Unlock',
-                description = 'Toggle vehicle lock',
-                icon = 'lock',
-                event = 'vehicles:client:ToggleLock'
+                label = 'Roll Up All',
+                description = "Roll up all your windows",
+                event = 'vehicles:client:WindowsUp'
             },
             {
-                label = 'Engine',
-                description = 'Toggle engine',
-                icon = 'key',
-                event = 'vehicles:client:ToggleEngine'
-            },
-            {
-                label = 'Windows',
-                description = 'Roll windows up/down',
-                icon = 'window-maximize',
-                submenu = {
-                    {
-                        label = 'Roll Up All',
-                        event = 'vehicles:client:WindowsUp'
-                    },
-                    {
-                        label = 'Roll Down All',
-                        event = 'vehicles:client:WindowsDown'
-                    }
-                }
+                label = 'Roll Down All',
+                description = "Roll down all your windows",
+                event = 'vehicles:client:WindowsDown'
             }
         }
     },
-    {
-        label = 'Give Keys',
-        description = 'Give keys to nearby player',
-        icon = 'key',
-        event = 'vehicles:client:GiveKeys',
-        data = { plate = 'ABC123' }
-    }
 })
 
 -- Handle menu events
