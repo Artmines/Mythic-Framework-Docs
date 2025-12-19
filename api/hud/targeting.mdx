@@ -1,0 +1,639 @@
+---
+title: Targeting System
+description: Entity interaction and targeting system for vehicles, objects, and players
+icon: 'crosshairs'
+---
+
+The Targeting system (also called "Third Eye" or "Interaction Menu") allows players to interact with entities in the world. Point at a vehicle, NPC, or object to see available actions based on job permissions, items held, and distance.
+
+## Overview
+
+The targeting system uses raycasting to detect entities and displays context-sensitive interaction menus.
+
+<CardGroup cols={2}>
+  <Card title="Entity Detection" icon="radar">
+    Ray-based entity detection
+  </Card>
+  <Card title="Context Menus" icon="list">
+    Dynamic action menus
+  </Card>
+  <Card title="Permission System" icon="shield">
+    Job & item-based access
+  </Card>
+  <Card title="Visual Feedback" icon="eye">
+    On-screen targeting reticle
+  </Card>
+</CardGroup>
+
+<Warning>
+**Client-Side:** Targeting is handled client-side but actions are validated server-side for security.
+</Warning>
+
+---
+
+## How It Works
+
+### Activation
+
+- Hold **Left Alt** (default) to activate targeting mode
+- Aim at entities to see available interactions
+- Visual indicator shows what you're targeting
+- Release to deactivate
+
+### Entity Detection
+
+The system detects:
+- **Vehicles** - Cars, boats, aircraft
+- **Peds** - NPCs and other players
+- **Objects** - Props, doors, items
+- **Zones** - Invisible interaction areas
+
+### Permission Checks
+
+Before showing an action, the system validates:
+- Job requirements
+- On-duty status
+- Item possession
+- Distance from entity
+- Entity model/type
+- Character states
+- Reputation levels
+
+---
+
+## Registering Interactions
+
+Interactions are registered in the targeting configuration files:
+- `client/targets/ped.lua` - NPC/player interactions
+- `client/targets/objects.lua` - Object interactions
+- `client/targets/zones.lua` - Zone-based interactions
+
+### Basic Interaction
+
+```lua
+-- client/targets/ped.lua example
+{
+    text = 'Talk to NPC',
+    icon = 'comments',
+    event = 'npc:client:Talk',
+    data = { npcId = 'shopkeeper_1' },
+    minDist = 3.0,
+    isEnabled = function(data, entityData)
+        return true -- Always show
+    end
+}
+```
+
+### Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| text | string/function | Yes | Display text or function returning text |
+| icon | string | Yes | Font Awesome icon name |
+| event | string | Yes | Event to trigger |
+| data | table | No | Data to pass to event |
+| minDist | number | No | Maximum interaction distance |
+| jobPerms | table | No | Job permission requirements |
+| tempjob | string | No | Temporary job requirement |
+| state | string | No | Required character state |
+| item | string | No | Required item in inventory |
+| items | table | No | Required multiple items (all) |
+| anyItems | table | No | Required any of these items |
+| model | number | No | Specific vehicle model hash |
+| rep | table | No | Reputation requirement `{id, level}` |
+| isEnabled | function | No | Custom visibility check |
+| textFunc | function | No | Dynamic text generation |
+
+---
+
+## Job Permissions
+
+### Basic Job Check
+
+```lua
+{
+    text = 'Impound Vehicle',
+    icon = 'warehouse',
+    event = 'police:client:ImpoundVehicle',
+    jobPerms = {
+        {
+            job = 'police',
+            reqDuty = true,
+        }
+    }
+}
+```
+
+### Multiple Job Options
+
+```lua
+{
+    text = 'Revive Player',
+    icon = 'hand-holding-medical',
+    event = 'ems:client:Revive',
+    jobPerms = {
+        { job = 'ems', reqDuty = true },
+        { job = 'police', reqDuty = true, gradeLevel = 10 },
+        { permissionKey = 'PD_HIGH_COMMAND' }
+    }
+}
+```
+
+### Job Permission Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| job | string | Job ID required |
+| workplace | string | Specific workplace |
+| grade | string | Specific grade ID |
+| gradeLevel | number | Minimum grade level |
+| reqDuty | boolean | Must be on duty |
+| reqOffDuty | boolean | Must be off duty |
+| permissionKey | string | Specific permission required |
+
+---
+
+## Item Requirements
+
+### Single Item
+
+```lua
+{
+    text = 'Lockpick Vehicle',
+    icon = 'key',
+    event = 'vehicles:client:Lockpick',
+    item = 'lockpick',
+    itemCount = 1
+}
+```
+
+### Multiple Items (All Required)
+
+```lua
+{
+    text = 'Repair Engine',
+    icon = 'wrench',
+    event = 'vehicles:client:Repair',
+    items = {
+        { name = 'repairkit', count = 1 },
+        { name = 'wrench', count = 1 }
+    }
+}
+```
+
+### Any Item (At Least One)
+
+```lua
+{
+    text = 'Cut Door',
+    icon = 'scissors',
+    event = 'vehicles:client:CutDoor',
+    anyItems = {
+        { name = 'blowtorch', count = 1 },
+        { name = 'jaws_of_life', count = 1 }
+    }
+}
+```
+
+---
+
+## Dynamic Text
+
+### Text Function
+
+```lua
+{
+    text = 'Search Vehicle',
+    textFunc = function(data, entityData)
+        local vState = Entity(entityData.entity).state
+        if vState.isLocked then
+            return 'Vehicle Locked'
+        else
+            return 'Search Vehicle'
+        end
+    end,
+    icon = 'magnifying-glass',
+    event = 'police:client:SearchVehicle'
+}
+```
+
+### Entity Data Access
+
+```lua
+textFunc = function(data, entityData)
+    -- entityData contains:
+    -- entityData.entity - Entity handle
+    -- entityData.endCoords - Target coordinates
+    -- entityData.type - Entity type ('vehicle', 'ped', 'object')
+
+    if entityData.type == 'vehicle' then
+        local plate = GetVehicleNumberPlateText(entityData.entity)
+        return 'Check Plate: ' .. plate
+    end
+    return 'Interact'
+end
+```
+
+---
+
+## Conditional Visibility
+
+### isEnabled Function
+
+```lua
+{
+    text = 'Open Trunk',
+    icon = 'box',
+    event = 'vehicles:client:OpenTrunk',
+    isEnabled = function(data, entityData)
+        -- Only show if vehicle is unlocked
+        local vState = Entity(entityData.entity).state
+        return not vState.isLocked
+    end
+}
+```
+
+### Multiple Conditions
+
+```lua
+{
+    text = 'Tow Vehicle',
+    icon = 'truck-tow',
+    event = 'towing:client:TowVehicle',
+    jobPerms = {{ job = 'tow', reqDuty = true }},
+    isEnabled = function(data, entityData)
+        -- Check if vehicle is abandoned
+        local vState = Entity(entityData.entity).state
+        if not vState.VIN then
+            return false -- Not an owned vehicle
+        end
+
+        -- Check if player is in tow truck
+        local ped = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        if vehicle == 0 then
+            return false
+        end
+
+        local model = GetEntityModel(vehicle)
+        return model == GetHashKey('flatbed')
+    end
+}
+```
+
+---
+
+## Distance Requirements
+
+### Maximum Distance
+
+```lua
+{
+    text = 'Pickpocket',
+    icon = 'hand',
+    event = 'crime:client:Pickpocket',
+    minDist = 1.5, -- Must be within 1.5 units
+    item = 'lockpick'
+}
+```
+
+**Notes:**
+- Default max distance is unlimited if not specified
+- Distance checked automatically before showing option
+- Distance calculated from entity center point
+
+---
+
+## Vehicle-Specific Interactions
+
+### Model-Specific
+
+```lua
+{
+    text = 'Refuel',
+    icon = 'gas-pump',
+    event = 'fuel:client:Refuel',
+    model = GetHashKey('flatbed'), -- Only for flatbed trucks
+    jobPerms = {{ job = 'mechanic' }}
+}
+```
+
+### Vehicle Type Check
+
+```lua
+{
+    text = 'Anchor Boat',
+    icon = 'anchor',
+    event = 'boats:client:Anchor',
+    isEnabled = function(data, entityData)
+        if entityData.type ~= 'vehicle' then
+            return false
+        end
+
+        local vehClass = GetVehicleClass(entityData.entity)
+        return vehClass == 14 -- Boats only
+    end
+}
+```
+
+---
+
+## State Requirements
+
+### Character States
+
+```lua
+{
+    text = 'Remove Cuffs',
+    icon = 'handcuffs',
+    event = 'police:client:Uncuff',
+    state = 'ARRESTED', -- Player must have ARRESTED state
+    jobPerms = {{ job = 'police' }}
+}
+```
+
+**Common States:**
+- `ARRESTED` - Player is under arrest
+- `WANTED` - Player has active warrant
+- `HOSPITAL_PATIENT` - In medical care
+- `FLEECA_HEIST` - Actively in heist
+
+---
+
+## Reputation Requirements
+
+### Minimum Level
+
+```lua
+{
+    text = 'Access VIP Lounge',
+    icon = 'crown',
+    event = 'casino:client:VIPLounge',
+    rep = {
+        id = 'casino',
+        level = 5
+    }
+}
+```
+
+---
+
+## Temporary Jobs
+
+### Temp Job Check
+
+```lua
+{
+    text = 'Deliver Package',
+    icon = 'box',
+    event = 'delivery:client:Deliver',
+    tempjob = 'postop', -- Must have postop temp job active
+}
+```
+
+---
+
+## Complete Examples
+
+### Police Vehicle Interaction
+
+```lua
+{
+    text = 'Impound Vehicle',
+    icon = 'warehouse',
+    event = 'police:client:ImpoundVehicle',
+    jobPerms = {
+        { job = 'police', reqDuty = true },
+        { job = 'tow', reqDuty = true }
+    },
+    minDist = 5.0,
+    isEnabled = function(data, entityData)
+        -- Don't impound occupied vehicles
+        local veh = entityData.entity
+        for i = -1, 10 do
+            if GetPedInVehicleSeat(veh, i) ~= 0 then
+                return false
+            end
+        end
+        return true
+    end
+}
+```
+
+### Medical Revive
+
+```lua
+{
+    text = 'Revive Patient',
+    textFunc = function(data, entityData)
+        local target = NetworkGetPlayerIndexFromPed(entityData.entity)
+        if target ~= -1 then
+            local targetId = GetPlayerServerId(target)
+            return 'Revive (' .. targetId .. ')'
+        end
+        return 'Revive'
+    end,
+    icon = 'hand-holding-medical',
+    event = 'ems:client:Revive',
+    jobPerms = {{ job = 'ems', reqDuty = true }},
+    items = {
+        { name = 'medkit', count = 1 }
+    },
+    minDist = 2.0,
+    isEnabled = function(data, entityData)
+        -- Only show on dead players
+        local target = NetworkGetPlayerIndexFromPed(entityData.entity)
+        if target == -1 then
+            return false
+        end
+
+        local targetSource = GetPlayerServerId(target)
+        local state = Player(targetSource).state
+        return state.isDead or false
+    end
+}
+```
+
+### Mechanic Repair
+
+```lua
+{
+    text = 'Repair Vehicle',
+    icon = 'wrench',
+    event = 'mechanic:client:RepairVehicle',
+    jobPerms = {
+        { job = 'mechanic', reqDuty = true }
+    },
+    anyItems = {
+        { name = 'repairkit', count = 1 },
+        { name = 'advrepairkit', count = 1 }
+    },
+    minDist = 3.0,
+    isEnabled = function(data, entityData)
+        if entityData.type ~= 'vehicle' then
+            return false
+        end
+
+        local vState = Entity(entityData.entity).state
+        local damage = vState.Damage
+
+        if not damage then
+            return false
+        end
+
+        -- Only show if vehicle is damaged
+        return damage.Body < 100 or damage.Engine < 100
+    end
+}
+```
+
+---
+
+## Events
+
+### Triggering Interactions
+
+When a player selects an interaction, the specified event is triggered:
+
+```lua
+-- Client side - Handle interaction event
+AddEventHandler('police:client:ImpoundVehicle', function(data, entityData)
+    -- data = Custom data from interaction definition
+    -- entityData = {entity, endCoords, type}
+
+    local vehicle = entityData.entity
+    local plate = GetVehicleNumberPlateText(vehicle)
+
+    -- Trigger server event to impound
+    TriggerServerEvent('police:server:ImpoundVehicle', {
+        netId = NetworkGetNetworkIdFromEntity(vehicle),
+        plate = plate
+    })
+end)
+```
+
+---
+
+## Targeting:Client:OpenMenu Event
+
+Triggered when targeting menu opens.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| menu | table | Array of interaction options |
+
+**Example:**
+```lua
+-- Client side
+AddEventHandler('Targeting:Client:OpenMenu', function(menu)
+    print('Targeting menu opened with', #menu, 'options')
+end)
+```
+
+---
+
+## Targeting:Client:UpdateState Event
+
+Triggered when targeting state changes.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| active | boolean | Targeting mode active |
+| icon | string | Current target icon |
+
+**Example:**
+```lua
+-- Client side
+AddEventHandler('Targeting:Client:UpdateState', function(active, icon)
+    if active then
+        print('Targeting active, icon:', icon)
+    else
+        print('Targeting deactivated')
+    end
+end)
+```
+
+---
+
+## Best Practices
+
+### Performance
+
+```lua
+-- ❌ BAD - Heavy computation in isEnabled
+isEnabled = function(data, entityData)
+    -- Don't do expensive operations
+    local nearbyPlayers = GetNearbyPlayers(50.0)
+    -- Don't query database
+    local data = MySQL.Sync.fetchAll(...)
+    return true
+end
+
+-- ✅ GOOD - Lightweight checks
+isEnabled = function(data, entityData)
+    -- Quick state checks only
+    return Entity(entityData.entity).state.isUnlocked
+end
+```
+
+### Security
+
+```lua
+-- Client side - Define interaction
+{
+    text = 'Withdraw Money',
+    event = 'bank:client:Withdraw',
+    jobPerms = {{ job = 'bank' }}
+}
+
+-- Client side - Handle event
+AddEventHandler('bank:client:Withdraw', function(data, entityData)
+    -- Don't trust client data - send to server for validation
+    TriggerServerEvent('bank:server:Withdraw', {
+        amount = 1000
+    })
+end)
+
+-- Server side - Validate everything
+RegisterServerEvent('bank:server:Withdraw', function(data)
+    local src = source
+    local player = Fetch:Source(src)
+
+    -- Re-check job permissions server-side
+    if not Jobs.Permissions:HasJob(src, 'bank') then
+        return -- Not authorized
+    end
+
+    -- Process withdrawal with server-side validation
+    -- ...
+end)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="HUD Exports" icon="display" href="/api/hud/exports">
+    Main HUD control
+  </Card>
+  <Card title="Status System" icon="heartbeat" href="/api/hud/status">
+    Hunger, thirst, stress
+  </Card>
+  <Card title="Jobs System" icon="briefcase" href="/api/jobs/exports">
+    Job permissions
+  </Card>
+  <Card title="Inventory" icon="box" href="/api/inventory/exports">
+    Item checks
+  </Card>
+</CardGroup>
+
+<Tip>
+**Dynamic Menus:** Use `isEnabled` and `textFunc` to create context-aware interactions. The menu adapts based on entity state, player inventory, and permissions.
+</Tip>
+
+<Warning>
+**Server Validation:** Always validate permissions and actions server-side. Client checks are for UX only - they can be bypassed.
+</Warning>

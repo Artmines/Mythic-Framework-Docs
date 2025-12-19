@@ -1,86 +1,296 @@
 ---
 title: Server Setup
-description: Download and configure FiveM server files for Mythic Framework
+description: Deploy Mythic Framework using txAdmin Recipe Deployer or manual installation
 icon: 'server'
 ---
 
-This guide covers downloading the FiveM server, setting up the directory structure, and preparing your server for Mythic Framework installation.
+This guide covers deploying Mythic Framework to your FiveM server. We **highly recommend** using the txAdmin Recipe Deployer for the easiest setup experience.
 
-## Download FiveM Server
+## Installation Methods
 
-FiveM server artifacts are updated frequently. Always download the latest stable build.
+<CardGroup cols={2}>
+  <Card title="txAdmin Recipe (Recommended)" icon="rocket" color="#00ff00">
+    **Easiest Method** - Automated deployment with database setup
+  </Card>
+  <Card title="Manual Installation" icon="wrench" color="#ffaa00">
+    **Advanced Users** - Full control over installation process
+  </Card>
+</CardGroup>
 
-### Choosing a Build
+---
+
+## Method 1: txAdmin Recipe Deployer (Recommended)
+
+The **txAdmin Recipe Deployer** automatically installs Mythic Framework with all dependencies, database configuration, and proper resource loading order.
+
+<Note>
+**What is txAdmin?** txAdmin is the official FiveM server management panel. It comes pre-installed with FiveM server builds and provides web-based server management, recipe deployment, and more.
+</Note>
+
+### Prerequisites
+
+Before using the recipe deployer, ensure you have:
+
+<Steps>
+  <Step title="FiveM Server">
+    Download and install a FiveM server build (txAdmin is included)
+
+    **Windows:** [Download from FiveM Artifacts](https://runtime.fivem.net/artifacts/fivem/build_server_windows/master/)
+
+    **Linux:** [Download from FiveM Artifacts](https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/)
+  </Step>
+  <Step title="Database Requirements">
+    Install required databases on your server:
+    - **MongoDB** (version 4.4 or higher) - For document storage
+    - **MariaDB/MySQL** (version 10.5+ or MySQL 8.0+) - For relational data
+
+    See [Database Setup](/installation/database-setup) for installation instructions
+  </Step>
+  <Step title="Node.js & pnpm">
+    Install dependencies for UI resources:
+    - **Node.js** (version 18.x or higher)
+    - **pnpm** (package manager)
+
+    ```bash
+    # Install Node.js from https://nodejs.org/
+
+    # Install pnpm globally
+    npm install -g pnpm
+    ```
+  </Step>
+</Steps>
+
+### Recipe Deployment Steps
+
+<Steps>
+  <Step title="Start txAdmin">
+    Launch your FiveM server with txAdmin for the first time:
+
+    **Windows:**
+    ```bash
+    # Navigate to your FiveM server directory
+    cd C:\FiveMServer
+
+    # Start txAdmin
+    FXServer.exe
+    ```
+
+    **Linux:**
+    ```bash
+    # Navigate to your FiveM server directory
+    cd ~/fivem-server
+
+    # Start txAdmin
+    ./run.sh
+    ```
+
+    txAdmin will provide a setup URL (usually `http://localhost:40120`)
+  </Step>
+
+  <Step title="Access txAdmin Panel">
+    Open your web browser and navigate to the txAdmin URL shown in the console
+
+    **First-time Setup:**
+    1. Create an admin account
+    2. Link your FiveM license key (get one at [Cfx.re Keymaster](https://keymaster.fivem.net/))
+    3. You'll be presented with deployment options
+  </Step>
+
+  <Step title="Deploy Mythic Framework Recipe">
+    In the txAdmin deployment screen:
+
+    1. Select **"Custom Recipe"** or **"Remote URL Template"**
+    2. Enter the Mythic Framework recipe URL:
+       ```
+       https://raw.githubusercontent.com/Mythic-Framework/txAdminRecipe/main/mythic-stable.yaml
+       ```
+    3. Click **"Next"** or **"Deploy"**
+  </Step>
+
+  <Step title="Configure Deployment">
+    The recipe deployer will prompt you for configuration:
+
+    **Database Credentials:**
+    - MongoDB connection string
+    - MariaDB/MySQL host, port, username, password, database name
+
+    **Server Settings:**
+    - Server name
+    - Max players
+    - Server license key
+    - Steam Web API key (optional)
+
+    <Warning>
+    **Important:** Have your database credentials ready before starting deployment. The recipe will test connections during setup.
+    </Warning>
+  </Step>
+
+  <Step title="Wait for Deployment">
+    The recipe deployer will:
+    - Download Mythic Framework resources
+    - Install npm dependencies for UI resources
+    - Configure server.cfg and database connections
+    - Set up resource loading order
+    - Initialize database schemas
+
+    **This may take 10-15 minutes** depending on your internet connection and server specs.
+
+    <Tip>
+    Watch the deployment log for any errors. Most issues are related to database connectivity or missing dependencies.
+    </Tip>
+  </Step>
+
+  <Step title="Verify Installation">
+    After deployment completes:
+
+    1. Check the txAdmin dashboard shows "Server Online"
+    2. Verify resources loaded successfully in the console
+    3. Connect to your server via FiveM client
+    4. You should see the Mythic Framework loading screen
+  </Step>
+</Steps>
+
+### Post-Deployment Configuration
+
+After successful deployment, you may want to customize:
+
+<Accordion title="Server Settings" icon="gear">
+  Edit `server.cfg` in txAdmin's file editor or directly:
+
+  ```bash
+  # Server identity
+  sv_hostname "My Mythic Server"
+  sv_maxclients 32
+
+  # Server listing
+  sets tags "mythic, roleplay, economy"
+  sets banner_detail "https://url-to-your-banner.png"
+  sets banner_connecting "https://url-to-your-banner.png"
+
+  # OneSync (required for Mythic)
+  set onesync on
+  ```
+</Accordion>
+
+<Accordion title="Database Connections" icon="database">
+  Database connections are auto-configured in:
+  - `resources/[mythic]/mythic-base/config.lua` (MongoDB)
+  - `resources/oxmysql/config.json` (MariaDB/MySQL)
+
+  You can update these if your database credentials change.
+</Accordion>
+
+<Accordion title="Resource Order" icon="list-ol">
+  Resource loading order is automatically set in `resources.cfg`.
+
+  **Do not change the order** of core Mythic resources - they must load in a specific sequence.
+</Accordion>
+
+### Troubleshooting Recipe Deployment
+
+<AccordionGroup>
+  <Accordion title="Recipe URL not found" icon="link-slash">
+    **Error:** "Could not fetch recipe from URL"
+
+    **Solutions:**
+    - Verify the URL is correct: `https://raw.githubusercontent.com/Mythic-Framework/txAdminRecipe/main/mythic-stable.yaml`
+    - Check your server has internet access
+    - Try accessing the URL in a web browser to verify it's accessible
+  </Accordion>
+
+  <Accordion title="Database connection failed" icon="database">
+    **Error:** "Failed to connect to database"
+
+    **Solutions:**
+    - Verify database servers are running:
+      ```bash
+      # Check MongoDB
+      mongosh --eval "db.version()"
+
+      # Check MariaDB/MySQL
+      mysql -u root -p -e "SELECT VERSION();"
+      ```
+    - Verify credentials are correct
+    - Check firewall isn't blocking database ports (27017 for MongoDB, 3306 for MySQL)
+    - Ensure databases exist and user has proper permissions
+  </Accordion>
+
+  <Accordion title="npm/pnpm errors during deployment" icon="npm">
+    **Error:** "pnpm install failed" or "npm ERR!"
+
+    **Solutions:**
+    - Verify Node.js is installed: `node --version` (should be 18.x or higher)
+    - Install pnpm globally: `npm install -g pnpm`
+    - Check internet connection for package downloads
+    - Manually run pnpm install in UI resource directories:
+      ```bash
+      cd resources/[mythic]/mythic-phone/ui
+      pnpm install
+      ```
+  </Accordion>
+
+  <Accordion title="Resources not loading" icon="box">
+    **Error:** Resources show as "failed to load"
+
+    **Solutions:**
+    - Check resource directories exist in `resources/[mythic]/`
+    - Verify `resources.cfg` was created properly
+    - Check server console for specific error messages
+    - Restart txAdmin completely
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Method 2: Manual Installation
+
+For advanced users who want full control over the installation process.
+
+### Download FiveM Server
 
 <Tabs>
   <Tab title="Windows">
-    **Recommended Build:** Latest recommended build
-
     1. Visit [FiveM Artifacts](https://runtime.fivem.net/artifacts/fivem/build_server_windows/master/)
-    2. Look for builds marked with **recommended** (green badge)
-    3. Download the latest recommended build
-    4. Extract to your desired location (e.g., `C:\FiveMServer\`)
-
-    <Tip>
-    Avoid the absolute latest build unless you need specific features. Recommended builds are more stable.
-    </Tip>
+    2. Download the latest **recommended** build (green badge)
+    3. Extract to your desired location (e.g., `C:\FiveMServer\`)
   </Tab>
   <Tab title="Linux">
-    **Download via Command Line:**
     ```bash
     # Create server directory
     mkdir -p ~/fivem-server
     cd ~/fivem-server
 
-    # Download latest recommended build
+    # Download latest recommended build (replace BUILD-NUMBER)
     wget https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/[BUILD-NUMBER]/fx.tar.xz
 
     # Extract
     tar xf fx.tar.xz
 
-    # Make run script executable
-    chmod +x run.sh
+    # Make executable
+    chmod +x run.sh FXServer
     ```
-
-    **Find Latest Build Number:**
-    Visit [Linux Artifacts](https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/) and copy the recommended build number.
   </Tab>
 </Tabs>
 
-### FiveM Server Structure
-
-After extraction, you should have:
-
-```
-FiveMServer/
-├── FXServer.exe (Windows) or run.sh (Linux)
-├── citizen/
-├── adhesive.dll / .so
-└── (other FiveM files)
-```
-
-## Extract Mythic Framework
-
-Now we'll add Mythic Framework to your FiveM server.
+### Extract Mythic Framework
 
 <Steps>
   <Step title="Obtain Mythic Framework">
-    Extract the Mythic Framework package you received to a temporary location
+    Extract the Mythic Framework package to a temporary location
   </Step>
   <Step title="Copy to Server Directory">
-    Copy the following folders/files into your FiveM server directory:
+    Copy these folders/files into your FiveM server directory:
     - `resources/` folder
     - `configs/` folder
     - `server.cfg` file
     - `logo96.png` (optional - server icon)
   </Step>
   <Step title="Verify Structure">
-    Your server directory should now look like this:
+    Your server directory should look like:
     ```
     FiveMServer/
     ├── FXServer.exe (or run.sh)
     ├── citizen/
-    ├── cache/              # Created on first run
     ├── configs/
     │   └── resources.cfg
     ├── resources/
@@ -93,103 +303,99 @@ Now we'll add Mythic Framework to your FiveM server.
   </Step>
 </Steps>
 
-## Understanding the Directory Structure
+### Install Dependencies
 
-### resources/ Directory
+You'll need to manually install dependencies for UI resources:
 
-This contains all server resources (scripts, assets, etc.).
+```bash
+# Install Node.js from https://nodejs.org/ (version 18+)
 
-```
-resources/
-├── [cfx-default]/     # Default FiveM resources
-│   ├── mapmanager/
-│   ├── spawnmanager/
-│   ├── sessionmanager/
-│   └── ...
-├── [mythic]/          # Mythic Framework resources (60+)
-│   ├── mythic-base/   # Core framework
-│   ├── mythic-characters/
-│   ├── mythic-inventory/
-│   ├── mythic-hud/
-│   └── ...
-└── oxmysql/           # MySQL resource
-```
+# Install pnpm
+npm install -g pnpm
 
-<Note>
-The `[mythic]` folder naming (with brackets) is important for organization in the server console. FiveM treats folders with brackets as resource categories.
-</Note>
+# Install UI dependencies for each resource
+cd resources/[mythic]/mythic-phone/ui
+pnpm install
 
-### configs/ Directory
+cd ../mythic-mdt/ui
+pnpm install
 
-Contains resource loading configuration.
+cd ../mythic-hud/ui
+pnpm install
 
-```
-configs/
-└── resources.cfg     # Defines which resources load and in what order
+# Repeat for other UI resources...
 ```
 
-<Accordion title="Understanding resources.cfg">
-  The `resources.cfg` file is executed by `server.cfg` and contains `ensure` statements that load resources:
+### Understanding Directory Structure
 
+<Accordion title="resources/ Directory">
+  Contains all server resources:
+
+  ```
+  resources/
+  ├── [cfx-default]/     # Default FiveM resources
+  ├── [mythic]/          # Mythic Framework (60+ resources)
+  │   ├── mythic-base/   # MUST load first
+  │   ├── mythic-pwnzor/ # Anti-cheat (load second)
+  │   ├── mythic-characters/
+  │   ├── mythic-inventory/
+  │   └── ...
+  └── oxmysql/           # MySQL connector
+  ```
+
+  <Warning>
+  The `[mythic]` folder naming (with brackets) is important for organization in the server console.
+  </Warning>
+</Accordion>
+
+<Accordion title="configs/ Directory">
+  Contains resource loading configuration:
+
+  ```
+  configs/
+  └── resources.cfg     # Resource load order
+  ```
+
+  **Load order is critical:**
   ```bash
-  # Load core CFX resources first
+  # Core CFX resources first
   ensure mapmanager
   ensure spawnmanager
   ensure sessionmanager
-  ensure baseevents
 
-  # Load oxmysql before Mythic
+  # Database before Mythic
   ensure oxmysql
 
-  # Load Mythic Framework (load order matters!)
-  ensure mythic-base     # Must be first
+  # Mythic Framework
+  ensure mythic-base     # MUST be first
   ensure mythic-pwnzor   # Anti-cheat second
   ensure mythic-characters
   # ... more resources
   ```
-
-  **Load order is critical** - mythic-base must load before all other Mythic resources.
 </Accordion>
 
-### cache/ Directory
-
-Automatically created on first server start. Stores temporary files and build artifacts.
-
-```
-cache/
-├── files/
-├── http-files/
-└── (various cache files)
-```
-
-<Warning>
-Never manually edit files in `cache/`. If you experience issues, you can safely delete the entire cache folder - it will rebuild on next start.
-</Warning>
-
-## File Permissions (Linux Only)
-
-On Linux, ensure proper permissions for server files:
+### File Permissions (Linux)
 
 ```bash
-# Set ownership (replace 'youruser' with your username)
+# Set ownership
 sudo chown -R youruser:youruser ~/fivem-server
 
-# Make run script executable
+# Make executables
 chmod +x ~/fivem-server/run.sh
-
-# Make FXServer executable
 chmod +x ~/fivem-server/FXServer
 
-# Set permissions for cache directory (will be created on first run)
+# Set permissions
 chmod 755 ~/fivem-server
 ```
 
-## Resource Overview
+---
 
-Mythic Framework includes 60+ resources. Here's a breakdown:
+## Mythic Framework Resources
+
+Mythic Framework includes 60+ resources organized by function:
 
 <AccordionGroup>
-  <Accordion title="Core Resources (Must Load First)" icon="box">
+  <Accordion title="Core Resources (Load First)" icon="box">
     - `mythic-base` - Core framework, component system, database
     - `mythic-pwnzor` - Anti-cheat system
     - `mythic-queue` - Server queue and whitelist
@@ -211,12 +417,10 @@ Mythic Framework includes 60+ resources. Here's a breakdown:
 
   <Accordion title="Jobs" icon="briefcase">
     - `mythic-jobs` - Job framework
-    - `mythic-police` - Police job
+    - `mythic-police`, `mythic-ems` - Emergency services
     - `mythic-mechanic` - Mechanic job
-    - `mythic-restaurant` - Restaurant job
-    - `mythic-taxi` - Taxi job
-    - `mythic-tow` - Tow truck job
-    - `mythic-labor` - Labor jobs
+    - `mythic-restaurant` - Restaurant jobs
+    - More job resources...
   </Accordion>
 
   <Accordion title="UI Systems" icon="desktop">
@@ -224,215 +428,75 @@ Mythic Framework includes 60+ resources. Here's a breakdown:
     - `mythic-phone` - Smartphone system
     - `mythic-laptop` - Laptop interface
     - `mythic-mdt` - Mobile Data Terminal
-    - `mythic-menu` - Context menu
-    - `mythic-chat` - Chat system
     - `mythic-notifications` - Notifications
-  </Accordion>
-
-  <Accordion title="World & Interaction" icon="globe">
-    - `mythic-polyzone` - Zone system
-    - `mythic-targeting` - Third-eye targeting
-    - `mythic-doors` - Door locks
-    - `mythic-blips` - Map markers
-    - `mythic-locations` - Location management
   </Accordion>
 </AccordionGroup>
 
-For a complete list, see the [Features documentation](/features/characters/overview).
+---
 
-## Verify Server Files
+## Verification Checklist
 
-Before proceeding, verify your installation:
+Before moving to database configuration, verify:
 
 <Steps>
-  <Step title="Check FiveM Executable">
-    Ensure `FXServer.exe` (Windows) or `FXServer` (Linux) exists in the server root
+  <Step title="FiveM Server">
+    ✅ FXServer.exe (Windows) or FXServer (Linux) exists
   </Step>
-  <Step title="Verify server.cfg">
-    Confirm `server.cfg` exists in the server root directory
+  <Step title="Configuration Files">
+    ✅ server.cfg exists in root
+    ✅ configs/resources.cfg exists
   </Step>
-  <Step title="Check Resources">
-    Verify the `resources/[mythic]/` folder contains 60+ Mythic resources
+  <Step title="Resources">
+    ✅ resources/[mythic]/ contains 60+ Mythic resources
+    ✅ resources/oxmysql/ exists
   </Step>
-  <Step title="Confirm configs/">
-    Ensure `configs/resources.cfg` exists
+  <Step title="Dependencies (Manual Install)">
+    ✅ Node.js installed (version 18+)
+    ✅ pnpm installed globally
+    ✅ UI dependencies installed for each resource
   </Step>
 </Steps>
 
-## Optional: Create Backup Structure
+---
 
-It's good practice to keep backups before making changes:
+## Comparison: Recipe vs Manual
 
-```bash
-# Windows (PowerShell)
-Copy-Item -Path "C:\FiveMServer" -Destination "C:\FiveMServer_Backup" -Recurse
-
-# Linux
-cp -r ~/fivem-server ~/fivem-server_backup
-```
+| Feature | txAdmin Recipe | Manual Install |
+|---------|---------------|----------------|
+| **Setup Time** | 10-15 minutes | 1-2 hours |
+| **Difficulty** | Easy | Advanced |
+| **Database Config** | Automated | Manual |
+| **Dependencies** | Auto-installed | Manual install |
+| **Updates** | Via txAdmin | Manual download |
+| **Best For** | New servers, quick setup | Experienced admins, custom setups |
 
 <Tip>
-Create a backup now (before configuration) so you can easily revert to a clean state if needed.
+**Recommendation:** Use the txAdmin Recipe unless you have specific reasons for manual installation. It's faster, easier, and less error-prone.
 </Tip>
 
-## Server Startup Scripts
-
-### Windows
-
-Create a `start.bat` file in your server root for easy server starting:
-
-```batch start.bat
-@echo off
-title Mythic Framework Server
-echo Starting Mythic Framework...
-
-FXServer.exe +exec server.cfg
-
-pause
-```
-
-### Linux
-
-The `run.sh` script is provided by default. You can customize it:
-
-```bash run.sh
-#!/bin/bash
-
-# Set working directory
-cd "$(dirname "$0")"
-
-# Start server
-exec ./FXServer +exec server.cfg
-```
-
-Make it executable:
-```bash
-chmod +x run.sh
-```
-
-## Testing Server Structure
-
-Let's do a quick test to ensure the server can start (it won't fully work yet - we still need database configuration):
-
-<Tabs>
-  <Tab title="Windows">
-    ```bash
-    # Navigate to server directory
-    cd C:\FiveMServer
-
-    # Try to start (it will fail without database config - that's expected)
-    FXServer.exe +exec server.cfg
-    ```
-
-    Press `Ctrl+C` to stop the server after seeing initial output.
-  </Tab>
-  <Tab title="Linux">
-    ```bash
-    # Navigate to server directory
-    cd ~/fivem-server
-
-    # Try to start
-    ./run.sh
-    ```
-
-    Press `Ctrl+C` to stop the server after seeing initial output.
-  </Tab>
-</Tabs>
-
-**Expected Output:**
-- FiveM banner and version info
-- License key check (will fail if not configured yet - that's OK)
-- Resource scan starting
-- You may see errors about database connections - **this is expected** at this stage
-
-<Warning>
-If you see "Missing required license key" - that's normal. We'll configure it in the next step.
-
-If the executable doesn't run at all, check:
-- File permissions (Linux)
-- Antivirus isn't blocking FXServer.exe (Windows)
-- You have required .NET Framework (Windows) or dependencies (Linux)
-</Warning>
-
-## Common Setup Issues
-
-<AccordionGroup>
-  <Accordion title="FXServer.exe won't run (Windows)" icon="windows">
-    **Solutions:**
-    - Install Visual C++ Redistributables: [Microsoft VC++ Downloads](https://aka.ms/vs/17/release/vc_redist.x64.exe)
-    - Check Windows Defender/antivirus isn't blocking it
-    - Run as Administrator (right-click > Run as administrator)
-    - Check Windows Event Viewer for specific error details
-  </Accordion>
-
-  <Accordion title="Permission denied (Linux)" icon="linux">
-    **Solutions:**
-    ```bash
-    # Make FXServer executable
-    chmod +x FXServer
-    chmod +x run.sh
-
-    # If still failing, check ownership
-    ls -la FXServer
-    # Should show your user as owner
-
-    # Fix ownership if needed
-    chown youruser:youruser FXServer
-    ```
-  </Accordion>
-
-  <Accordion title="Resources not found" icon="folder-open">
-    **Solution:**
-    Verify directory structure is correct:
-    ```bash
-    # Should exist:
-    resources/[mythic]/mythic-base/
-
-    # If not, check extraction - files may be nested too deeply
-    # Move everything up one level if needed
-    ```
-  </Accordion>
-
-  <Accordion title="Wrong architecture (Linux)" icon="microchip">
-    **Error:** `cannot execute binary file: Exec format error`
-
-    **Solution:**
-    - Ensure you downloaded Linux build, not Windows
-    - Verify your system is 64-bit: `uname -m` (should show x86_64)
-    - Re-download the correct Linux artifact
-  </Accordion>
-</AccordionGroup>
-
-## Directory Structure Best Practices
-
-<CardGroup cols={2}>
-  <Card title="Keep it Organized" icon="folder-tree">
-    Maintain separate folders for:
-    - Server files (`FiveMServer/`)
-    - Backups (`FiveMServer_Backups/`)
-    - Development resources (`Dev/`)
-  </Card>
-  <Card title="Version Control" icon="code-branch">
-    Consider using Git for:
-    - Custom resources you develop
-    - Configuration changes
-    - Easy rollback if issues arise
-  </Card>
-</CardGroup>
+---
 
 ## Next Steps
 
-Your server structure is now set up! Next, configure the databases:
+Your server structure is now set up! Next steps:
 
 <CardGroup cols={2}>
   <Card title="Database Setup" icon="database" href="/installation/database-setup">
-    Create and configure MongoDB and MySQL databases
+    Configure MongoDB and MariaDB/MySQL databases
   </Card>
   <Card title="Server Configuration" icon="gear" href="/installation/configuration">
-    Configure server.cfg with your settings
+    Configure server.cfg settings
+  </Card>
+  <Card title="First Start" icon="rocket" href="/installation/first-start">
+    Start your server and create admin account
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/installation/troubleshooting">
+    Common issues and solutions
   </Card>
 </CardGroup>
 
 <Note>
-**Don't start the server fully yet!** Complete the database setup and configuration first to avoid errors.
+**Important:** If you used the txAdmin recipe, database configuration is already done! Skip to [First Start](/installation/first-start).
+
+If you installed manually, continue to [Database Setup](/installation/database-setup).
 </Note>

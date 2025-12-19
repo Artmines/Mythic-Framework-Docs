@@ -1,0 +1,763 @@
+---
+title: Progress Bars
+description: Progress bar system with animations, props, and control disables
+icon: 'spinner'
+---
+
+The Progress component displays progress bars for timed actions like crafting, lockpicking, eating, and more. It supports animations, props, control disabling, and cancellation.
+
+## Overview
+
+Access via `COMPONENTS.Progress` (client-side only).
+
+<CardGroup cols={2}>
+  <Card title="Visual Feedback" icon="clock">
+    On-screen progress bar with label
+  </Card>
+  <Card title="Animations & Props" icon="person-digging">
+    Character animations and held props
+  </Card>
+  <Card title="Control Disabling" icon="ban">
+    Disable movement, combat, vehicle controls
+  </Card>
+  <Card title="Cancellable" icon="xmark">
+    Player can cancel with keybind (X)
+  </Card>
+</CardGroup>
+
+<Warning>
+**Client-Side Only:** Progress bars run on the client. Always validate completion server-side.
+</Warning>
+
+---
+
+## Basic Usage
+
+### Progress
+
+Simple progress bar with callback.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| action | table | Yes | Progress action configuration |
+| finish | function | Yes | Callback when complete/cancelled |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Progress:Progress({
+    name = 'eating_food',
+    duration = 5000, -- 5 seconds
+    label = 'Eating...',
+    canCancel = true,
+    controlDisables = {
+        disableMovement = true,
+        disableCarMovement = true,
+        disableCombat = true,
+    },
+    animation = {
+        animDict = 'mp_player_inteat@burger',
+        anim = 'mp_player_int_eat_burger',
+        flags = 49,
+    },
+}, function(cancelled)
+    if not cancelled then
+        -- Player finished eating
+        TriggerServerEvent('food:server:Consume', foodItem)
+    else
+        -- Player cancelled
+        print('Eating cancelled')
+    end
+end)
+```
+
+---
+
+## Action Configuration
+
+### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| name | string | Unique action identifier |
+| duration | number | Duration in milliseconds |
+| label | string | Display text on progress bar |
+
+### Optional Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| useWhileDead | boolean | false | Allow when dead |
+| canCancel | boolean | true | Player can cancel (X key) |
+| ignoreModifier | boolean | false | Ignore speed modifiers |
+| disarm | boolean | true | Holster weapon before action |
+| controlDisables | table | {} | Disable specific controls |
+| animation | table | nil | Character animation |
+| prop | table | nil | Held prop (object) |
+| propTwo | table | nil | Second held prop |
+| vehicle | boolean | false | Must be in vehicle |
+| tickrate | number | nil | Tick event interval (ms) |
+
+---
+
+## Control Disables
+
+### Available Disable Options
+
+```lua
+controlDisables = {
+    disableMovement = false,      -- Disable WASD, jump, sprint
+    disableCarMovement = false,   -- Disable vehicle steering/acceleration
+    disableMouse = false,         -- Disable camera movement
+    disableCombat = false,        -- Disable shooting and melee
+}
+```
+
+**Example:**
+```lua
+-- Lock player in place during action
+controlDisables = {
+    disableMovement = true,
+    disableCarMovement = true,
+    disableMouse = false,  -- Allow looking around
+    disableCombat = true,
+}
+```
+
+---
+
+## Animations
+
+### Animation Dictionary
+
+```lua
+animation = {
+    animDict = 'anim@heists@ornate_bank@grab_cash',
+    anim = 'grab',
+    flags = 49,
+}
+```
+
+**Common Flags:**
+- `1` - Normal
+- `16` - Cancellable (upper body only)
+- `32` - Allow player control
+- `48` - Upper body only, cancellable
+- `49` - Upper body only, loop
+
+### Scenario Task
+
+```lua
+animation = {
+    task = 'PROP_HUMAN_BUM_BIN', -- Scenario name
+}
+```
+
+### Emote System
+
+```lua
+animation = {
+    anim = 'sit', -- Emote name from animation system
+}
+```
+
+**Animation Examples:**
+```lua
+-- Lockpicking
+animation = {
+    animDict = 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@',
+    anim = 'machinic_loop_mechandplayer',
+    flags = 16,
+}
+
+-- Eating
+animation = {
+    animDict = 'mp_player_inteat@burger',
+    anim = 'mp_player_int_eat_burger',
+    flags = 49,
+}
+
+-- Drinking
+animation = {
+    animDict = 'mp_player_intdrink',
+    anim = 'loop_bottle',
+    flags = 49,
+}
+
+-- Searching
+animation = {
+    animDict = 'amb@prop_human_bum_bin@idle_b',
+    anim = 'idle_d',
+    flags = 1,
+}
+```
+
+---
+
+## Props
+
+### Single Prop
+
+```lua
+prop = {
+    model = 'prop_phone_01',
+    bone = 57005,  -- Bone index (default: 60309 = right hand)
+    coords = { x = 0.14, y = 0.01, z = 0.02 },
+    rotation = { x = 110.0, y = 120.0, z = 0.0 },
+}
+```
+
+### Two Props
+
+```lua
+-- Left and right hands
+prop = {
+    model = 'prop_cs_burger_01',
+    bone = 60309,  -- Right hand
+    coords = { x = 0.0, y = 0.0, z = 0.0 },
+    rotation = { x = 0.0, y = 0.0, z = 0.0 },
+},
+propTwo = {
+    model = 'prop_drink_champ',
+    bone = 18905,  -- Left hand
+    coords = { x = 0.0, y = 0.0, z = 0.0 },
+    rotation = { x = 0.0, y = 0.0, z = 0.0 },
+}
+```
+
+**Common Bone Indices:**
+- `60309` - Right hand (default)
+- `18905` - Left hand
+- `28422` - Left foot
+- `52301` - Right foot
+- `24818` - Head
+- `11816` - Pelvis
+
+**Prop Examples:**
+```lua
+-- Eating burger
+prop = {
+    model = 'prop_cs_burger_01',
+    bone = 60309,
+    coords = { x = 0.0, y = 0.0, z = -0.02 },
+    rotation = { x = 0.0, y = 0.0, z = 0.0 },
+}
+
+-- Drinking water
+prop = {
+    model = 'prop_ld_flow_bottle',
+    bone = 60309,
+    coords = { x = 0.03, y = 0.02, z = 0.02 },
+    rotation = { x = 240.0, y = -60.0, z = 0.0 },
+}
+
+-- Holding lockpick
+prop = {
+    model = 'prop_tool_screwdvr01',
+    bone = 28422,
+    coords = { x = 0.0, y = 0.0, z = 0.0 },
+    rotation = { x = 0.0, y = 0.0, z = 0.0 },
+}
+```
+
+---
+
+## Advanced Methods
+
+### ProgressWithStartEvent
+
+Execute code when progress starts.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| action | table | Progress configuration |
+| start | function | Called when progress starts |
+| finish | function | Called when complete/cancelled |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Progress:ProgressWithStartEvent({
+    name = 'lockpicking',
+    duration = 10000,
+    label = 'Lockpicking...',
+    canCancel = true,
+    controlDisables = {
+        disableMovement = true,
+        disableCombat = true,
+    },
+}, function()
+    -- Start event - runs immediately
+    print('Lockpick attempt started')
+    TriggerServerEvent('lockpick:server:Start', doorId)
+end, function(cancelled)
+    -- Finish event
+    if not cancelled then
+        TriggerServerEvent('lockpick:server:Success', doorId)
+    else
+        TriggerServerEvent('lockpick:server:Cancelled', doorId)
+    end
+end)
+```
+
+---
+
+### ProgressWithTickEvent
+
+Execute code repeatedly during progress.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| action | table | Progress configuration (include `tickrate`) |
+| tick | function | Called every tick |
+| finish | function | Called when complete/cancelled |
+
+**Example:**
+```lua
+-- Client side
+local searchProgress = 0
+
+COMPONENTS.Progress:ProgressWithTickEvent({
+    name = 'searching',
+    duration = 15000,
+    label = 'Searching...',
+    tickrate = 1000,  -- Tick every 1 second
+    canCancel = true,
+    controlDisables = {
+        disableMovement = true,
+    },
+}, function()
+    -- Tick event - runs every 1000ms
+    searchProgress = searchProgress + 6.67  -- 100% / 15 seconds
+    print('Search progress:', math.floor(searchProgress), '%')
+
+    -- Could trigger effects each tick
+    if math.random(100) <= 10 then
+        TriggerEvent('mythic-notifications:client:Send', {
+            message = 'Found something...', type = 'info'
+        })
+    end
+end, function(cancelled)
+    if not cancelled then
+        -- Search complete
+        TriggerServerEvent('search:server:Complete', searchProgress)
+    end
+    searchProgress = 0
+end)
+```
+
+---
+
+### ProgressWithStartAndTick
+
+Combine start and tick events.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| action | table | Progress configuration |
+| start | function | Called when starts |
+| tick | function | Called every tick |
+| finish | function | Called when complete/cancelled |
+
+**Example:**
+```lua
+-- Client side
+local hackAttempts = 0
+
+COMPONENTS.Progress:ProgressWithStartAndTick({
+    name = 'hacking',
+    duration = 20000,
+    label = 'Hacking...',
+    tickrate = 2000,
+    canCancel = false,  -- Cannot cancel
+    controlDisables = {
+        disableMovement = true,
+        disableCarMovement = true,
+        disableCombat = true,
+    },
+}, function()
+    -- Start
+    print('Hack started')
+    hackAttempts = 0
+end, function()
+    -- Tick every 2 seconds
+    hackAttempts = hackAttempts + 1
+    print('Hack attempt:', hackAttempts)
+
+    -- Visual effect
+    SetTimecycleModifier('scanline_cam_cheap')
+    Wait(500)
+    ClearTimecycleModifier()
+end, function(cancelled)
+    -- Finish
+    if not cancelled then
+        TriggerServerEvent('hack:server:Success', hackAttempts)
+    end
+    hackAttempts = 0
+    ClearTimecycleModifier()
+end)
+```
+
+---
+
+## Utility Methods
+
+### CurrentAction
+
+Get current active action name.
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| string | Current action name or nil |
+
+**Example:**
+```lua
+-- Client side
+local currentAction = COMPONENTS.Progress:CurrentAction()
+
+if currentAction then
+    print('Currently doing:', currentAction)
+else
+    print('No active action')
+end
+```
+
+---
+
+### Cancel
+
+Cancel current progress (if allowed).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| force | boolean | No | Force cancel even if canCancel is false |
+
+**Example:**
+```lua
+-- Client side
+-- Player pressed cancel keybind (auto-called)
+COMPONENTS.Progress:Cancel()
+
+-- Force cancel (admin, server-side request)
+COMPONENTS.Progress:Cancel(true)
+```
+
+---
+
+### Fail
+
+Immediately fail the current progress.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+-- Fail if player loses required item mid-action
+AddEventHandler('Inventory:Client:ItemRemoved', function(item)
+    local action = COMPONENTS.Progress:CurrentAction()
+    if action == 'using_lockpick' and item.name == 'lockpick' then
+        COMPONENTS.Progress:Fail()
+    end
+end)
+```
+
+---
+
+### Finish
+
+Immediately complete the current progress.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side (rarely used - usually let it finish naturally)
+COMPONENTS.Progress:Finish()
+```
+
+---
+
+### Modifier
+
+Apply speed modifier to progress bars.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| percentage | number | Yes | Speed percentage (100 = normal, 150 = 50% faster) |
+| duration | number | Yes | How long modifier lasts (ms) |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | True if applied, false if modifier already active |
+
+**Example:**
+```lua
+-- Client side
+-- Speed buff (50% faster for 5 minutes)
+if COMPONENTS.Progress:Modifier(150, 300000) then
+    print('Speed boost applied!')
+    TriggerEvent('mythic-notifications:client:Send', {
+        message = 'You feel energized (+50% action speed)',
+        type = 'success'
+    })
+else
+    print('Speed modifier already active')
+end
+
+-- Slow debuff (50% slower for 30 seconds)
+if COMPONENTS.Progress:Modifier(50, 30000) then
+    print('Slowed!')
+end
+```
+
+**Notes:**
+- Only one modifier active at a time
+- Actions with `ignoreModifier = true` skip this
+- Modifier persists across multiple actions until duration expires
+
+---
+
+## Complete Examples
+
+### Crafting System
+
+```lua
+-- Client side
+AddEventHandler('crafting:client:CraftItem', function(recipe)
+    local hasItems = COMPONENTS.Inventory.Check.Player:HasItems(recipe.materials)
+
+    if not hasItems then
+        COMPONENTS.Notification:Error('Missing materials')
+        return
+    end
+
+    COMPONENTS.Progress:Progress({
+        name = 'crafting_' .. recipe.result,
+        duration = recipe.time * 1000,
+        label = 'Crafting ' .. recipe.label .. '...',
+        canCancel = true,
+        controlDisables = {
+            disableMovement = true,
+            disableCombat = true,
+        },
+        animation = {
+            animDict = 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@',
+            anim = 'machinic_loop_mechandplayer',
+            flags = 49,
+        },
+        prop = {
+            model = 'prop_tool_screwdvr01',
+            bone = 60309,
+            coords = { x = 0.0, y = 0.0, z = 0.0 },
+            rotation = { x = 0.0, y = 0.0, z = 0.0 },
+        },
+    }, function(cancelled)
+        if not cancelled then
+            TriggerServerEvent('crafting:server:Complete', recipe.id)
+        end
+    end)
+end)
+```
+
+### Lockpicking
+
+```lua
+-- Client side
+AddEventHandler('lockpick:client:Start', function(doorId)
+    if not COMPONENTS.Inventory.Check.Player:HasItem('lockpick', 1) then
+        COMPONENTS.Notification:Error('Need a lockpick')
+        return
+    end
+
+    local successChance = math.random(100)
+
+    COMPONENTS.Progress:ProgressWithTickEvent({
+        name = 'lockpicking_door',
+        duration = 15000,
+        label = 'Lockpicking...',
+        tickrate = 3000,
+        canCancel = true,
+        controlDisables = {
+            disableMovement = true,
+            disableCarMovement = true,
+            disableCombat = true,
+        },
+        animation = {
+            animDict = 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@',
+            anim = 'machinic_loop_mechandplayer',
+            flags = 16,
+        },
+    }, function()
+        -- Tick - chance to break lockpick
+        if math.random(100) <= 10 then
+            COMPONENTS.Notification:Warn('Lockpick slipped!')
+            if math.random(100) <= 30 then
+                -- Break lockpick
+                TriggerServerEvent('lockpick:server:Break')
+                COMPONENTS.Progress:Fail()
+            end
+        end
+    end, function(cancelled)
+        if not cancelled then
+            -- Check success
+            if successChance <= 60 then
+                TriggerServerEvent('doors:server:Unlock', doorId)
+                COMPONENTS.Notification:Success('Door unlocked')
+            else
+                TriggerServerEvent('lockpick:server:Break')
+                COMPONENTS.Notification:Error('Lockpick failed')
+            end
+        end
+    end)
+end)
+```
+
+### Medical Revive
+
+```lua
+-- Client side
+AddEventHandler('ems:client:Revive', function(targetId)
+    local targetPed = GetPlayerPed(GetPlayerFromServerId(targetId))
+    local distance = #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(targetPed))
+
+    if distance > 3.0 then
+        COMPONENTS.Notification:Error('Too far away')
+        return
+    end
+
+    COMPONENTS.Progress:Progress({
+        name = 'reviving_player',
+        duration = 10000,
+        label = 'Reviving patient...',
+        useWhileDead = false,
+        canCancel = false,  -- Cannot cancel revive
+        controlDisables = {
+            disableMovement = true,
+            disableCombat = true,
+        },
+        animation = {
+            animDict = 'amb@medic@standing@kneel@base',
+            anim = 'base',
+            flags = 1,
+        },
+        prop = {
+            model = 'prop_ld_health_pack',
+            bone = 60309,
+            coords = { x = 0.0, y = 0.0, z = 0.0 },
+            rotation = { x = 0.0, y = 0.0, z = 0.0 },
+        },
+    }, function(cancelled)
+        if not cancelled then
+            -- Check if still close enough
+            local newDist = #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(targetPed))
+            if newDist <= 3.0 then
+                TriggerServerEvent('ems:server:RevivePlayer', targetId)
+            else
+                COMPONENTS.Notification:Error('Patient moved too far')
+            end
+        end
+    end)
+end)
+```
+
+---
+
+## Best Practices
+
+### Server Validation
+
+```lua
+-- ❌ BAD - Trust client
+AddEventHandler('crafting:server:Complete', function(recipeId)
+    -- Client says they completed crafting
+    local src = source
+    GiveItem(src, recipeId)  -- UNSAFE!
+end)
+
+-- ✅ GOOD - Validate on server
+AddEventHandler('crafting:server:Complete', function(recipeId)
+    local src = source
+    local player = Fetch:Source(src)
+    if not player then return end
+
+    local char = player:GetData('Character')
+    local recipe = GetRecipe(recipeId)
+
+    -- Verify player still has materials
+    if COMPONENTS.Inventory:HasItems(char:GetData('SID'), recipe.materials) then
+        -- Remove materials
+        for _, mat in ipairs(recipe.materials) do
+            COMPONENTS.Inventory:RemoveItem(char:GetData('SID'), mat.item, mat.count, 1)
+        end
+
+        -- Give result
+        COMPONENTS.Inventory:AddItem(char:GetData('SID'), recipe.result, 1, {}, 1)
+    end
+end)
+```
+
+### Distance Checks
+
+```lua
+-- Check distance before AND after progress
+local startCoords = GetEntityCoords(PlayerPedId())
+
+COMPONENTS.Progress:Progress({
+    -- ... config
+}, function(cancelled)
+    if not cancelled then
+        local endCoords = GetEntityCoords(PlayerPedId())
+        local distance = #(startCoords - endCoords)
+
+        if distance > 5.0 then
+            COMPONENTS.Notification:Error('You moved too far')
+            return
+        end
+
+        -- Continue with action
+        TriggerServerEvent('action:server:Complete')
+    end
+end)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Notifications" icon="bell" href="/api/hud/notifications">
+    Toast notification system
+  </Card>
+  <Card title="Menus" icon="list" href="/api/hud/menus">
+    Input forms and menu systems
+  </Card>
+  <Card title="HUD Exports" icon="display" href="/api/hud/exports">
+    Main HUD controls
+  </Card>
+  <Card title="Inventory" icon="box" href="/api/inventory/exports">
+    Item system integration
+  </Card>
+</CardGroup>
+
+<Tip>
+**Keybind:** Players can cancel progress bars (if `canCancel = true`) by pressing **X** (default cancel_action keybind).
+</Tip>
+
+<Warning>
+**Dead Actions:** By default, progress bars fail if the player dies. Set `useWhileDead = true` only for specific cases like medical revival.
+</Warning>

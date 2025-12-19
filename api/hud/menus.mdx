@@ -1,0 +1,1123 @@
+---
+title: Menus & Input
+description: Input forms, list menus, interaction menus, and dialog systems
+icon: 'list'
+---
+
+The Menu and Input systems provide various UI components for gathering player input, displaying menus, and showing information overlays. Includes input forms, list menus, the F1 interaction menu, confirmation dialogs, info overlays, and action text.
+
+## Overview
+
+Access these components via `COMPONENTS` (client-side only).
+
+<CardGroup cols={2}>
+  <Card title="Input Forms" icon="keyboard">
+    Text, number, and multiline inputs
+  </Card>
+  <Card title="List Menus" icon="list">
+    Selectable menus with submenus
+  </Card>
+  <Card title="Interaction Menu" icon="bars">
+    F1 menu system with custom items
+  </Card>
+  <Card title="Dialogs" icon="comment">
+    Confirmation and info overlays
+  </Card>
+</CardGroup>
+
+<Warning>
+**Client-Side Only:** All menu components are client-side and handle NUI focus automatically.
+</Warning>
+
+---
+
+## Input Forms
+
+The Input system displays forms for collecting user input with various field types.
+
+### Input:Show
+
+Display an input form with multiple fields.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| title | string | Yes | Form title |
+| label | string | Yes | Submit button text |
+| inputs | table | Yes | Array of input field definitions |
+| event | string | Yes | Event to trigger on submit |
+| data | table | No | Additional data to pass to event |
+
+**Input Field Definition:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| id | string | Yes | Unique field identifier |
+| type | string | Yes | Input type: `text`, `number`, `multiline` |
+| label | string | Yes | Field label |
+| placeholder | string | No | Placeholder text |
+| default | string/number | No | Default value |
+| min | number | No | Min value (number type only) |
+| max | number | No | Max value (number type only) |
+| required | boolean | No | Field is required |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Input:Show(
+    'Create Character',
+    'Submit',
+    {
+        {
+            id = 'first_name',
+            type = 'text',
+            label = 'First Name',
+            placeholder = 'Enter first name',
+            required = true
+        },
+        {
+            id = 'last_name',
+            type = 'text',
+            label = 'Last Name',
+            placeholder = 'Enter last name',
+            required = true
+        },
+        {
+            id = 'age',
+            type = 'number',
+            label = 'Age',
+            min = 18,
+            max = 100,
+            default = 25,
+            required = true
+        },
+        {
+            id = 'backstory',
+            type = 'multiline',
+            label = 'Backstory',
+            placeholder = 'Tell us about your character...',
+            required = false
+        }
+    },
+    'character:client:Create',
+    { source = 'custom' }
+)
+
+-- Handle submission
+AddEventHandler('character:client:Create', function(values, data)
+    -- values = { first_name = "John", last_name = "Doe", age = 25, backstory = "..." }
+    -- data = { source = 'custom' }
+
+    print('First Name:', values.first_name)
+    print('Last Name:', values.last_name)
+    print('Age:', values.age)
+
+    -- Send to server for processing
+    TriggerServerEvent('character:server:Create', values)
+end)
+```
+
+---
+
+### Input:Close
+
+Close the input form.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Input:Close()
+```
+
+---
+
+## List Menus
+
+The ListMenu system displays hierarchical menus with selectable items and submenus.
+
+### ListMenu:Show
+
+Display a list menu.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| menus | table | Yes | Array of menu item definitions |
+
+**Menu Item Definition:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| label | string | Yes | Item display text |
+| description | string | No | Item description |
+| icon | string | No | Font Awesome icon |
+| event | string | No | Event to trigger on click |
+| data | table | No | Data to pass to event |
+| submenu | table | No | Submenu items (same structure) |
+| disabled | boolean | No | Item is disabled |
+
+**Example:**
+```lua
+-- Client side - Vehicle menu
+COMPONENTS.ListMenu:Show({
+    {
+        label = 'Vehicle Options',
+        description = 'Manage your vehicle',
+        icon = 'car',
+        submenu = {
+            {
+                label = 'Lock/Unlock',
+                description = 'Toggle vehicle lock',
+                icon = 'lock',
+                event = 'vehicles:client:ToggleLock'
+            },
+            {
+                label = 'Engine',
+                description = 'Toggle engine',
+                icon = 'key',
+                event = 'vehicles:client:ToggleEngine'
+            },
+            {
+                label = 'Windows',
+                description = 'Roll windows up/down',
+                icon = 'window-maximize',
+                submenu = {
+                    {
+                        label = 'Roll Up All',
+                        event = 'vehicles:client:WindowsUp'
+                    },
+                    {
+                        label = 'Roll Down All',
+                        event = 'vehicles:client:WindowsDown'
+                    }
+                }
+            }
+        }
+    },
+    {
+        label = 'Give Keys',
+        description = 'Give keys to nearby player',
+        icon = 'key',
+        event = 'vehicles:client:GiveKeys',
+        data = { plate = 'ABC123' }
+    }
+})
+
+-- Handle menu events
+AddEventHandler('vehicles:client:ToggleLock', function(data)
+    -- Toggle vehicle lock
+    print('Toggling lock')
+end)
+
+AddEventHandler('vehicles:client:GiveKeys', function(data)
+    -- data.plate = 'ABC123'
+    print('Giving keys for:', data.plate)
+end)
+```
+
+---
+
+### ListMenu:Close
+
+Close the list menu.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.ListMenu:Close()
+```
+
+---
+
+## Interaction Menu
+
+The Interaction system manages the F1 menu (main interaction menu) with custom menu items.
+
+### Interaction:Show
+
+Display the interaction menu.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Interaction:Show()
+```
+
+**Notes:**
+- Usually triggered by F1 key
+- Automatically sets NUI focus
+- Shows only menu items that pass `shouldShow` checks
+
+---
+
+### Interaction:Hide
+
+Hide the interaction menu.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Interaction:Hide()
+```
+
+---
+
+### Interaction:RegisterMenu
+
+Register a custom menu item in the F1 interaction menu.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| id | string | Yes | Unique menu identifier |
+| label | string | Yes | Menu item label |
+| icon | string | Yes | Font Awesome icon |
+| action | function | Yes | Function to execute on click |
+| shouldShow | function | No | Function to determine visibility |
+| labelFunc | function | No | Dynamic label function |
+
+**Example:**
+```lua
+-- Client side - Register GPS menu
+COMPONENTS.Interaction:RegisterMenu(
+    'gps',
+    'GPS',
+    'map-location-dot',
+    function()
+        -- Action when clicked
+        COMPONENTS.Interaction:ShowMenu({
+            {
+                label = 'Set Waypoint',
+                icon = 'location-dot',
+                event = 'gps:client:SetWaypoint'
+            },
+            {
+                label = 'Clear Waypoint',
+                icon = 'xmark',
+                event = 'gps:client:ClearWaypoint'
+            },
+            {
+                label = 'Saved Locations',
+                icon = 'bookmark',
+                event = 'gps:client:SavedLocations'
+            }
+        })
+    end,
+    function()
+        -- Only show if player has GPS item
+        return LocalPlayer.state.loggedIn
+    end,
+    function()
+        -- Dynamic label
+        local hasWaypoint = IsWaypointActive()
+        if hasWaypoint then
+            return 'GPS (Active)'
+        else
+            return 'GPS'
+        end
+    end
+)
+```
+
+---
+
+### Interaction:ShowMenu
+
+Display a submenu in the interaction menu.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| items | table | Yes | Array of submenu items |
+
+**Submenu Item Definition:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| label | string | Yes | Item label |
+| icon | string | No | Font Awesome icon |
+| event | string | No | Event to trigger |
+| action | function | No | Function to execute |
+| data | table | No | Data to pass |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Interaction:ShowMenu({
+    {
+        label = 'Bank Account',
+        icon = 'building-columns',
+        event = 'bank:client:OpenAccount'
+    },
+    {
+        label = 'ATM',
+        icon = 'credit-card',
+        event = 'bank:client:OpenATM'
+    },
+    {
+        label = 'Transfer Money',
+        icon = 'money-bill-transfer',
+        action = function()
+            -- Custom action
+            COMPONENTS.Input:Show(
+                'Transfer Money',
+                'Send',
+                {{ id = 'amount', type = 'number', label = 'Amount' }},
+                'bank:client:Transfer'
+            )
+        end
+    }
+})
+```
+
+---
+
+### Interaction:Back
+
+Go back to the previous menu level.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Interaction:Back()
+```
+
+---
+
+## Confirmation Dialogs
+
+The Confirm system displays yes/no confirmation dialogs.
+
+### Confirm:Show
+
+Display a confirmation dialog.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| title | string | Yes | Dialog title |
+| events | table | Yes | Events to trigger `{yes, no}` |
+| description | string | No | Description text |
+| data | table | No | Data to pass to events |
+| denyLabel | string | No | Custom "No" button text |
+| acceptLabel | string | No | Custom "Yes" button text |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Confirm:Show(
+    'Delete Character',
+    {
+        yes = 'character:client:ConfirmDelete',
+        no = 'character:client:CancelDelete'
+    },
+    'Are you sure you want to delete this character? This action cannot be undone.',
+    { characterId = 123 },
+    'Cancel',
+    'Delete'
+)
+
+-- Handle confirmation
+AddEventHandler('character:client:ConfirmDelete', function(data)
+    -- data.characterId = 123
+    TriggerServerEvent('character:server:Delete', data.characterId)
+    COMPONENTS.Notification:Success('Character deleted')
+end)
+
+AddEventHandler('character:client:CancelDelete', function(data)
+    COMPONENTS.Notification:Info('Cancelled')
+end)
+```
+
+---
+
+### Confirm:Close
+
+Close the confirmation dialog.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Confirm:Close()
+```
+
+---
+
+## Info Overlays
+
+The InfoOverlay system displays informational overlays on screen.
+
+### InfoOverlay:Show
+
+Display an info overlay.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| title | string | Yes | Overlay title |
+| description | string | Yes | Description text (supports HTML) |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.InfoOverlay:Show(
+    'Welcome to Los Santos',
+    'Press {keybind}F1{/keybind} to open the interaction menu<br>' ..
+    'Press {keybind}F2{/keybind} to open inventory<br>' ..
+    'Press {keybind}F3{/keybind} to open phone'
+)
+
+-- With HTML formatting
+COMPONENTS.InfoOverlay:Show(
+    'Heist Rules',
+    '<ul>' ..
+    '<li>Stay with your team</li>' ..
+    '<li>Follow the plan</li>' ..
+    '<li>No civilian casualties</li>' ..
+    '</ul>'
+)
+```
+
+---
+
+### InfoOverlay:Close
+
+Close the info overlay.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.InfoOverlay:Close()
+```
+
+---
+
+### InfoOverlay:IsOpen
+
+Check if an info overlay is currently open.
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | True if overlay is open |
+
+**Example:**
+```lua
+-- Client side
+if COMPONENTS.InfoOverlay:IsOpen() then
+    print('Overlay is currently showing')
+else
+    print('No overlay active')
+end
+```
+
+---
+
+## Action Text
+
+The Action system displays action text on screen with keybind formatting.
+
+### Action:Show
+
+Display action text.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| message | string | Yes | Action message (supports keybind tags) |
+| duration | number | No | Duration in ms (optional, can be persistent) |
+
+**Keybind Formatting:**
+Use `{keybind}KEY{/keybind}` tags to display formatted keybinds.
+
+**Example:**
+```lua
+-- Client side - Simple action text
+COMPONENTS.Action:Show('Press {keybind}E{/keybind} to enter')
+
+-- With duration (auto-hide after 5 seconds)
+COMPONENTS.Action:Show('Press {keybind}E{/keybind} to interact', 5000)
+
+-- Multiple keybinds
+COMPONENTS.Action:Show(
+    'Press {keybind}E{/keybind} to enter or {keybind}G{/keybind} to knock'
+)
+
+-- In a thread for proximity interaction
+CreateThread(function()
+    while true do
+        local ped = PlayerPedId()
+        local coords = GetEntityCoords(ped)
+        local door = GetClosestObjectOfType(coords, 2.0, GetHashKey('prop_door'), false, false, false)
+
+        if door ~= 0 then
+            COMPONENTS.Action:Show('Press {keybind}E{/keybind} to open door')
+
+            if IsControlJustPressed(0, 38) then -- E key
+                -- Open door
+                TriggerEvent('doors:client:Open', door)
+            end
+        else
+            COMPONENTS.Action:Hide()
+        end
+
+        Wait(0)
+    end
+end)
+```
+
+---
+
+### Action:Hide
+
+Hide the action text.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Action:Hide()
+```
+
+---
+
+## Complete Examples
+
+### ATM System
+
+```lua
+-- Client side - ATM interaction
+AddEventHandler('atm:client:Open', function()
+    COMPONENTS.ListMenu:Show({
+        {
+            label = 'Check Balance',
+            description = 'View your account balance',
+            icon = 'money-bill',
+            event = 'atm:client:CheckBalance'
+        },
+        {
+            label = 'Withdraw',
+            description = 'Withdraw cash',
+            icon = 'hand-holding-dollar',
+            action = function()
+                COMPONENTS.Input:Show(
+                    'Withdraw Cash',
+                    'Withdraw',
+                    {
+                        {
+                            id = 'amount',
+                            type = 'number',
+                            label = 'Amount',
+                            min = 1,
+                            max = 10000,
+                            required = true
+                        }
+                    },
+                    'atm:client:Withdraw'
+                )
+            end
+        },
+        {
+            label = 'Deposit',
+            description = 'Deposit cash',
+            icon = 'piggy-bank',
+            action = function()
+                COMPONENTS.Input:Show(
+                    'Deposit Cash',
+                    'Deposit',
+                    {
+                        {
+                            id = 'amount',
+                            type = 'number',
+                            label = 'Amount',
+                            min = 1,
+                            required = true
+                        }
+                    },
+                    'atm:client:Deposit'
+                )
+            end
+        },
+        {
+            label = 'Transfer',
+            description = 'Transfer to another account',
+            icon = 'money-bill-transfer',
+            action = function()
+                COMPONENTS.Input:Show(
+                    'Transfer Money',
+                    'Send',
+                    {
+                        {
+                            id = 'account',
+                            type = 'number',
+                            label = 'Account Number',
+                            required = true
+                        },
+                        {
+                            id = 'amount',
+                            type = 'number',
+                            label = 'Amount',
+                            min = 1,
+                            required = true
+                        }
+                    },
+                    'atm:client:Transfer'
+                )
+            end
+        }
+    })
+end)
+
+AddEventHandler('atm:client:CheckBalance', function()
+    TriggerServerEvent('atm:server:GetBalance')
+end)
+
+AddEventHandler('atm:client:Withdraw', function(values)
+    TriggerServerEvent('atm:server:Withdraw', values.amount)
+end)
+
+AddEventHandler('atm:client:Deposit', function(values)
+    TriggerServerEvent('atm:server:Deposit', values.amount)
+end)
+
+AddEventHandler('atm:client:Transfer', function(values)
+    TriggerServerEvent('atm:server:Transfer', values.account, values.amount)
+end)
+```
+
+### Vehicle Rental System
+
+```lua
+-- Client side - Vehicle rental
+AddEventHandler('rental:client:OpenMenu', function()
+    COMPONENTS.ListMenu:Show({
+        {
+            label = 'Bicycles',
+            icon = 'bicycle',
+            submenu = {
+                {
+                    label = 'BMX - $50/hour',
+                    icon = 'bicycle',
+                    event = 'rental:client:RentVehicle',
+                    data = { model = 'bmx', price = 50 }
+                },
+                {
+                    label = 'Cruiser - $75/hour',
+                    icon = 'bicycle',
+                    event = 'rental:client:RentVehicle',
+                    data = { model = 'cruiser', price = 75 }
+                }
+            }
+        },
+        {
+            label = 'Cars',
+            icon = 'car',
+            submenu = {
+                {
+                    label = 'Futo - $150/hour',
+                    icon = 'car',
+                    event = 'rental:client:RentVehicle',
+                    data = { model = 'futo', price = 150 }
+                },
+                {
+                    label = 'Blista - $200/hour',
+                    icon = 'car',
+                    event = 'rental:client:RentVehicle',
+                    data = { model = 'blista', price = 200 }
+                }
+            }
+        },
+        {
+            label = 'Return Vehicle',
+            description = 'Return your rented vehicle',
+            icon = 'rotate-left',
+            event = 'rental:client:ReturnVehicle'
+        }
+    })
+end)
+
+AddEventHandler('rental:client:RentVehicle', function(data)
+    COMPONENTS.Confirm:Show(
+        'Rent Vehicle',
+        {
+            yes = 'rental:client:ConfirmRental',
+            no = 'rental:client:CancelRental'
+        },
+        string.format('Rent %s for $%d per hour?', data.model, data.price),
+        data,
+        'Cancel',
+        'Rent'
+    )
+end)
+
+AddEventHandler('rental:client:ConfirmRental', function(data)
+    TriggerServerEvent('rental:server:Rent', data.model, data.price)
+    COMPONENTS.ListMenu:Close()
+end)
+```
+
+### Crafting System
+
+```lua
+-- Client side - Crafting bench
+AddEventHandler('crafting:client:OpenBench', function()
+    COMPONENTS.ListMenu:Show({
+        {
+            label = 'Weapons',
+            icon = 'gun',
+            submenu = {
+                {
+                    label = 'Pistol',
+                    description = 'Requires: 5x Metal, 2x Rubber',
+                    icon = 'gun',
+                    event = 'crafting:client:Craft',
+                    data = {
+                        item = 'weapon_pistol',
+                        requires = {
+                            { item = 'metal', amount = 5 },
+                            { item = 'rubber', amount = 2 }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            label = 'Tools',
+            icon = 'wrench',
+            submenu = {
+                {
+                    label = 'Lockpick',
+                    description = 'Requires: 2x Metal',
+                    icon = 'lock',
+                    event = 'crafting:client:Craft',
+                    data = {
+                        item = 'lockpick',
+                        requires = {
+                            { item = 'metal', amount = 2 }
+                        }
+                    }
+                },
+                {
+                    label = 'Repair Kit',
+                    description = 'Requires: 3x Metal, 1x Cloth',
+                    icon = 'toolbox',
+                    event = 'crafting:client:Craft',
+                    data = {
+                        item = 'repairkit',
+                        requires = {
+                            { item = 'metal', amount = 3 },
+                            { item = 'cloth', amount = 1 }
+                        }
+                    }
+                }
+            }
+        }
+    })
+end)
+
+AddEventHandler('crafting:client:Craft', function(data)
+    COMPONENTS.Confirm:Show(
+        'Craft Item',
+        {
+            yes = 'crafting:client:ConfirmCraft',
+            no = 'crafting:client:CancelCraft'
+        },
+        'Start crafting this item?',
+        data,
+        'Cancel',
+        'Craft'
+    )
+end)
+
+AddEventHandler('crafting:client:ConfirmCraft', function(data)
+    TriggerServerEvent('crafting:server:Craft', data)
+    COMPONENTS.ListMenu:Close()
+end)
+```
+
+### Tutorial System
+
+```lua
+-- Client side - Tutorial overlays
+AddEventHandler('tutorial:client:Start', function()
+    -- Step 1: Movement
+    COMPONENTS.InfoOverlay:Show(
+        'Movement Controls',
+        'Use {keybind}W{/keybind}{keybind}A{/keybind}{keybind}S{/keybind}{keybind}D{/keybind} to move<br>' ..
+        'Hold {keybind}Shift{/keybind} to sprint<br>' ..
+        'Press {keybind}Space{/keybind} to jump'
+    )
+
+    Wait(10000)
+    COMPONENTS.InfoOverlay:Close()
+    Wait(2000)
+
+    -- Step 2: Interaction
+    COMPONENTS.InfoOverlay:Show(
+        'Interaction',
+        'Press {keybind}E{/keybind} to interact with objects and NPCs<br>' ..
+        'Press {keybind}F1{/keybind} to open the main menu<br>' ..
+        'Press {keybind}F2{/keybind} to open your inventory'
+    )
+
+    Wait(10000)
+    COMPONENTS.InfoOverlay:Close()
+    Wait(2000)
+
+    -- Step 3: Vehicles
+    COMPONENTS.InfoOverlay:Show(
+        'Vehicles',
+        'Press {keybind}F{/keybind} to enter/exit vehicles<br>' ..
+        'Hold {keybind}F{/keybind} to lock/unlock your vehicle<br>' ..
+        'Press {keybind}X{/keybind} to toggle engine'
+    )
+
+    Wait(10000)
+    COMPONENTS.InfoOverlay:Close()
+
+    COMPONENTS.Notification:Success('Tutorial complete!', 5000)
+end)
+```
+
+### Admin Menu
+
+```lua
+-- Client side - Register admin menu in F1
+COMPONENTS.Interaction:RegisterMenu(
+    'admin',
+    'Admin',
+    'shield',
+    function()
+        COMPONENTS.Interaction:ShowMenu({
+            {
+                label = 'Player Management',
+                icon = 'users',
+                action = function()
+                    COMPONENTS.Interaction:ShowMenu({
+                        {
+                            label = 'Teleport to Player',
+                            icon = 'location-arrow',
+                            action = function()
+                                COMPONENTS.Input:Show(
+                                    'Teleport to Player',
+                                    'Teleport',
+                                    {
+                                        {
+                                            id = 'playerId',
+                                            type = 'number',
+                                            label = 'Player ID',
+                                            required = true
+                                        }
+                                    },
+                                    'admin:client:TeleportToPlayer'
+                                )
+                            end
+                        },
+                        {
+                            label = 'Kick Player',
+                            icon = 'user-xmark',
+                            action = function()
+                                COMPONENTS.Input:Show(
+                                    'Kick Player',
+                                    'Kick',
+                                    {
+                                        {
+                                            id = 'playerId',
+                                            type = 'number',
+                                            label = 'Player ID',
+                                            required = true
+                                        },
+                                        {
+                                            id = 'reason',
+                                            type = 'text',
+                                            label = 'Reason',
+                                            required = true
+                                        }
+                                    },
+                                    'admin:client:KickPlayer'
+                                )
+                            end
+                        }
+                    })
+                end
+            },
+            {
+                label: 'Vehicle Management',
+                icon = 'car',
+                action = function()
+                    COMPONENTS.Interaction:ShowMenu({
+                        {
+                            label = 'Spawn Vehicle',
+                            icon = 'plus',
+                            action = function()
+                                COMPONENTS.Input:Show(
+                                    'Spawn Vehicle',
+                                    'Spawn',
+                                    {
+                                        {
+                                            id = 'model',
+                                            type = 'text',
+                                            label = 'Vehicle Model',
+                                            placeholder = 'e.g., adder',
+                                            required = true
+                                        }
+                                    },
+                                    'admin:client:SpawnVehicle'
+                                )
+                            end
+                        },
+                        {
+                            label = 'Delete Vehicle',
+                            icon = 'trash',
+                            event = 'admin:client:DeleteVehicle'
+                        }
+                    })
+                end
+            }
+        })
+    end,
+    function()
+        -- Only show if player is admin
+        return LocalPlayer.state.isAdmin or false
+    end
+)
+```
+
+---
+
+## Best Practices
+
+### Input Validation
+
+```lua
+// ✅ GOOD - Validate on both client and server
+AddEventHandler('bank:client:Withdraw', function(values)
+    -- Client-side validation
+    if not values.amount or values.amount <= 0 then
+        COMPONENTS.Notification:Error('Invalid amount')
+        return
+    end
+
+    -- Send to server for final validation
+    TriggerServerEvent('bank:server:Withdraw', values.amount)
+end)
+
+// Server side
+RegisterServerEvent('bank:server:Withdraw', function(amount)
+    local src = source
+
+    -- Re-validate server-side
+    if type(amount) ~= 'number' or amount <= 0 then
+        return -- Invalid
+    end
+
+    -- Process withdrawal
+end)
+```
+
+### Menu Flow
+
+```lua
+// ✅ GOOD - Clear menu hierarchy
+COMPONENTS.ListMenu:Show({
+    {
+        label = 'Main Category',
+        submenu = {
+            {
+                label = 'Subcategory',
+                submenu = {
+                    {
+                        label = 'Final Action',
+                        event = 'some:event'
+                    }
+                }
+            }
+        }
+    }
+})
+
+// ❌ BAD - Too many nested levels (confusing for users)
+// Keep menu depth to 2-3 levels maximum
+```
+
+### Cleanup
+
+```lua
+// ✅ GOOD - Close menus when done
+AddEventHandler('shop:client:Purchase', function(data)
+    TriggerServerEvent('shop:server:Purchase', data.item)
+    COMPONENTS.ListMenu:Close() -- Close menu after action
+end)
+
+// ✅ GOOD - Close on player death/logout
+AddEventHandler('playerDropped', function()
+    COMPONENTS.Input:Close()
+    COMPONENTS.ListMenu:Close()
+    COMPONENTS.Confirm:Close()
+    COMPONENTS.InfoOverlay:Close()
+    COMPONENTS.Interaction:Hide()
+end)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Progress Bars" icon="spinner" href="/api/hud/progress">
+    Timed action progress bars
+  </Card>
+  <Card title="Notifications" icon="bell" href="/api/hud/notifications">
+    Toast notification system
+  </Card>
+  <Card title="HUD Exports" icon="display" href="/api/hud/exports">
+    Main HUD controls
+  </Card>
+  <Card title="Status System" icon="heartbeat" href="/api/hud/status">
+    Hunger, thirst, stress
+  </Card>
+</CardGroup>
+
+<Tip>
+**Keybind Formatting:** In Action text and InfoOverlay descriptions, use `{keybind}KEY{/keybind}` tags. The system automatically converts these to styled keybind displays.
+</Tip>
+
+<Warning>
+**NUI Focus:** Input forms, list menus, confirmation dialogs, and the interaction menu automatically handle NUI focus. Don't manually call SetNuiFocus when using these components.
+</Warning>

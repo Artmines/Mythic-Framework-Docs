@@ -1,0 +1,676 @@
+---
+title: Status System
+description: Hunger, thirst, stress, and custom status management system
+icon: 'heartbeat'
+---
+
+The Status system manages player needs like hunger, thirst, and stress. It provides a flexible framework for registering custom statuses with automatic ticking, visual indicators, and gameplay effects.
+
+## Overview
+
+Access via `COMPONENTS.Status` (client and server-side).
+
+<CardGroup cols={2}>
+  <Card title="Built-in Statuses" icon="utensils">
+    Hunger, thirst, stress pre-configured
+  </Card>
+  <Card title="Custom Statuses" icon="plus">
+    Register your own status types
+  </Card>
+  <Card title="Auto-Ticking" icon="clock">
+    Automatic decay over time
+  </Card>
+  <Card title="Visual Feedback" icon="eye">
+    HUD bars with icons and colors
+  </Card>
+</CardGroup>
+
+<Warning>
+**Dual-Sided:** Status system has both client and server components. Most methods are client-side, but values sync to server.
+</Warning>
+
+---
+
+## Built-In Statuses
+
+### PLAYER_HUNGER
+
+Hunger status that decreases over time. Low hunger causes health damage.
+
+**Default Values:**
+- Max: 100
+- Icon: `drumstick-bite`
+- Color: `#ca5fe8` (purple)
+- Flash: true
+
+**Effects:**
+| Hunger Level | Effect |
+|--------------|--------|
+| Below 25 | Start taking damage |
+| Below 10 | Take 10 HP damage per tick |
+| 0 | Take 1 HP damage per tick |
+
+**Example:**
+```lua
+-- Client side - Check hunger
+local hunger = COMPONENTS.Status.Get:Single('PLAYER_HUNGER')
+print('Current hunger:', hunger.value)
+
+if hunger.value <= 25 then
+    print('Warning: Player is hungry!')
+end
+```
+
+---
+
+### PLAYER_THIRST
+
+Thirst status that decreases over time. Low thirst disables sprint and causes ragdoll.
+
+**Default Values:**
+- Max: 100
+- Icon: `droplet`
+- Color: `#07bdf0` (cyan)
+- Flash: true
+
+**Effects:**
+| Thirst Level | Effect |
+|--------------|--------|
+| Below 25 | Sprint disabled |
+| Below 10 | Camera shake, chance to ragdoll |
+| 0 | 3 HP damage per tick, frequent ragdoll |
+
+**Example:**
+```lua
+-- Client side - Check thirst
+local thirst = COMPONENTS.Status.Get:Single('PLAYER_THIRST')
+
+if thirst.value <= 25 then
+    -- Sprint is automatically disabled by framework
+    print('Player cannot sprint - too thirsty')
+end
+```
+
+---
+
+### PLAYER_STRESS
+
+Stress status that increases from activities. High stress causes screen blur.
+
+**Default Values:**
+- Max: 100
+- Icon: `brain`
+- Color: `#de3333` (red)
+- Flash: false
+
+**Effects:**
+| Stress Level | Effect |
+|--------------|--------|
+| 40-65 (Level 1) | Light screen blur (600ms intervals) |
+| 65-90 (Level 2) | Medium blur (1200ms intervals) |
+| 90-100+ (Level 3) | Heavy blur (1800ms intervals) |
+| 100+ (Level 4) | Severe blur (2500ms intervals) |
+
+**Example:**
+```lua
+-- Client side - Check stress
+local stress = COMPONENTS.Status.Get:Single('PLAYER_STRESS')
+
+if stress.value >= 75 then
+    print('Player is very stressed')
+end
+```
+
+**Stress Gain:**
+- Shooting weapons
+- Being shot at
+- High-speed driving
+- Criminal activities
+- Near death experiences
+
+**Stress Reduction:**
+- Certain items (cigarettes, drugs)
+- Safe zones (stress-free polyzones)
+- Time passage
+
+---
+
+### PLAYER_DRUNK
+
+Intoxication status from alcohol consumption.
+
+**Default Values:**
+- Max: 0 (inverted status)
+- Icon: `champagne-glasses`
+- Color: `#9D4C0B` (brown)
+- Flash: false
+
+**Effects:**
+- Camera shake and distortion
+- Movement impairment
+- Screen effects
+
+**Example:**
+```lua
+-- Server side - Make player drunk
+COMPONENTS.Status.Modify:Add(source, 'PLAYER_DRUNK', 50)
+
+-- Decays over time automatically
+```
+
+---
+
+## Status Management
+
+### Register
+
+Register a custom status type.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| name | string | Yes | Status identifier (e.g., 'PLAYER_ENERGY') |
+| max | number | Yes | Maximum value |
+| icon | string | Yes | Font Awesome icon name |
+| color | string | Yes | CSS color value |
+| flash | boolean | Yes | Flash when low |
+| modify | function | Yes | Tick function (called periodically) |
+| options | table | No | Additional options `{noReset, hideZero, hideMax}` |
+
+**Example:**
+```lua
+-- Client side - Register custom energy status
+COMPONENTS.Status:Register(
+    'PLAYER_ENERGY',
+    100,
+    'bolt',
+    '#fbbf24',
+    true,
+    function(amount, force)
+        -- Tick function - decrease energy over time
+        if not force then
+            amount = -0.5 -- Lose 0.5 energy per tick
+        end
+
+        local current = COMPONENTS.Status.Get:Single('PLAYER_ENERGY').value
+        local newValue = math.max(0, math.min(100, current + amount))
+
+        COMPONENTS.Status.Set:Single('PLAYER_ENERGY', newValue)
+    end,
+    {
+        noReset = false, -- Reset on logout
+        hideZero = false, -- Show when zero
+        hideMax = true   -- Hide when full
+    }
+)
+```
+
+---
+
+### GetRegistered
+
+Get all registered statuses.
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table | Table of all status definitions |
+
+**Example:**
+```lua
+-- Client side
+local statuses = COMPONENTS.Status:GetRegistered()
+
+for name, data in pairs(statuses) do
+    print(name, data.max, data.icon)
+end
+```
+
+---
+
+### Get:All
+
+Get all status values.
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table | All statuses with current values |
+
+**Example:**
+```lua
+-- Client side
+local allStatuses = COMPONENTS.Status.Get:All()
+
+for name, status in pairs(allStatuses) do
+    print(string.format('%s: %d/%d', name, status.value, status.max))
+end
+```
+
+---
+
+### Get:Single
+
+Get a specific status value.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| name | string | Yes | Status identifier |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table | Status data `{name, value, max, icon, color, flash, options}` |
+
+**Example:**
+```lua
+-- Client side
+local hunger = COMPONENTS.Status.Get:Single('PLAYER_HUNGER')
+
+print('Hunger:', hunger.value, '/', hunger.max)
+print('Icon:', hunger.icon)
+print('Color:', hunger.color)
+```
+
+---
+
+### Set:Single
+
+Set a specific status value.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| name | string | Yes | Status identifier |
+| value | number | Yes | New value |
+
+**Example:**
+```lua
+-- Client side
+-- Set hunger to full
+COMPONENTS.Status.Set:Single('PLAYER_HUNGER', 100)
+
+-- Set thirst to 50
+COMPONENTS.Status.Set:Single('PLAYER_THIRST', 50)
+```
+
+**Notes:**
+- Automatically syncs to server
+- Triggers HUD update
+- Fires `Status:Client:Update` event
+
+---
+
+### Set:All
+
+Set all statuses to a specific value.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| value | number | Yes | Value to set all statuses |
+
+**Example:**
+```lua
+-- Client side
+-- Reset all statuses to full
+COMPONENTS.Status.Set:All(100)
+
+-- Set all to zero (for testing)
+COMPONENTS.Status.Set:All(0)
+```
+
+---
+
+### Modify:Add
+
+Increase a status value.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| status | string | Yes | Status identifier |
+| value | number | Yes | Amount to add |
+| addCd | boolean | No | Add cooldown period |
+| force | boolean | No | Force change (ignore cooldown) |
+
+**Example:**
+```lua
+-- Client side
+-- Restore 25 hunger
+COMPONENTS.Status.Modify:Add('PLAYER_HUNGER', 25)
+
+-- Restore with cooldown (prevents rapid consumption)
+COMPONENTS.Status.Modify:Add('PLAYER_HUNGER', 25, true)
+
+-- Force restore (bypass cooldown)
+COMPONENTS.Status.Modify:Add('PLAYER_HUNGER', 25, false, true)
+```
+
+---
+
+### Modify:Remove
+
+Decrease a status value.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| status | string | Yes | Status identifier |
+| value | number | Yes | Amount to remove |
+| force | boolean | No | Force change |
+
+**Example:**
+```lua
+-- Client side
+-- Remove 10 hunger
+COMPONENTS.Status.Modify:Remove('PLAYER_HUNGER', 10)
+
+-- Force remove (ignore protections)
+COMPONENTS.Status.Modify:Remove('PLAYER_HUNGER', 10, true)
+```
+
+---
+
+### Reset
+
+Reset all statuses to maximum.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Status:Reset()
+
+-- All statuses set to max (except noReset ones)
+```
+
+**Notes:**
+- Skips statuses with `noReset` option
+- Used on character spawn
+- Admin command available
+
+---
+
+### Toggle
+
+Toggle status system on/off.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+-- Disable status ticking
+COMPONENTS.Status:Toggle()
+
+-- Re-enable
+COMPONENTS.Status:Toggle()
+```
+
+---
+
+### Check
+
+Check if status system is enabled.
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | True if enabled |
+
+**Example:**
+```lua
+-- Client side
+if COMPONENTS.Status:Check() then
+    print('Status system is running')
+else
+    print('Status system is disabled')
+end
+```
+
+---
+
+## Server-Side Methods
+
+### Modify:Add (Server)
+
+Modify status from server-side.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Player source |
+| status | string | Yes | Status identifier |
+| value | number | Yes | Amount to add |
+
+**Example:**
+```lua
+-- Server side
+-- Give player hunger when they eat
+COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
+
+-- Remove stress
+COMPONENTS.Status.Modify:Remove(source, 'PLAYER_STRESS', 30)
+```
+
+---
+
+## Events
+
+### Status:Client:Update
+
+Triggered when status value changes.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| name | string | Status identifier |
+| value | number | New value |
+
+**Example:**
+```lua
+-- Client side
+AddEventHandler('Status:Client:Update', function(name, value)
+    print(string.format('%s changed to %d', name, value))
+
+    if name == 'PLAYER_HUNGER' and value <= 10 then
+        -- Player is starving
+        TriggerEvent('mythic-notifications:client:Send', {
+            message = 'You are starving!',
+            type = 'error'
+        })
+    end
+end)
+```
+
+---
+
+### Status:Client:updateStatus (Net Event)
+
+Server can trigger status changes.
+
+**Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| need | string | Status identifier |
+| action | boolean | True = add, false = remove |
+| amount | number | Amount to modify |
+
+**Example:**
+```lua
+-- Server side
+-- Give hunger to all players
+TriggerClientEvent('Status:Client:updateStatus', -1, 'PLAYER_HUNGER', true, 10)
+
+-- Remove stress from specific player
+TriggerClientEvent('Status:Client:updateStatus', source, 'PLAYER_STRESS', false, 25)
+```
+
+---
+
+### Status:Client:Reset (Net Event)
+
+Admin command to reset all statuses.
+
+**Example:**
+```lua
+-- Server side
+-- Reset player's statuses
+TriggerClientEvent('Status:Client:Reset', source)
+```
+
+---
+
+## Food & Drink Items
+
+Items automatically modify statuses through the inventory system.
+
+### Item Definition
+
+```lua
+-- Item file example
+{
+    name = 'water',
+    label = 'Water Bottle',
+    description = 'Bottled water',
+    price = 5,
+    isUsable = true,
+    isRemoved = true,
+    isStackable = true,
+    type = 1,
+    rarity = 1,
+    closeUi = true,
+    metalic = 0,
+    weight = 0.5,
+    durability = (60 * 60 * 24 * 14),
+    statusChange = {
+        Add = {
+            PLAYER_THIRST = 25, -- Adds 25 thirst
+        },
+        Remove = {},
+    },
+}
+```
+
+### Status Change Types
+
+```lua
+statusChange = {
+    Add = {
+        PLAYER_HUNGER = 30,  -- Increase hunger by 30
+        PLAYER_THIRST = 15,  -- Increase thirst by 15
+    },
+    Remove = {
+        PLAYER_STRESS = 10,  -- Decrease stress by 10
+    },
+}
+```
+
+---
+
+## Integration Examples
+
+### Restaurant Script
+
+```lua
+-- Server side - Serve food
+RegisterServerEvent('restaurant:server:ServeFood', function(foodItem)
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then return end
+
+    local char = player:GetData('Character')
+    if not char then return end
+
+    -- Give food item (auto-modifies hunger when used)
+    COMPONENTS.Inventory:AddItem(char:GetData('SID'), foodItem, 1, {}, 1)
+end)
+```
+
+### Stress from Gunfire
+
+```lua
+-- Client side - Add stress when shooting
+AddEventHandler('Weapons:Client:Fired', function()
+    -- Add 2 stress per shot
+    COMPONENTS.Status.Modify:Add('PLAYER_STRESS', 2)
+end)
+
+-- Client side - Add stress when shot at
+AddEventHandler('Characters:Client:ShotNear', function()
+    -- Add 5 stress when bullets whiz by
+    COMPONENTS.Status.Modify:Add('PLAYER_STRESS', 5)
+end)
+```
+
+### Hunger/Thirst Warnings
+
+```lua
+-- Client side - Warning system
+local lastWarning = {
+    hunger = 0,
+    thirst = 0,
+}
+
+CreateThread(function()
+    while true do
+        Wait(30000) -- Check every 30 seconds
+
+        local hunger = COMPONENTS.Status.Get:Single('PLAYER_HUNGER')
+        local thirst = COMPONENTS.Status.Get:Single('PLAYER_THIRST')
+
+        if hunger.value <= 25 and os.time() - lastWarning.hunger > 120 then
+            TriggerEvent('mythic-notifications:client:Send', {
+                message = 'You are getting hungry',
+                type = 'warning'
+            })
+            lastWarning.hunger = os.time()
+        end
+
+        if thirst.value <= 25 and os.time() - lastWarning.thirst > 120 then
+            TriggerEvent('mythic-notifications:client:Send', {
+                message = 'You are getting thirsty',
+                type = 'warning'
+            })
+            lastWarning.thirst = os.time()
+        end
+    end
+end)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="HUD Exports" icon="display" href="/api/hud/exports">
+    Main HUD control methods
+  </Card>
+  <Card title="Inventory Items" icon="box" href="/api/inventory/item-definition">
+    Creating food & drink items
+  </Card>
+  <Card title="Targeting System" icon="crosshairs" href="/api/hud/targeting">
+    Entity interaction system
+  </Card>
+  <Card title="Progress Bars" icon="spinner" href="/api/core/progress">
+    Progress bar component
+  </Card>
+</CardGroup>
+
+<Tip>
+**Automatic Ticking:** Status values automatically decrease over time. The system waits 5 minutes after spawn before starting the tick system to allow players to settle in.
+</Tip>
+
+<Warning>
+**Death Effects:** Low hunger/thirst can kill players. Make sure food and water are accessible on your server!
+</Warning>

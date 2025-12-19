@@ -1,0 +1,704 @@
+---
+title: Inventory - Crafting System
+description: Crafting bench system for creating items from recipes
+icon: 'hammer'
+---
+
+The Crafting component provides a flexible system for creating crafting benches where players can combine items to create new ones. Supports recipes, cooldowns, restrictions, and schematics.
+
+## Overview
+
+Access via `COMPONENTS.Crafting` (server-side only).
+
+<CardGroup cols={2}>
+  <Card title="Crafting Benches" icon="hammer">
+    Register custom crafting locations
+  </Card>
+  <Card title="Recipes" icon="scroll">
+    Define item combination recipes
+  </Card>
+  <Card title="Cooldowns" icon="clock">
+    Per-bench, per-recipe cooldowns
+  </Card>
+  <Card title="Restrictions" icon="lock">
+    Job, reputation, item requirements
+  </Card>
+</CardGroup>
+
+<Warning>
+**Server-Side Only:** All crafting operations must be performed on the server for security.
+</Warning>
+
+---
+
+## Crafting Benches
+
+### RegisterBench
+
+Register a crafting bench with recipes and restrictions.
+
+**Syntax:**
+```lua
+COMPONENTS.Crafting:RegisterBench(id, label, targeting, location, restrictions, recipes, canUseSchematics)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| id | string | Yes | Unique bench identifier |
+| label | string | Yes | Display name of the bench |
+| targeting | boolean | Yes | Show in targeting/interaction menu |
+| location | vector3 | No | Bench coordinates (if physical location) |
+| restrictions | table | No | Access restrictions `{job, rep, items}` |
+| recipes | table | Yes | Table of recipe definitions |
+| canUseSchematics | boolean | No | Allow schematic recipes (default: false) |
+
+**Recipe Structure:**
+```lua
+{
+    result = {
+        name = "lockpick",  -- Item to create
+        count = 1           -- Quantity created
+    },
+    items = {               -- Required materials
+        { name = "steel", count = 2 },
+        { name = "plastic", count = 1 }
+    },
+    time = 5000,           -- Crafting duration (ms)
+    cooldown = 3600,       -- Recipe cooldown (seconds, optional)
+    level = 1,             -- Required crafting level (optional)
+    durability = {         -- Random durability range (optional)
+        min = 20000,
+        max = 40000
+    }
+}
+```
+
+**Example:**
+```lua
+-- Server side - Register mechanic workbench
+COMPONENTS.Crafting:RegisterBench(
+    'mechanic_workbench',
+    'Mechanic Workbench',
+    true,
+    vector3(123.45, -678.90, 30.00),
+    {
+        job = {
+            { id = 'mechanic', onDuty = true }
+        }
+    },
+    {
+        repair_kit = {
+            result = {
+                name = 'repairkit',
+                count = 1
+            },
+            items = {
+                { name = 'steel', count = 5 },
+                { name = 'plastic', count = 3 },
+                { name = 'rubber', count = 2 }
+            },
+            time = 10000,
+            cooldown = 1800  -- 30 minute cooldown
+        },
+        advanced_repair_kit = {
+            result = {
+                name = 'advrepairkit',
+                count = 1
+            },
+            items = {
+                { name = 'steel', count = 10 },
+                { name = 'plastic', count = 5 },
+                { name = 'electronics', count = 2 }
+            },
+            time = 15000,
+            cooldown = 3600,  -- 1 hour cooldown
+            level = 3  -- Requires mechanic level 3
+        }
+    },
+    false  -- Cannot use schematics
+)
+```
+
+**Restrictions Structure:**
+```lua
+{
+    job = {
+        { id = 'mechanic', onDuty = true },
+        { id = 'engineer', onDuty = false }
+    },
+    rep = {
+        { id = 'mechanic_rep', level = 5 }
+    },
+    items = {
+        { name = 'wrench', count = 1 }  -- Must have in inventory
+    }
+}
+```
+
+---
+
+### AddRecipeToBench
+
+Add a recipe to an existing bench.
+
+**Syntax:**
+```lua
+COMPONENTS.Crafting:AddRecipeToBench(benchId, recipeId, recipe)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| benchId | string | Yes | Bench identifier |
+| recipeId | string | Yes | Unique recipe ID |
+| recipe | table | Yes | Recipe definition |
+
+**Example:**
+```lua
+-- Server side - Add new recipe to existing bench
+COMPONENTS.Crafting:AddRecipeToBench(
+    'mechanic_workbench',
+    'turbo_kit',
+    {
+        result = {
+            name = 'turbo',
+            count = 1
+        },
+        items = {
+            { name = 'steel', count = 15 },
+            { name = 'aluminum', count = 10 },
+            { name = 'electronics', count = 5 }
+        },
+        time = 30000,
+        cooldown = 7200,
+        level = 5
+    }
+)
+```
+
+---
+
+## Crafting Operations
+
+### Craft.Start
+
+Start crafting an item (called internally by framework).
+
+**Syntax:**
+```lua
+COMPONENTS.Crafting.Craft:Start(crafter, bench, result, qty)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| crafter | number | Yes | Character SID |
+| bench | string | Yes | Bench identifier |
+| result | string | Yes | Recipe ID to craft |
+| qty | number | Yes | Quantity to craft |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table | `{error, message}` if failed, or craft result data |
+
+**Example:**
+```lua
+-- Server side - Handle craft request
+RegisterServerEvent('crafting:server:StartCraft', function(benchId, recipeId, quantity)
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then return end
+
+    local char = player:GetData('Character')
+    if not char then return end
+
+    local stateId = char:GetData('SID')
+
+    -- Start crafting
+    local result = COMPONENTS.Crafting.Craft:Start(stateId, benchId, recipeId, quantity)
+
+    if result.error then
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = result.message,
+            type = 'error'
+        })
+    else
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'Crafting started',
+            type = 'success'
+        })
+    end
+end)
+```
+
+---
+
+## Complete Examples
+
+### Gun Crafting Bench
+
+```lua
+-- Server side - Illegal gun crafting bench
+COMPONENTS.Crafting:RegisterBench(
+    'gun_bench',
+    'Weapon Workbench',
+    true,
+    vector3(1234.56, -789.01, 50.00),
+    {
+        rep = {
+            { id = 'underground', level = 10 }  -- Requires underground reputation
+        },
+        items = {
+            { name = 'weapon_license', count = 1 }  -- Must have license
+        }
+    },
+    {
+        craft_pistol = {
+            result = {
+                name = 'weapon_pistol',
+                count = 1
+            },
+            items = {
+                { name = 'pistol_frame', count = 1 },
+                { name = 'pistol_barrel', count = 1 },
+                { name = 'gun_spring', count = 2 },
+                { name = 'gun_screws', count = 5 }
+            },
+            time = 25000,
+            cooldown = 3600,
+            durability = {
+                min = 15000,
+                max = 25000
+            }
+        },
+        craft_smg = {
+            result = {
+                name = 'weapon_smg',
+                count = 1
+            },
+            items = {
+                { name = 'smg_frame', count = 1 },
+                { name = 'smg_barrel', count = 1 },
+                { name = 'gun_spring', count = 3 },
+                { name = 'gun_screws', count = 8 },
+                { name = 'electronics', count = 1 }
+            },
+            time = 40000,
+            cooldown = 7200,
+            level = 5,
+            durability = {
+                min = 20000,
+                max = 35000
+            }
+        }
+    },
+    false
+)
+```
+
+### Drug Processing Bench
+
+```lua
+-- Server side - Drug processing table
+COMPONENTS.Crafting:RegisterBench(
+    'drug_processing',
+    'Processing Table',
+    true,
+    vector3(987.65, -432.10, 20.00),
+    nil,  -- No restrictions
+    {
+        process_coke = {
+            result = {
+                name = 'coke_bag',
+                count = 10
+            },
+            items = {
+                { name = 'coke_brick', count = 1 },
+                { name = 'cutting_agent', count = 2 }
+            },
+            time = 15000,
+            cooldown = 600  -- 10 minute cooldown
+        },
+        process_meth = {
+            result = {
+                name = 'meth_bag',
+                count = 15
+            },
+            items = {
+                { name = 'meth_brick', count = 1 }
+            },
+            time = 20000,
+            cooldown = 900  -- 15 minute cooldown
+        },
+        bag_weed = {
+            result = {
+                name = 'weed_bag',
+                count = 20
+            },
+            items = {
+                { name = 'weed_oz', count = 1 },
+                { name = 'plastic_bag', count = 20 }
+            },
+            time = 10000,
+            cooldown = 300  -- 5 minute cooldown
+        }
+    },
+    false
+)
+```
+
+### Advanced Electronics Bench
+
+```lua
+-- Server side - Electronics workbench with job requirement
+COMPONENTS.Crafting:RegisterBench(
+    'electronics_bench',
+    'Electronics Workbench',
+    true,
+    vector3(456.78, -123.45, 35.00),
+    {
+        job = {
+            { id = 'electronics', onDuty = true }
+        }
+    },
+    {
+        craft_phone = {
+            result = {
+                name = 'phone',
+                count = 1
+            },
+            items = {
+                { name = 'phone_parts', count = 1 },
+                { name = 'electronics', count = 3 },
+                { name = 'battery', count = 1 }
+            },
+            time = 12000
+        },
+        craft_radio = {
+            result = {
+                name = 'radio',
+                count = 1
+            },
+            items = {
+                { name = 'radio_parts', count = 1 },
+                { name = 'electronics', count = 2 },
+                { name = 'antenna', count = 1 }
+            },
+            time = 10000
+        },
+        craft_laptop = {
+            result = {
+                name = 'laptop',
+                count = 1
+            },
+            items = {
+                { name = 'laptop_shell', count = 1 },
+                { name = 'motherboard', count = 1 },
+                { name = 'electronics', count = 5 },
+                { name = 'battery', count = 2 }
+            },
+            time = 30000,
+            cooldown = 1800,
+            level = 3
+        }
+    },
+    false
+)
+```
+
+### Food Preparation Station
+
+```lua
+-- Server side - Kitchen/cooking station
+COMPONENTS.Crafting:RegisterBench(
+    'cooking_station',
+    'Cooking Station',
+    true,
+    vector3(234.56, -876.54, 30.00),
+    {
+        job = {
+            { id = 'burger_shot', onDuty = true },
+            { id = 'restaurant', onDuty = true }
+        }
+    },
+    {
+        cook_burger = {
+            result = {
+                name = 'burger',
+                count = 1
+            },
+            items = {
+                { name = 'raw_beef', count = 1 },
+                { name = 'bun', count = 1 },
+                { name = 'lettuce', count = 1 },
+                { name = 'tomato', count = 1 }
+            },
+            time = 5000
+        },
+        cook_fries = {
+            result = {
+                name = 'fries',
+                count = 1
+            },
+            items = {
+                { name = 'potato', count = 2 },
+                { name = 'oil', count = 1 }
+            },
+            time = 3000
+        },
+        make_soda = {
+            result = {
+                name = 'soda',
+                count = 1
+            },
+            items = {
+                { name = 'cup', count = 1 },
+                { name = 'syrup', count = 1 }
+            },
+            time = 2000
+        }
+    },
+    false
+)
+```
+
+### Lockpicking Tools Bench
+
+```lua
+-- Server side - Criminal tools bench
+COMPONENTS.Crafting:RegisterBench(
+    'tools_bench',
+    'Tool Making Bench',
+    true,
+    vector3(567.89, -234.56, 25.00),
+    {
+        rep = {
+            { id = 'criminal', level = 3 }
+        }
+    },
+    {
+        craft_lockpick = {
+            result = {
+                name = 'lockpick',
+                count = 1
+            },
+            items = {
+                { name = 'metal_scrap', count = 2 },
+                { name = 'plastic', count = 1 }
+            },
+            time = 8000,
+            durability = {
+                min = 5,
+                max = 15
+            }
+        },
+        craft_advanced_lockpick = {
+            result = {
+                name = 'adv_lockpick',
+                count = 1
+            },
+            items = {
+                { name = 'metal_scrap', count = 4 },
+                { name = 'plastic', count = 2 },
+                { name = 'electronics', count = 1 }
+            },
+            time = 15000,
+            cooldown = 1800,
+            level = 5,
+            durability = {
+                min = 15,
+                max = 30
+            }
+        },
+        craft_thermite = {
+            result = {
+                name = 'thermite',
+                count = 1
+            },
+            items = {
+                { name = 'aluminum_powder', count = 3 },
+                { name = 'iron_oxide', count = 2 },
+                { name = 'magnesium', count = 1 }
+            },
+            time = 20000,
+            cooldown = 3600,
+            level = 8
+        }
+    },
+    false
+)
+```
+
+---
+
+## Client Integration
+
+### Opening Crafting Bench
+
+```lua
+-- Client side - Trigger bench from targeting/interaction
+AddEventHandler('crafting:client:OpenBench', function(data)
+    local benchId = data.benchId
+
+    -- Request bench data from server
+    COMPONENTS.Callbacks:ServerCallback('crafting:server:GetBench', benchId, function(benchData)
+        if benchData then
+            -- Open crafting UI
+            SendNUIMessage({
+                type = 'OPEN_CRAFTING',
+                data = benchData
+            })
+        else
+            COMPONENTS.Notification:Error('Cannot access this bench')
+        end
+    end)
+end)
+
+-- Client side - Request craft
+RegisterNUICallback('Crafting:Craft', function(data, cb)
+    -- data = { benchId, recipeId, quantity }
+    TriggerServerEvent('crafting:server:StartCraft', data.benchId, data.recipeId, data.quantity)
+    cb(true)
+end)
+```
+
+---
+
+## Cooldown Management
+
+Cooldowns are automatically managed by the framework. They are stored in the database and persist across restarts.
+
+**Cooldown Features:**
+- Per-recipe cooldowns
+- Stored in database (`crafting_cooldowns` table)
+- Automatic cleanup of expired cooldowns
+- Admin commands to clear cooldowns
+
+**Admin Command:**
+```lua
+-- Server side - Admin can remove cooldowns
+RegisterCommand('clearcraftcd', function(source, args)
+    local player = Fetch:Source(source)
+
+    if not player or not player.Permissions:IsAdmin() then
+        return
+    end
+
+    local benchId = args[1]
+    local recipeId = args[2]
+
+    -- Remove cooldown (internal function)
+    RemoveCraftingCooldown(source, benchId, recipeId)
+end, false)
+```
+
+---
+
+## Best Practices
+
+### Balanced Recipes
+
+```lua
+-- ✅ GOOD - Balanced crafting times and cooldowns
+{
+    craft_basic_item = {
+        result = { name = 'lockpick', count = 1 },
+        items = {
+            { name = 'metal', count = 2 }
+        },
+        time = 5000,  -- 5 seconds (reasonable)
+        cooldown = 300  -- 5 minutes (prevents spam)
+    }
+}
+
+-- ❌ BAD - Unbalanced
+{
+    craft_op_item = {
+        result = { name = 'super_gun', count = 100 },  -- Too many
+        items = {
+            { name = 'plastic', count = 1 }  -- Too cheap
+        },
+        time = 100,  -- Too fast
+        cooldown = nil  -- No cooldown = spam
+    }
+}
+```
+
+### Security
+
+```lua
+// ✅ GOOD - Restrict powerful items
+COMPONENTS.Crafting:RegisterBench(
+    'weapons_bench',
+    'Illegal Weapons',
+    true,
+    location,
+    {
+        rep = { { id = 'criminal', level = 10 } },  -- High requirement
+        items = { { name = 'weapon_license', count = 1 } }
+    },
+    recipes,
+    false
+)
+
+// ❌ BAD - No restrictions on powerful items
+COMPONENTS.Crafting:RegisterBench(
+    'weapons_bench',
+    'Free Weapons',
+    true,
+    location,
+    nil,  -- Anyone can use!
+    recipes,
+    false
+)
+```
+
+### Item Balance
+
+```lua
+// ✅ GOOD - Reasonable material costs
+{
+    items = {
+        { name = 'steel', count = 5 },
+        { name = 'plastic', count = 3 },
+        { name = 'electronics', count = 1 }
+    }
+}
+
+// ❌ BAD - Unrealistic costs
+{
+    items = {
+        { name = 'plastic', count = 1 }  -- Making assault rifle from 1 plastic
+    }
+}
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Inventory - Exports" icon="box" href="/api/inventory/exports">
+    Main inventory operations
+  </Card>
+  <Card title="Inventory - Events" icon="bolt" href="/api/inventory/events">
+    Inventory-related events
+  </Card>
+  <Card title="Item Definition" icon="tags" href="/api/inventory/item-definition">
+    Creating and defining items
+  </Card>
+  <Card title="Reputation System" icon="star" href="/api/reputation/exports">
+    Reputation requirements
+  </Card>
+</CardGroup>
+
+<Tip>
+**Recipe IDs:** Use descriptive recipe IDs like `craft_pistol` instead of `recipe1`. Makes debugging and admin management easier.
+</Tip>
+
+<Warning>
+**Cooldowns Persist:** Cooldowns are stored in the database and survive server restarts. Plan cooldown durations carefully for game balance.
+</Warning>

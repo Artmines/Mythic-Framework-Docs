@@ -1,0 +1,624 @@
+---
+title: HUD - Exports
+description: Client-side HUD component for UI display, health/armor, vehicle indicators, and screen effects
+icon: 'display'
+---
+
+The HUD component manages all on-screen UI elements including health/armor bars, vehicle indicators, location display, crosshairs, and various visual effects. This is a **client-side only** component.
+
+## Overview
+
+Access via `COMPONENTS.Hud` (client-side only).
+
+<CardGroup cols={2}>
+  <Card title="Health & Armor" icon="heart">
+    Real-time health and armor displays
+  </Card>
+  <Card title="Vehicle HUD" icon="car">
+    Speed, fuel, seatbelt, engine indicators
+  </Card>
+  <Card title="Visual Effects" icon="wand-magic-sparkles">
+    Flashbangs, screen effects, scopes
+  </Card>
+  <Card title="Status Bars" icon="chart-bar">
+    Hunger, thirst, stress indicators
+  </Card>
+</CardGroup>
+
+<Warning>
+**Client-Side Only:** All HUD methods must be called from client scripts. Server-side calls will fail.
+</Warning>
+
+---
+
+## Main HUD Control
+
+### Show
+
+Show the HUD.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud:Show()
+```
+
+---
+
+### Hide
+
+Hide the HUD.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud:Hide()
+```
+
+---
+
+### Toggle
+
+Toggle HUD visibility.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+-- Default keybind: F11
+COMPONENTS.Hud:Toggle()
+```
+
+---
+
+### IsDisabled
+
+Check if HUD interactions are disabled.
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | True if player is dead, cuffed, doing action, inventory/phone open, etc. |
+
+**Example:**
+```lua
+-- Client side
+if not COMPONENTS.Hud:IsDisabled() then
+    -- Player can interact with HUD
+    print('HUD interactions enabled')
+else
+    print('Player is busy - HUD disabled')
+end
+```
+
+**Checks for:**
+- Player is dead (`isDead`)
+- Player is cuffed (`isCuffed`)
+- Player is doing an action (`doingAction`)
+- Inventory is open (`inventoryOpen`)
+- Phone is open (`phoneOpen`)
+- Crafting menu is open (`crafting`)
+- Player is hospitalized (`isHospitalized`)
+- Player is being escorted (`myEscorter`)
+
+---
+
+### IsDisabledAllowDead
+
+Check if HUD is disabled (allows dead state).
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | True if disabled (excludes death check) |
+
+**Example:**
+```lua
+-- Client side
+if not COMPONENTS.Hud:IsDisabledAllowDead() then
+    -- Allow interaction even if dead
+    print('HUD available (death allowed)')
+end
+```
+
+---
+
+## Vehicle HUD
+
+### Vehicle:Show
+
+Show vehicle HUD elements.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side - Auto-called when entering vehicle
+COMPONENTS.Hud.Vehicle:Show()
+```
+
+**Displays:**
+- Speedometer (MPH/KMH)
+- Fuel indicator
+- Seatbelt warning
+- Engine check light
+- Cruise control indicator
+
+---
+
+### Vehicle:Hide
+
+Hide vehicle HUD elements.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side - Auto-called when exiting vehicle
+COMPONENTS.Hud.Vehicle:Hide()
+```
+
+---
+
+### Vehicle:Toggle
+
+Toggle vehicle HUD visibility.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud.Vehicle:Toggle()
+```
+
+---
+
+## Status Management
+
+### RegisterStatus
+
+Register a status indicator (hunger, thirst, stress, etc.).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| name | string | Yes | Status identifier (e.g., 'PLAYER_HUNGER') |
+| current | number | Yes | Current value |
+| max | number | Yes | Maximum value |
+| icon | string | Yes | Font Awesome icon name |
+| color | string | Yes | CSS color value |
+| flash | boolean | Yes | Flash when low |
+| update | boolean | No | Update existing status |
+| options | table | No | Additional options |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud:RegisterStatus(
+    'PLAYER_HUNGER',
+    100,
+    100,
+    'drumstick-bite',
+    '#f59e0b',
+    true,
+    false,
+    {
+        hideZero = false,
+        hideMax = false
+    }
+)
+```
+
+---
+
+### ResetStatus
+
+Reset all status indicators (clears on logout).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud:ResetStatus()
+```
+
+---
+
+## Visual Effects
+
+### XHair
+
+Toggle crosshair display.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| state | boolean | Yes | Show/hide crosshair |
+
+**Example:**
+```lua
+-- Client side
+-- Show crosshair when weapon drawn
+COMPONENTS.Hud:XHair(true)
+
+-- Hide crosshair when weapon holstered
+COMPONENTS.Hud:XHair(false)
+```
+
+---
+
+### Scope
+
+Toggle sniper scope overlay.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| state | boolean | Yes | Show/hide scope |
+
+**Example:**
+```lua
+-- Client side
+-- Show scope when aiming with sniper
+COMPONENTS.Hud:Scope(true)
+
+-- Hide scope
+COMPONENTS.Hud:Scope(false)
+```
+
+---
+
+### Flashbang:Do
+
+Apply flashbang effect.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| duration | number | Yes | Duration in milliseconds |
+| strength | number | Yes | Effect strength (0.0 - 1.0) |
+
+**Example:**
+```lua
+-- Client side
+-- 5 second full flashbang
+COMPONENTS.Hud.Flashbang:Do(5000, 1.0)
+
+-- 3 second partial flashbang
+COMPONENTS.Hud.Flashbang:Do(3000, 0.6)
+```
+
+---
+
+### Flashbang:End
+
+Clear flashbang effect immediately.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud.Flashbang:End()
+```
+
+---
+
+### Dead
+
+Set death screen state.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| state | boolean | Yes | Dead state |
+
+**Example:**
+```lua
+-- Client side
+-- Show death overlay
+COMPONENTS.Hud:Dead(true)
+
+-- Hide death overlay
+COMPONENTS.Hud:Dead(false)
+```
+
+---
+
+## Death Texts
+
+### DeathTexts:Show
+
+Show death screen with text.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| type | string | Yes | Death type ('dead', 'downed', etc.) |
+| deathTime | number | Yes | Time of death (os.time()) |
+| timer | number | Yes | Respawn timer in seconds |
+| keyOverride | string | No | Override default key display |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud.DeathTexts:Show(
+    'downed',
+    os.time(),
+    300, -- 5 minute timer
+    nil  -- Use default key
+)
+```
+
+---
+
+### DeathTexts:Release
+
+Show releasing text (waiting for respawn).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud.DeathTexts:Release()
+```
+
+---
+
+### DeathTexts:Hide
+
+Hide death texts.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud.DeathTexts:Hide()
+```
+
+---
+
+## Player IDs
+
+### ID:Toggle
+
+Toggle player ID display (shows SIDs above players).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+-- Default keybind: I
+COMPONENTS.Hud.ID:Toggle()
+```
+
+**Notes:**
+- Shows for 6 seconds
+- 10 second cooldown between toggles
+- Shows players within 25 units
+- Admins can see invisible players
+
+---
+
+## Minigames
+
+### GemTable:Open
+
+Open gem table minigame.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| quality | number | Yes | Quality level (affects difficulty) |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud.GemTable:Open(3)
+```
+
+---
+
+### GemTable:Close
+
+Close gem table minigame.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud.GemTable:Close()
+```
+
+---
+
+### Meth:Open
+
+Open meth cooking minigame.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| config | table | Yes | Minigame configuration |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud.Meth:Open({
+    duration = 60000,
+    difficulty = 3
+})
+```
+
+---
+
+### Meth:Close
+
+Close meth minigame.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Hud.Meth:Close()
+```
+
+---
+
+## Utility Methods
+
+### ShiftLocation
+
+Shift location display position.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| status | boolean | Yes | Shift state |
+
+**Example:**
+```lua
+-- Client side
+-- Shift location down (when phone open)
+COMPONENTS.Hud:ShiftLocation(true)
+
+-- Reset location position
+COMPONENTS.Hud:ShiftLocation(false)
+```
+
+---
+
+## Integration Examples
+
+### Custom Status Bar
+
+```lua
+-- Client side - Register custom status
+AddEventHandler('Characters:Client:Spawn', function()
+    COMPONENTS.Hud:RegisterStatus(
+        'PLAYER_CUSTOM',
+        50,  -- Current value
+        100, -- Max value
+        'star', -- Icon
+        '#3b82f6', -- Blue color
+        true, -- Flash when low
+        false, -- Not an update
+        {
+            hideZero = false,
+            hideMax = true
+        }
+    )
+end)
+```
+
+### Vehicle Entry Detection
+
+```lua
+-- Client side - Show vehicle HUD automatically
+AddEventHandler('Vehicles:Client:EnterVehicle', function(vehicle, seat)
+    if seat == -1 then -- Driver
+        COMPONENTS.Hud.Vehicle:Show()
+    end
+end)
+
+AddEventHandler('Vehicles:Client:ExitVehicle', function(vehicle)
+    COMPONENTS.Hud.Vehicle:Hide()
+end)
+```
+
+### Death Handler
+
+```lua
+-- Client side - Handle player death
+AddEventHandler('Medical:Client:PlayerDead', function()
+    COMPONENTS.Hud:Dead(true)
+    COMPONENTS.Hud.DeathTexts:Show(
+        'dead',
+        os.time(),
+        600 -- 10 minute respawn
+    )
+end)
+
+AddEventHandler('Medical:Client:PlayerRevived', function()
+    COMPONENTS.Hud:Dead(false)
+    COMPONENTS.Hud.DeathTexts:Hide()
+end)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Status System" icon="heartbeat" href="/api/hud/status">
+    Hunger, thirst, and stress mechanics
+  </Card>
+  <Card title="Targeting System" icon="crosshairs" href="/api/hud/targeting">
+    Entity interaction and targeting
+  </Card>
+  <Card title="UI Framework" icon="palette" href="/concepts/ui-framework">
+    Custom UI development
+  </Card>
+  <Card title="Progress Bars" icon="spinner" href="/api/core/progress">
+    Progress bar system
+  </Card>
+</CardGroup>
+
+<Tip>
+**Auto-Management:** The HUD automatically shows/hides based on player state. Vehicle HUD appears on entry, death screen on death, etc. Manual control is available but often unnecessary.
+</Tip>
+
+<Warning>
+**Performance:** Status updates are batched to avoid spiking. Updates occur every 200ms for health/armor and location data.
+</Warning>

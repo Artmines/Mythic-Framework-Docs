@@ -1,0 +1,781 @@
+---
+title: Inventory - Advanced Features
+description: Stashes, shops, player searching, dropzones, and secondary inventories
+icon: 'layer-group'
+---
+
+Advanced inventory features including storage stashes, shops, player search/rob mechanics, dropzones, polygon inventories, and secondary inventory management.
+
+## Overview
+
+These features extend the base inventory system for specific use cases like storage, shops, and entity inventories (vehicles, containers, etc.).
+
+<CardGroup cols={2}>
+  <Card title="Stash Storage" icon="box">
+    Persistent storage locations
+  </Card>
+  <Card title="Shop System" icon="store">
+    Purchasable shop inventories
+  </Card>
+  <Card title="Search & Rob" icon="handcuffs">
+    Access other player inventories
+  </Card>
+  <Card title="Dropzones" icon="location-dot">
+    Ground drop management
+  </Card>
+</CardGroup>
+
+<Warning>
+**Server-Side Only:** All inventory operations must be performed server-side for security.
+</Warning>
+
+---
+
+## Stash System
+
+Stashes are persistent storage locations like property storage, gang stashes, or hidden caches.
+
+### Stash.Open
+
+Open a stash inventory for a player.
+
+**Syntax:**
+```lua
+COMPONENTS.Inventory.Stash:Open(source, invType, identifier)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Player server ID |
+| invType | number | Yes | Inventory type (usually 13 for stash) |
+| identifier | string | Yes | Unique stash identifier |
+
+**Example:**
+```lua
+-- Server side - Open property stash
+RegisterServerEvent('property:server:OpenStash', function()
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then return end
+
+    local char = player:GetData('Character')
+    if not char then return end
+
+    -- Check if player is in a property
+    local propertyId = GlobalState[string.format("%s:Property", src)]
+
+    if propertyId then
+        -- Open property stash
+        COMPONENTS.Inventory.Stash:Open(src, 13, propertyId)
+    else
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'Not in a property',
+            type = 'error'
+        })
+    end
+end)
+
+-- Server side - Gang stash
+RegisterServerEvent('gang:server:OpenStash', function(gangId)
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then return end
+
+    local char = player:GetData('Character')
+    if not char then return end
+
+    -- Check gang membership
+    if char:GetData('Gang') == gangId then
+        -- Open gang stash
+        COMPONENTS.Inventory.Stash:Open(src, 13, string.format("gang_%s", gangId))
+    else
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'Not a member of this gang',
+            type = 'error'
+        })
+    end
+end)
+
+-- Server side - Hidden cache stash
+RegisterServerEvent('cache:server:Open', function(cacheId)
+    local src = source
+
+    -- Verify player is near cache
+    -- ... distance check logic ...
+
+    -- Open cache
+    COMPONENTS.Inventory.Stash:Open(src, 13, string.format("cache_%s", cacheId))
+end)
+```
+
+**Stash Identifiers:**
+```lua
+-- Property stashes
+"property_123"          -- Property ID 123
+
+-- Gang stashes
+"gang_ballas"           -- Ballas gang stash
+"gang_vagos"            -- Vagos gang stash
+
+-- Job stashes
+"police_evidence"       -- Police evidence locker
+"mechanic_storage"      -- Mechanic storage
+
+-- Hidden caches
+"cache_001"             -- Cache location 001
+```
+
+---
+
+## Shop System
+
+Shop inventories allow players to purchase items with configurable prices and stock.
+
+### Shop.Open
+
+Open a shop inventory for a player.
+
+**Syntax:**
+```lua
+COMPONENTS.Inventory.Shop:Open(source, identifier)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Player server ID |
+| identifier | string | Yes | Shop identifier |
+
+**Example:**
+```lua
+-- Server side - Open 24/7 shop
+RegisterServerEvent('shop:server:Open247', function(shopId)
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then return end
+
+    -- Open shop
+    COMPONENTS.Inventory.Shop:Open(src, shopId)
+end)
+
+-- Server side - Job-restricted shop
+RegisterServerEvent('shop:server:OpenPoliceArmory', function()
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then return end
+
+    local char = player:GetData('Character')
+    if not char then return end
+
+    -- Check if police
+    if char:GetData('Job') == 'police' and player.state.onDuty then
+        COMPONENTS.Inventory.Shop:Open(src, 'police_armory')
+    else
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'Police only',
+            type = 'error'
+        })
+    end
+end)
+```
+
+**Shop Configuration** (in `server/data/shops.lua`):
+```lua
+shopLocations = {
+    ['shop:247_1'] = {
+        name = '24/7 Store',
+        entityId = 11,
+        items = {
+            { name = 'water', price = 5, qty = -1 },      -- Unlimited stock
+            { name = 'sandwich', price = 10, qty = -1 },
+            { name = 'phone', price = 500, qty = 10 }      -- Limited stock
+        }
+    },
+    ['shop:police_armory'] = {
+        name = 'Police Armory',
+        entityId = 11,
+        items = {
+            { name = 'weapon_pistol', price = 0, qty = -1 },   -- Free for police
+            { name = 'ammo_pistol', price = 0, qty = -1 },
+            { name = 'handcuffs', price = 0, qty = -1 }
+        }
+    }
+}
+```
+
+---
+
+## Player Search & Rob
+
+Allow players to search or rob other players' inventories.
+
+### Search.Character
+
+Police search of player inventory (non-intrusive).
+
+**Syntax:**
+```lua
+COMPONENTS.Inventory.Search:Character(source, targetSource, characterId)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Police officer source |
+| targetSource | number | Yes | Target player source |
+| characterId | number | Yes | Target character SID |
+
+**Example:**
+```lua
+-- Server side - Police search player
+RegisterServerEvent('police:server:SearchPlayer', function(targetSource)
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then return end
+
+    local char = player:GetData('Character')
+    if not char then return end
+
+    -- Check if police and on duty
+    if char:GetData('Job') ~= 'police' or not player.state.onDuty then
+        return
+    end
+
+    -- Get target character
+    local target = Fetch:Source(targetSource)
+    if not target then return end
+
+    local targetChar = target:GetData('Character')
+    if not targetChar then return end
+
+    -- Check distance
+    local srcCoords = GetEntityCoords(GetPlayerPed(src))
+    local targetCoords = GetEntityCoords(GetPlayerPed(targetSource))
+
+    if #(srcCoords - targetCoords) > 3.0 then
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'Too far away',
+            type = 'error'
+        })
+        return
+    end
+
+    -- Search player (read-only)
+    COMPONENTS.Inventory.Search:Character(src, targetSource, targetChar:GetData('SID'))
+
+    -- Log search
+    Logger:Info('Police', string.format('%s %s searched %s %s',
+        char:GetData('First'), char:GetData('Last'),
+        targetChar:GetData('First'), targetChar:GetData('Last')
+    ))
+end)
+```
+
+---
+
+### Rob
+
+Rob a player's inventory (can take items).
+
+**Syntax:**
+```lua
+COMPONENTS.Inventory:Rob(source, targetSource, characterId)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| source | number | Yes | Robber source |
+| targetSource | number | Yes | Victim source |
+| characterId | number | Yes | Victim character SID |
+
+**Example:**
+```lua
+-- Server side - Rob player
+RegisterServerEvent('crime:server:RobPlayer', function(targetSource)
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then return end
+
+    local char = player:GetData('Character')
+    if not char then return end
+
+    -- Get target
+    local target = Fetch:Source(targetSource)
+    if not target then return end
+
+    local targetChar = target:GetData('Character')
+    if not targetChar then return end
+
+    -- Check if target is dead or cuffed
+    if not target.state.isDead and not target.state.isCuffed then
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'Target must be incapacitated',
+            type = 'error'
+        })
+        return
+    end
+
+    -- Check distance
+    local srcCoords = GetEntityCoords(GetPlayerPed(src))
+    local targetCoords = GetEntityCoords(GetPlayerPed(targetSource))
+
+    if #(srcCoords - targetCoords) > 2.0 then
+        return
+    end
+
+    -- Rob player
+    COMPONENTS.Inventory:Rob(src, targetSource, targetChar:GetData('SID'))
+
+    -- Notify victim
+    TriggerClientEvent('mythic-notifications:client:Send', targetSource, {
+        message = 'You are being robbed',
+        type = 'error'
+    })
+
+    -- Log robbery
+    Logger:Info('Crime', string.format('%s %s robbed %s %s',
+        char:GetData('First'), char:GetData('Last'),
+        targetChar:GetData('First'), targetChar:GetData('Last')
+    ))
+end)
+```
+
+---
+
+## Dropzones
+
+Dropzones manage ground drops for delivery systems, drug runs, and drop-off points.
+
+### CreateDropzone
+
+Create a dropzone for an item drop.
+
+**Syntax:**
+```lua
+COMPONENTS.Inventory:CreateDropzone(routeId, coords)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| routeId | number | Yes | Route identifier for grouping drops |
+| coords | vector3 | Yes | Drop coordinates |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| string | Dropzone ID |
+
+**Example:**
+```lua
+-- Server side - Create drug run dropzones
+local function CreateDrugRoute(routeId)
+    local dropzones = {}
+
+    -- Create multiple drop points
+    local dropPoints = {
+        vector3(100.0, 200.0, 30.0),
+        vector3(150.0, 250.0, 35.0),
+        vector3(200.0, 300.0, 32.0)
+    }
+
+    for i, coords in ipairs(dropPoints) do
+        local dzId = COMPONENTS.Inventory:CreateDropzone(routeId, coords)
+        table.insert(dropzones, {
+            id = dzId,
+            coords = coords,
+            completed = false
+        })
+    end
+
+    return dropzones
+end
+
+-- Start drug run
+RegisterServerEvent('drugs:server:StartRun', function()
+    local src = source
+    local routeId = src  -- Use player source as unique route
+
+    local dropzones = CreateDrugRoute(routeId)
+
+    -- Send to client
+    TriggerClientEvent('drugs:client:StartRun', src, dropzones)
+end)
+```
+
+---
+
+### CheckDropZones
+
+Check if coordinates are near a dropzone.
+
+**Syntax:**
+```lua
+COMPONENTS.Inventory:CheckDropZones(routeId, coords)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| routeId | number | Yes | Route identifier |
+| coords | vector3 | Yes | Coordinates to check |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| table/nil | Dropzone data if found, nil otherwise |
+
+**Example:**
+```lua
+-- Server side - Check if at dropzone
+RegisterServerEvent('drugs:server:CheckDrop', function()
+    local src = source
+    local ped = GetPlayerPed(src)
+    local coords = GetEntityCoords(ped)
+
+    local dropzone = COMPONENTS.Inventory:CheckDropZones(src, coords)
+
+    if dropzone then
+        -- Player is at dropzone
+        TriggerClientEvent('drugs:client:AtDropzone', src, dropzone.id)
+    else
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'Not at a dropzone',
+            type = 'error'
+        })
+    end
+end)
+```
+
+---
+
+### RemoveDropzone
+
+Remove a dropzone.
+
+**Syntax:**
+```lua
+COMPONENTS.Inventory:RemoveDropzone(routeId, dropzoneId)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| routeId | number | Yes | Route identifier |
+| dropzoneId | string | Yes | Dropzone ID to remove |
+
+**Example:**
+```lua
+-- Server side - Complete delivery
+RegisterServerEvent('drugs:server:CompleteDelivery', function(dropzoneId)
+    local src = source
+
+    -- Check player is at dropzone
+    local ped = GetPlayerPed(src)
+    local coords = GetEntityCoords(ped)
+    local dropzone = COMPONENTS.Inventory:CheckDropZones(src, coords)
+
+    if dropzone and dropzone.id == dropzoneId then
+        -- Remove dropzone
+        COMPONENTS.Inventory:RemoveDropzone(src, dropzoneId)
+
+        -- Reward player
+        COMPONENTS.Characters:AddMoney(char:GetData('SID'), 'cash', 500)
+
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'Delivery complete +$500',
+            type = 'success'
+        })
+    end
+end)
+```
+
+---
+
+### DropExists
+
+Check if a dropzone exists.
+
+**Syntax:**
+```lua
+COMPONENTS.Inventory:DropExists(routeId, dropzoneId)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| routeId | number | Yes | Route identifier |
+| dropzoneId | string | Yes | Dropzone ID |
+
+**Returns:**
+| Type | Description |
+|------|-------------|
+| boolean | True if dropzone exists |
+
+---
+
+## Polygon Inventories
+
+Polygon-based interaction zones for inventories (using PolyZone).
+
+### Poly.Create
+
+Create a polygon inventory zone.
+
+**Syntax:**
+```lua
+COMPONENTS.Inventory.Poly:Create(data)
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| data | table | Yes | Polygon zone data |
+
+**Data Structure:**
+```lua
+{
+    id = "police_armory_zone",       -- Unique ID
+    type = "box",                      -- "box", "poly", "circle"
+    coords = vector3(x, y, z),         -- Center coordinates
+    length = 5.0,                      -- Box length
+    width = 3.0,                       -- Box width
+    heading = 0.0,                     -- Box heading
+    minZ = 30.0,                       -- Min Z
+    maxZ = 32.0,                       -- Max Z
+    options = {
+        name = "Police Armory",
+        invType = 11,                  -- Shop type
+        owner = "police_armory"
+    }
+}
+```
+
+**Example:**
+```lua
+-- Server side - Create police armory zone
+COMPONENTS.Inventory.Poly:Create({
+    id = 'police_armory',
+    type = 'box',
+    coords = vector3(450.50, -980.25, 30.69),
+    length = 3.0,
+    width = 2.0,
+    heading = 0.0,
+    minZ = 29.69,
+    maxZ = 32.69,
+    options = {
+        name = 'Police Armory',
+        invType = 11,
+        owner = 'shop:police_armory',
+        job = 'police',
+        onDuty = true
+    }
+})
+
+-- Create gang stash zone
+COMPONENTS.Inventory.Poly:Create({
+    id = 'ballas_stash',
+    type = 'box',
+    coords = vector3(100.0, 200.0, 20.0),
+    length = 2.0,
+    width = 2.0,
+    heading = 90.0,
+    minZ = 19.0,
+    maxZ = 22.0,
+    options = {
+        name = 'Gang Stash',
+        invType = 13,
+        owner = 'stash:gang_ballas',
+        gang = 'ballas'
+    }
+})
+```
+
+---
+
+## Complete Examples
+
+### Property Storage System
+
+```lua
+-- Server side - Property stash system
+RegisterServerEvent('property:server:OpenStorage', function()
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then return end
+
+    -- Check if in property
+    local propertyId = GlobalState[string.format("%s:Property", src)]
+
+    if not propertyId then
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'Not in a property',
+            type = 'error'
+        })
+        return
+    end
+
+    -- Check property ownership
+    local property = Properties:Get(propertyId)
+
+    if not property then return end
+
+    local char = player:GetData('Character')
+    if not char then return end
+
+    -- Check if owner or has keys
+    if property.owner == char:GetData('SID') or Properties:HasKeys(src, propertyId) then
+        -- Open property stash
+        COMPONENTS.Inventory.Stash:Open(src, 13, string.format("property_%s", propertyId))
+    else
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'No access to this storage',
+            type = 'error'
+        })
+    end
+end)
+```
+
+### Drug Delivery System
+
+```lua
+-- Server side - Complete drug delivery system
+local ActiveRoutes = {}
+
+RegisterServerEvent('drugs:server:StartDelivery', function()
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then return end
+
+    local char = player:GetData('Character')
+    if not char then return end
+
+    -- Check has drugs
+    if not COMPONENTS.Inventory:HasItem(char:GetData('SID'), 'coke_brick', 1) then
+        TriggerClientEvent('mythic-notifications:client:Send', src, {
+            message = 'Need cocaine brick to start',
+            type = 'error'
+        })
+        return
+    end
+
+    -- Create delivery route
+    local routeId = src
+    local dropPoints = {
+        vector3(100.0, 200.0, 30.0),
+        vector3(200.0, 300.0, 35.0),
+        vector3(300.0, 400.0, 32.0)
+    }
+
+    local dropzones = {}
+    for i, coords in ipairs(dropPoints) do
+        local dzId = COMPONENTS.Inventory:CreateDropzone(routeId, coords)
+        table.insert(dropzones, {
+            id = dzId,
+            coords = coords,
+            reward = 500
+        })
+    end
+
+    ActiveRoutes[src] = {
+        dropzones = dropzones,
+        completed = 0,
+        total = #dropzones
+    }
+
+    -- Send to client
+    TriggerClientEvent('drugs:client:StartRoute', src, dropzones)
+end)
+
+RegisterServerEvent('drugs:server:CompleteDrop', function(dropzoneId)
+    local src = source
+
+    if not ActiveRoutes[src] then return end
+
+    -- Check at dropzone
+    local ped = GetPlayerPed(src)
+    local coords = GetEntityCoords(ped)
+    local dropzone = COMPONENTS.Inventory:CheckDropZones(src, coords)
+
+    if not dropzone or dropzone.id ~= dropzoneId then
+        return
+    end
+
+    -- Find dropzone in route
+    for i, dz in ipairs(ActiveRoutes[src].dropzones) do
+        if dz.id == dropzoneId and not dz.completed then
+            -- Mark complete
+            dz.completed = true
+            ActiveRoutes[src].completed = ActiveRoutes[src].completed + 1
+
+            -- Remove dropzone
+            COMPONENTS.Inventory:RemoveDropzone(src, dropzoneId)
+
+            -- Reward
+            local char = Fetch:Source(src):GetData('Character')
+            COMPONENTS.Characters:AddMoney(char:GetData('SID'), 'cash', dz.reward)
+
+            TriggerClientEvent('mythic-notifications:client:Send', src, {
+                message = string.format('Drop complete +$%d (%d/%d)',
+                    dz.reward,
+                    ActiveRoutes[src].completed,
+                    ActiveRoutes[src].total
+                ),
+                type = 'success'
+            })
+
+            -- Check if all complete
+            if ActiveRoutes[src].completed >= ActiveRoutes[src].total then
+                -- Bonus for completing all
+                COMPONENTS.Characters:AddMoney(char:GetData('SID'), 'cash', 1000)
+
+                TriggerClientEvent('mythic-notifications:client:Send', src, {
+                    message = 'All deliveries complete! +$1000 bonus',
+                    type = 'success'
+                })
+
+                ActiveRoutes[src] = nil
+            end
+
+            break
+        end
+    end
+end)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Inventory - Exports" icon="box" href="/api/inventory/exports">
+    Main inventory operations
+  </Card>
+  <Card title="Inventory - Crafting" icon="hammer" href="/api/inventory/crafting">
+    Crafting system
+  </Card>
+  <Card title="Item Definition" icon="tags" href="/api/inventory/item-definition">
+    Item data structure
+  </Card>
+  <Card title="PolyZone" icon="draw-polygon" href="/api/polyzone/overview">
+    Polygon zone system
+  </Card>
+</CardGroup>
+
+<Tip>
+**Stash Identifiers:** Use descriptive, namespaced identifiers like `property_123`, `gang_ballas`, or `job_police_evidence` to avoid conflicts.
+</Tip>
+
+<Warning>
+**Search vs Rob:** Use Search for police searches (read-only, legal). Use Rob for criminal activities (can take items). Always validate permissions server-side.
+</Warning>

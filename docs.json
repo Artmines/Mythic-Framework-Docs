@@ -105,6 +105,8 @@
             "pages": [
               "api/inventory/exports",
               "api/inventory/events",
+              "api/inventory/crafting",
+              "api/inventory/advanced",
               "api/inventory/item-definition"
             ]
           },
@@ -122,6 +124,17 @@
               "api/vehicles/exports",
               "api/vehicles/events",
               "api/vehicles/configuration"
+            ]
+          },
+          {
+            "group": "HUD & Status",
+            "pages": [
+              "api/hud/exports",
+              "api/hud/status",
+              "api/hud/targeting",
+              "api/hud/progress",
+              "api/hud/notifications",
+              "api/hud/menus"
             ]
           }
         ]

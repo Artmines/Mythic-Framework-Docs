@@ -1,0 +1,667 @@
+---
+title: Notifications
+description: Toast notification system with multiple styles and persistent alerts
+icon: 'bell'
+---
+
+The Notification component displays on-screen toast messages to provide feedback to players. Supports multiple styles, custom icons, durations, and persistent notifications.
+
+## Overview
+
+Access via `COMPONENTS.Notification` (client-side only).
+
+<CardGroup cols={2}>
+  <Card title="Multiple Types" icon="palette">
+    Success, error, warning, info, standard
+  </Card>
+  <Card title="Custom Styling" icon="paintbrush">
+    Custom colors and styles
+  </Card>
+  <Card title="Auto-Dismiss" icon="clock">
+    Configurable duration (default 2.5s)
+  </Card>
+  <Card title="Persistent" icon="thumbtack">
+    Sticky notifications with manual dismiss
+  </Card>
+</CardGroup>
+
+<Warning>
+**Client-Side Only:** Notifications are local to each player. Use `TriggerClientEvent` from server to send notifications.
+</Warning>
+
+---
+
+## Standard Notifications
+
+### Success
+
+Display success message (green).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| message | string | Yes | Notification text |
+| duration | number | No | Duration in ms (default: 2500) |
+| icon | string | No | Font Awesome icon name |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification:Success('Item purchased')
+
+-- With custom duration
+COMPONENTS.Notification:Success('Vehicle spawned', 5000)
+
+-- With icon
+COMPONENTS.Notification:Success('Money received', 3000, 'dollar-sign')
+```
+
+---
+
+### Error
+
+Display error message (red).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| message | string | Yes | Notification text |
+| duration | number | No | Duration in ms (default: 2500) |
+| icon | string | No | Font Awesome icon name |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification:Error('Insufficient funds')
+
+-- With duration and icon
+COMPONENTS.Notification:Error('Action failed', 4000, 'triangle-exclamation')
+```
+
+---
+
+### Warn
+
+Display warning message (orange/yellow).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| message | string | Yes | Notification text |
+| duration | number | No | Duration in ms (default: 2500) |
+| icon | string | No | Font Awesome icon name |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification:Warn('Low on fuel')
+
+-- With icon
+COMPONENTS.Notification:Warn('Health critical', 3000, 'heart')
+```
+
+---
+
+### Info
+
+Display info message (blue).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| message | string | Yes | Notification text |
+| duration | number | No | Duration in ms (default: 2500) |
+| icon | string | No | Font Awesome icon name |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification:Info('Server restart in 10 minutes')
+
+-- With icon
+COMPONENTS.Notification:Info('New message received', 3000, 'envelope')
+```
+
+---
+
+### Standard
+
+Display neutral message (gray).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| message | string | Yes | Notification text |
+| duration | number | No | Duration in ms (default: 2500) |
+| icon | string | No | Font Awesome icon name |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification:Standard('Player connected')
+
+-- With icon
+COMPONENTS.Notification:Standard('Position saved', 2000, 'floppy-disk')
+```
+
+---
+
+### Custom
+
+Display notification with custom styling.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| message | string | Yes | Notification text |
+| duration | number | No | Duration in ms (default: 2500) |
+| icon | string | No | Font Awesome icon name |
+| style | table | No | Custom CSS styles |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification:Custom(
+    'Special Event Started!',
+    5000,
+    'star',
+    {
+        background = '#9333ea',  -- Purple
+        color = '#ffffff',       -- White text
+        border = '2px solid #a855f7'
+    }
+)
+
+-- VIP notification
+COMPONENTS.Notification:Custom(
+    'VIP Bonus Applied',
+    4000,
+    'crown',
+    {
+        background = 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+        color = '#000000',
+    }
+)
+```
+
+---
+
+## Persistent Notifications
+
+Persistent notifications stay on screen until manually dismissed. Useful for ongoing events, warnings, or status indicators.
+
+### Persistent.Success
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| id | string | Yes | Unique notification ID |
+| message | string | Yes | Notification text |
+| icon | string | No | Font Awesome icon name |
+
+**Example:**
+```lua
+-- Client side
+-- Show persistent success
+COMPONENTS.Notification.Persistent:Success(
+    'heist_active',
+    'Heist in progress',
+    'mask'
+)
+
+-- Remove it later
+COMPONENTS.Notification.Persistent:Remove('heist_active')
+```
+
+---
+
+### Persistent.Error
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification.Persistent:Error(
+    'wanted_level',
+    'Wanted by police - Level 5',
+    'star'
+)
+```
+
+---
+
+### Persistent.Warn
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification.Persistent:Warn(
+    'low_fuel',
+    'Fuel critically low',
+    'gas-pump'
+)
+```
+
+---
+
+### Persistent.Info
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification.Persistent:Info(
+    'radio_connected',
+    'Connected to Radio Ch. 1',
+    'walkie-talkie'
+)
+```
+
+---
+
+### Persistent.Standard
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification.Persistent:Standard(
+    'duty_status',
+    'On Duty - LSPD',
+    'shield'
+)
+```
+
+---
+
+### Persistent.Custom
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| id | string | Yes | Unique notification ID |
+| message | string | Yes | Notification text |
+| icon | string | No | Font Awesome icon name |
+| style | table | No | Custom CSS styles |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification.Persistent:Custom(
+    'racing',
+    'Race in Progress - Lap 2/5',
+    'flag-checkered',
+    {
+        background = '#dc2626',
+        color = '#ffffff'
+    }
+)
+```
+
+---
+
+### Persistent.Remove
+
+Remove a persistent notification.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| id | string | Yes | Notification ID to remove |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification.Persistent:Remove('heist_active')
+```
+
+---
+
+### Clear
+
+Clear ALL notifications (temporary and persistent).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| None | - | - | - |
+
+**Example:**
+```lua
+-- Client side
+COMPONENTS.Notification:Clear()
+```
+
+---
+
+## Complete Examples
+
+### Server to Client
+
+```lua
+-- Server side
+RegisterServerEvent('shop:server:Purchase', function(itemId, price)
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player then return end
+
+    local char = player:GetData('Character')
+    local money = char:GetData('Cash')
+
+    if money >= price then
+        -- Remove money
+        COMPONENTS.Characters:RemoveMoney(char:GetData('SID'), 'cash', price)
+
+        -- Add item
+        COMPONENTS.Inventory:AddItem(char:GetData('SID'), itemId, 1, {}, 1)
+
+        -- Send success notification to client
+        TriggerClientEvent('mythic-notifications:client:Success', src,
+            'Purchase successful', 3000, 'shopping-cart')
+    else
+        -- Send error notification
+        TriggerClientEvent('mythic-notifications:client:Error', src,
+            'Insufficient funds', 3000, 'circle-xmark')
+    end
+end)
+
+-- Client side - Listen for server notifications
+RegisterNetEvent('mythic-notifications:client:Success', function(message, duration, icon)
+    COMPONENTS.Notification:Success(message, duration, icon)
+end)
+
+RegisterNetEvent('mythic-notifications:client:Error', function(message, duration, icon)
+    COMPONENTS.Notification:Error(message, duration, icon)
+end)
+```
+
+### Wanted Level System
+
+```lua
+-- Client side
+local currentWantedLevel = 0
+
+AddEventHandler('police:client:UpdateWantedLevel', function(level)
+    -- Remove old notification
+    if currentWantedLevel > 0 then
+        COMPONENTS.Notification.Persistent:Remove('wanted_level')
+    end
+
+    currentWantedLevel = level
+
+    if level > 0 then
+        -- Show new wanted level
+        local color = '#fbbf24' -- Yellow
+        if level >= 4 then
+            color = '#dc2626' -- Red
+        elseif level >= 2 then
+            color = '#f97316' -- Orange
+        end
+
+        COMPONENTS.Notification.Persistent:Custom(
+            'wanted_level',
+            string.format('Wanted Level: %d', level),
+            'star',
+            {
+                background = color,
+                color = '#000000'
+            }
+        )
+    end
+end)
+```
+
+### Race System
+
+```lua
+-- Client side
+local raceActive = false
+local currentLap = 0
+local totalLaps = 0
+
+AddEventHandler('racing:client:Start', function(laps)
+    raceActive = true
+    currentLap = 1
+    totalLaps = laps
+
+    COMPONENTS.Notification.Persistent:Info(
+        'race_status',
+        string.format('Race Started - Lap %d/%d', currentLap, totalLaps),
+        'flag-checkered'
+    )
+end)
+
+AddEventHandler('racing:client:Checkpoint', function()
+    currentLap = currentLap + 1
+
+    if currentLap <= totalLaps then
+        -- Update lap counter
+        COMPONENTS.Notification.Persistent:Info(
+            'race_status',
+            string.format('Lap %d/%d', currentLap, totalLaps),
+            'flag-checkered'
+        )
+    else
+        -- Race finished
+        COMPONENTS.Notification.Persistent:Remove('race_status')
+        COMPONENTS.Notification:Success('Race Completed!', 5000, 'trophy')
+        raceActive = false
+    end
+end)
+
+AddEventHandler('racing:client:DNF', function()
+    COMPONENTS.Notification.Persistent:Remove('race_status')
+    COMPONENTS.Notification:Error('Race Failed - DNF', 4000)
+    raceActive = false
+end)
+```
+
+### Fuel Warning
+
+```lua
+-- Client side
+local fuelWarningActive = false
+
+CreateThread(function()
+    while true do
+        Wait(5000) -- Check every 5 seconds
+
+        local ped = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+
+        if vehicle ~= 0 and GetPedInVehicleSeat(vehicle, -1) == ped then
+            local vState = Entity(vehicle).state
+            local fuel = vState.Fuel or 100
+
+            if fuel <= 10 and not fuelWarningActive then
+                -- Show warning
+                COMPONENTS.Notification.Persistent:Warn(
+                    'fuel_warning',
+                    'Fuel critically low!',
+                    'gas-pump'
+                )
+                fuelWarningActive = true
+            elseif fuel > 10 and fuelWarningActive then
+                -- Remove warning
+                COMPONENTS.Notification.Persistent:Remove('fuel_warning')
+                fuelWarningActive = false
+            end
+        elseif fuelWarningActive then
+            -- Player left vehicle
+            COMPONENTS.Notification.Persistent:Remove('fuel_warning')
+            fuelWarningActive = false
+        end
+    end
+end)
+```
+
+### Heist System
+
+```lua
+-- Client side
+AddEventHandler('heist:client:Start', function(heistName)
+    COMPONENTS.Notification.Persistent:Custom(
+        'heist_active',
+        heistName .. ' - In Progress',
+        'mask',
+        {
+            background = '#dc2626',
+            color = '#ffffff',
+            border = '2px solid #ef4444'
+        }
+    )
+end)
+
+AddEventHandler('heist:client:UpdateProgress', function(stage)
+    COMPONENTS.Notification.Persistent:Custom(
+        'heist_active',
+        'Heist - ' .. stage,
+        'mask',
+        {
+            background = '#dc2626',
+            color = '#ffffff'
+        }
+    )
+end)
+
+AddEventHandler('heist:client:Complete', function(payout)
+    COMPONENTS.Notification.Persistent:Remove('heist_active')
+    COMPONENTS.Notification:Success(
+        string.format('Heist Complete! Earned $%s', FormatMoney(payout)),
+        6000,
+        'sack-dollar'
+    )
+end)
+
+AddEventHandler('heist:client:Failed', function(reason)
+    COMPONENTS.Notification.Persistent:Remove('heist_active')
+    COMPONENTS.Notification:Error('Heist Failed - ' .. reason, 5000)
+end)
+```
+
+---
+
+## Icon Reference
+
+Common Font Awesome icon names:
+
+### General
+- `check` - Checkmark
+- `xmark` - X mark
+- `circle-info` - Info circle
+- `triangle-exclamation` - Warning triangle
+- `bell` - Bell
+
+### Money & Shopping
+- `dollar-sign` - Dollar sign
+- `coins` - Coins
+- `credit-card` - Credit card
+- `shopping-cart` - Shopping cart
+- `cash-register` - Cash register
+
+### Vehicles
+- `car` - Car
+- `truck` - Truck
+- `motorcycle` - Motorcycle
+- `gas-pump` - Gas pump
+- `wrench` - Wrench
+
+### People & Jobs
+- `user` - User
+- `shield` - Shield (police)
+- `truck-medical` - Medical
+- `briefcase` - Business
+- `hammer` - Mechanic
+
+### Actions
+- `key` - Key
+- `lock` - Lock
+- `unlock` - Unlock
+- `door-open` - Door open
+- `box` - Box
+
+### Status
+- `heart` - Health
+- `battery-full` - Full battery/status
+- `signal` - Signal
+- `wifi` - Wifi/connection
+
+**Full icon list:** https://fontawesome.com/icons
+
+---
+
+## Best Practices
+
+### Appropriate Types
+
+```lua
+-- ✅ GOOD - Use correct types
+COMPONENTS.Notification:Success('Item crafted')  -- Green for success
+COMPONENTS.Notification:Error('No permission')   -- Red for errors
+COMPONENTS.Notification:Warn('Low health')       -- Orange for warnings
+COMPONENTS.Notification:Info('Tip: Press E')     -- Blue for info
+
+-- ❌ BAD - Wrong types
+COMPONENTS.Notification:Success('Error occurred')  -- Don't use success for errors
+COMPONENTS.Notification:Error('Purchase complete') -- Don't use error for success
+```
+
+### Duration Guidelines
+
+```lua
+-- Short messages (default 2.5s is fine)
+COMPONENTS.Notification:Success('Saved')
+
+-- Medium messages (3-4s)
+COMPONENTS.Notification:Info('New GPS waypoint set to destination', 3500)
+
+-- Long messages (5-6s)
+COMPONENTS.Notification:Warn('You are entering a dangerous area. Be careful!', 5000)
+
+// ❌ BAD - Too short for long message
+COMPONENTS.Notification:Info('This is a very long notification message that players need time to read', 1000)
+
+// ❌ BAD - Too long for short message
+COMPONENTS.Notification:Success('OK', 10000)
+```
+
+### Persistent Notifications
+
+```lua
+// ✅ GOOD - Use for ongoing status
+COMPONENTS.Notification.Persistent:Info('race_active', 'Race Active')
+COMPONENTS.Notification.Persistent:Warn('wanted', 'Wanted Level: 3')
+
+// ❌ BAD - Don't use for one-time events
+COMPONENTS.Notification.Persistent:Success('item_bought', 'Item purchased')  // Use standard Success instead
+
+// ✅ GOOD - Always clean up
+AddEventHandler('race:client:End', function()
+    COMPONENTS.Notification.Persistent:Remove('race_active')
+end)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Progress Bars" icon="spinner" href="/api/hud/progress">
+    Timed action progress bars
+  </Card>
+  <Card title="Menus" icon="list" href="/api/hud/menus">
+    Input forms and menu systems
+  </Card>
+  <Card title="HUD Exports" icon="display" href="/api/hud/exports">
+    Main HUD controls
+  </Card>
+  <Card title="Status System" icon="heartbeat" href="/api/hud/status">
+    Hunger, thirst, stress
+  </Card>
+</CardGroup>
+
+<Tip>
+**Icons:** All Font Awesome icons work. Use https://fontawesome.com/icons to find icon names. Use the name without the "fa-" prefix.
+</Tip>
+
+<Warning>
+**Spam:** Avoid spamming notifications. If you're sending multiple notifications rapidly, consider using a persistent notification that updates instead.
+</Warning>
