@@ -38,7 +38,7 @@ set steam_webApiKey "YOUR_STEAM_API_KEY"
 
 <Steps>
   <Step title="Get FiveM License">
-    Generate at [keymaster.fivem.net](https://keymaster.fivem.net)
+    Generate at [Cfx.re Portal](https://portal.cfx.re/servers/registration-keys)
   </Step>
   <Step title="Get Steam API Key">
     Generate at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey)
@@ -362,6 +362,18 @@ add_principal identifier.license:abc123def456 group.admin
 <Tip>
 **Recommended:** Use Discord ID for admin permissions. It's consistent across server wipes and easy to verify.
 </Tip>
+
+<Warning>
+**MongoDB Admin Permissions Required:** In addition to ACE permissions, admin users must also have their character set to `admin` or `owner` role in the MongoDB database. Add this to the character document:
+
+```json
+{
+  "role": "admin"  // or "owner" for full permissions
+}
+```
+
+Without this MongoDB role, admin commands will not work even with ACE permissions configured.
+</Warning>
 
 ## Server Branding
 

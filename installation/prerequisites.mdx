@@ -29,6 +29,59 @@ Before installing Mythic Framework, ensure you have all the required software an
 Server performance heavily depends on player count and resource usage. The recommended specs are for a 48-player server running all Mythic Framework resources.
 </Note>
 
+## Out of the Box Dependencies
+
+Mythic Framework comes pre-configured with premium maps and resources from top creators, giving you immediate access to high-quality content to enhance your server experience.
+
+<CardGroup cols={3}>
+  <Card title="Gabz" href="https://gabz.tebex.io/">
+    **Subscription (All Maps)**
+  </Card>
+  <Card title="GN Studio" href="https://gn.studio/package/burgershot">
+    **Burgershot**
+  </Card>
+  <Card title="GN Studio" href="https://fivem.gnstudios.fr/">
+    **Burgershot Props Collection**
+  </Card>
+  <Card title="GN Studio" href="https://gn.studio/package/black-wood-saloon">
+    **Black Woods Saloon**
+  </Card>
+  <Card title="GN Studio" href="https://gn.studio/package/mt-zonah-medical-center">
+    **Mount Zonah Hospital**
+  </Card>
+  <Card title="Dolu" href="https://dolu.tebex.io/package/5141128">
+    **Housing Shells**
+  </Card>
+  <Card title="ArtEx" href="https://artex.tebex.io/package/6084340">
+    **Package**
+  </Card>
+  <Card title="Map4All" href="https://fivem.map4all-shop.com/package/4967545">
+    **Noodle Exchange 02**
+  </Card>
+  <Card title="Map4All" href="https://fivem.map4all-shop.com/package/5342855">
+    **Xero Gas**
+  </Card>
+  <Card title="Patoche" href="https://patoche-mapping.tebex.io/package/5171582">
+    **Mapping**
+  </Card>
+  <Card title="LB Customs" href="https://lb-customs.tebex.io/package/4339272">
+    **Auto Exotics**
+  </Card>
+  <Card title="MrHunter" href="https://mrhunter.tebex.io/package/5198707">
+    **Smoke On The Water**
+  </Card>
+  <Card title="Junior's Interiors" href="https://juniors-interiors.tebex.io/category/1930382">
+    **Dreamworks Customs**
+  </Card>
+  <Card title="Dynasty8" href="https://forum.cfx.re/t/mlo-dynasty8-real-estate-agency/1842152">
+    **Real Estate**
+  </Card>
+</CardGroup>
+
+<Note>
+All dependencies are pre-installed and configured with Mythic Framework. These premium resources do not require separate purchases.
+</Note>
+
 ## Required Software
 
 ### 1. FiveM Server License
@@ -40,7 +93,7 @@ You need a valid FiveM server license key to run a FiveM server.
     Visit [forum.cfx.re](https://forum.cfx.re) and create an account if you don't have one
   </Step>
   <Step title="Generate License Key">
-    Go to [keymaster.fivem.net](https://keymaster.fivem.net) and generate a new server license key
+    Go to [Cfx.re Portal](https://portal.cfx.re/servers/registration-keys) and generate a new server license key
   </Step>
   <Step title="Save Your Key">
     Save the license key - you'll need it during server configuration
@@ -63,13 +116,6 @@ MongoDB is the primary database for Mythic Framework, storing authentication dat
     3. Run the installer with default settings
     4. Enable "Install MongoDB as a Service"
     5. Install MongoDB Compass (GUI tool) when prompted
-
-    **Verify Installation:**
-    ```bash
-    # Open Command Prompt and run:
-    mongo --version
-    # Should show: MongoDB shell version v4.4.x or higher
-    ```
 
     **Start MongoDB Service:**
     ```bash
@@ -95,12 +141,6 @@ MongoDB is the primary database for Mythic Framework, storing authentication dat
     # Start MongoDB
     sudo systemctl start mongod
     sudo systemctl enable mongod
-    ```
-
-    **Verify Installation:**
-    ```bash
-    mongo --version
-    # Should show: MongoDB shell version v6.0.x or higher
     ```
   </Tab>
   <Tab title="Docker">
@@ -155,12 +195,6 @@ MySQL provides compatibility with existing FiveM resources and handles relationa
     2. Install XAMPP
     3. Start MySQL from XAMPP Control Panel
     4. Access phpMyAdmin at http://localhost/phpmyadmin
-
-    **Verify Installation:**
-    ```bash
-    mysql --version
-    # Should show: mysql  Ver 8.0.x or higher
-    ```
   </Tab>
   <Tab title="Linux (Ubuntu/Debian)">
     **Install MariaDB:**

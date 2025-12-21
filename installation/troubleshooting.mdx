@@ -48,7 +48,7 @@ Before diving into specific issues, run these quick checks:
     **Solutions:**
     1. Verify license key in server.cfg is correct
     2. Check key matches your server IP
-    3. Generate new key if IP changed: [keymaster.fivem.net](https://keymaster.fivem.net)
+    3. Generate new key if IP changed: [Cfx.re Portal](https://portal.cfx.re/servers/registration-keys)
     4. For localhost testing, use `127.0.0.1` as the IP when generating
 
     **Test:**
@@ -418,105 +418,18 @@ Before diving into specific issues, run these quick checks:
     - Delayed interactions
 
     **Diagnosis:**
-    ```bash
-    # In server console or F8
-    resmon
 
-    # Check which resources using most CPU
+    Press `F8` in-game and type:
+    ```bash
+    resmon true
     ```
 
-    **Solutions:**
-    1. **Optimize problem resources:**
-       - Restart high-CPU resources
-       - Check for infinite loops in custom scripts
-       - Update to latest versions
+    This shows which resources are using the most CPU and memory. Restart or optimize high-usage resources to improve performance.
 
-    2. **Reduce player count:**
-       - Lower `sv_maxclients` if server can't handle load
-
-    3. **Database optimization:**
-       ```javascript
-       # MongoDB - Add indexes
-       db.characters.createIndex({ "owner": 1 })
-       db.inventory.createIndex({ "owner": 1, "item_id": 1 })
-       ```
-
-    4. **Check system resources:**
-       ```bash
-       # CPU and RAM usage
-       # Windows: Task Manager
-       # Linux: htop or top
-       ```
-  </Accordion>
-
-  <Accordion title="Memory Leak" icon="memory">
-    **Symptoms:**
-    - Server RAM usage constantly increasing
-    - Server crashes after hours of uptime
-    - `Out of memory` errors
-
-    **Solutions:**
-    1. **Monitor with resmon:**
-       Track which resources grow over time
-
-    2. **Schedule restarts:**
-       ```bash
-       # Linux cron - restart daily at 4 AM
-       0 4 * * * systemctl restart mythic-fivem
-       ```
-
-    3. **Check for leaks in custom resources:**
-       - Remove event listeners properly
-       - Clear timers and intervals
-       - Avoid global table growth
-
-    4. **Update resources:**
-       - Ensure all resources are latest versions
-       - Check for known memory leak fixes
-  </Accordion>
-
-  <Accordion title="Database Performance" icon="database">
-    **Symptoms:**
-    - Slow inventory loading
-    - Character selection lag
-    - Transaction delays
-
-    **Solutions:**
-    1. **Add database indexes:**
-       ```javascript
-       # MongoDB
-       use fivem
-       db.characters.createIndex({ "owner": 1 })
-       db.inventory.createIndex({ "owner": 1, "item_id": 1 })
-       db.vehicles.createIndex({ "owner": 1 })
-       ```
-
-    2. **Monitor slow queries:**
-       ```bash
-       # In server.cfg
-       set mysql_slow_query_warning 100
-       # Logs queries taking >100ms
-       ```
-
-    3. **Optimize MongoDB:**
-       ```bash
-       # Connect to MongoDB
-       mongo
-
-       # Check database stats
-       use fivem
-       db.stats()
-
-       # Compact collections
-       db.runCommand({ compact: 'characters' })
-       ```
-
-    4. **Increase connection pool:**
-       ```bash
-       # In connection string
-       mongodb://.../?maxPoolSize=50
-       mysql://...?connectionLimit=50
-       ```
+    **Additional Solutions:**
+    - Reduce player count if server can't handle the load
+    - Update resources to latest versions
+    - Check system resources (Task Manager on Windows, htop on Linux)
   </Accordion>
 </AccordionGroup>
 

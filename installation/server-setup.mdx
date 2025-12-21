@@ -1,25 +1,12 @@
 ---
 title: Server Setup
-description: Deploy Mythic Framework using txAdmin Recipe Deployer or manual installation
+description: Deploy Mythic Framework using the txAdmin Recipe Deployer
 icon: 'server'
 ---
 
-This guide covers deploying Mythic Framework to your FiveM server. We **highly recommend** using the txAdmin Recipe Deployer for the easiest setup experience.
+This guide covers deploying Mythic Framework to your FiveM server using the **txAdmin Recipe Deployer** - the easiest and recommended method for all users.
 
-## Installation Methods
-
-<CardGroup cols={2}>
-  <Card title="txAdmin Recipe (Recommended)" icon="rocket" color="#00ff00">
-    **Easiest Method** - Automated deployment with database setup
-  </Card>
-  <Card title="Manual Installation" icon="wrench" color="#ffaa00">
-    **Advanced Users** - Full control over installation process
-  </Card>
-</CardGroup>
-
----
-
-## Method 1: txAdmin Recipe Deployer (Recommended)
+## txAdmin Recipe Deployer
 
 The **txAdmin Recipe Deployer** automatically installs Mythic Framework with all dependencies, database configuration, and proper resource loading order.
 
@@ -92,7 +79,7 @@ Before using the recipe deployer, ensure you have:
 
     **First-time Setup:**
     1. Create an admin account
-    2. Link your FiveM license key (get one at [Cfx.re Keymaster](https://keymaster.fivem.net/))
+    2. Link your FiveM license key (get one at [Cfx.re Portal](https://portal.cfx.re/servers/registration-keys))
     3. You'll be presented with deployment options
   </Step>
 
@@ -242,253 +229,16 @@ After successful deployment, you may want to customize:
 
 ---
 
-## Method 2: Manual Installation
-
-For advanced users who want full control over the installation process.
-
-### Download FiveM Server
-
-<Tabs>
-  <Tab title="Windows">
-    1. Visit [FiveM Artifacts](https://runtime.fivem.net/artifacts/fivem/build_server_windows/master/)
-    2. Download the latest **recommended** build (green badge)
-    3. Extract to your desired location (e.g., `C:\FiveMServer\`)
-  </Tab>
-  <Tab title="Linux">
-    ```bash
-    # Create server directory
-    mkdir -p ~/fivem-server
-    cd ~/fivem-server
-
-    # Download latest recommended build (replace BUILD-NUMBER)
-    wget https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/[BUILD-NUMBER]/fx.tar.xz
-
-    # Extract
-    tar xf fx.tar.xz
-
-    # Make executable
-    chmod +x run.sh FXServer
-    ```
-  </Tab>
-</Tabs>
-
-### Extract Mythic Framework
-
-<Steps>
-  <Step title="Obtain Mythic Framework">
-    Extract the Mythic Framework package to a temporary location
-  </Step>
-  <Step title="Copy to Server Directory">
-    Copy these folders/files into your FiveM server directory:
-    - `resources/` folder
-    - `configs/` folder
-    - `server.cfg` file
-    - `logo96.png` (optional - server icon)
-  </Step>
-  <Step title="Verify Structure">
-    Your server directory should look like:
-    ```
-    FiveMServer/
-    ├── FXServer.exe (or run.sh)
-    ├── citizen/
-    ├── configs/
-    │   └── resources.cfg
-    ├── resources/
-    │   ├── [cfx-default]/
-    │   ├── [mythic]/
-    │   └── oxmysql/
-    ├── server.cfg
-    └── logo96.png
-    ```
-  </Step>
-</Steps>
-
-### Install Dependencies
-
-You'll need to manually install dependencies for UI resources:
-
-```bash
-# Install Node.js from https://nodejs.org/ (version 18+)
-
-# Install pnpm
-npm install -g pnpm
-
-# Install UI dependencies for each resource
-cd resources/[mythic]/mythic-phone/ui
-pnpm install
-
-cd ../mythic-mdt/ui
-pnpm install
-
-cd ../mythic-hud/ui
-pnpm install
-
-# Repeat for other UI resources...
-```
-
-### Understanding Directory Structure
-
-<Accordion title="resources/ Directory">
-  Contains all server resources:
-
-  ```
-  resources/
-  ├── [cfx-default]/     # Default FiveM resources
-  ├── [mythic]/          # Mythic Framework (60+ resources)
-  │   ├── mythic-base/   # MUST load first
-  │   ├── mythic-pwnzor/ # Anti-cheat (load second)
-  │   ├── mythic-characters/
-  │   ├── mythic-inventory/
-  │   └── ...
-  └── oxmysql/           # MySQL connector
-  ```
-
-  <Warning>
-  The `[mythic]` folder naming (with brackets) is important for organization in the server console.
-  </Warning>
-</Accordion>
-
-<Accordion title="configs/ Directory">
-  Contains resource loading configuration:
-
-  ```
-  configs/
-  └── resources.cfg     # Resource load order
-  ```
-
-  **Load order is critical:**
-  ```bash
-  # Core CFX resources first
-  ensure mapmanager
-  ensure spawnmanager
-  ensure sessionmanager
-
-  # Database before Mythic
-  ensure oxmysql
-
-  # Mythic Framework
-  ensure mythic-base     # MUST be first
-  ensure mythic-pwnzor   # Anti-cheat second
-  ensure mythic-characters
-  # ... more resources
-  ```
-</Accordion>
-
-### File Permissions (Linux)
-
-```bash
-# Set ownership
-sudo chown -R youruser:youruser ~/fivem-server
-
-# Make executables
-chmod +x ~/fivem-server/run.sh
-chmod +x ~/fivem-server/FXServer
-
-# Set permissions
-chmod 755 ~/fivem-server
-```
-
----
-
-## Mythic Framework Resources
-
-Mythic Framework includes 60+ resources organized by function:
-
-<AccordionGroup>
-  <Accordion title="Core Resources (Load First)" icon="box">
-    - `mythic-base` - Core framework, component system, database
-    - `mythic-pwnzor` - Anti-cheat system
-    - `mythic-queue` - Server queue and whitelist
-    - `mythic-loadscreen` - Loading screen
-  </Accordion>
-
-  <Accordion title="Character & Player" icon="user">
-    - `mythic-characters` - Multi-character system
-    - `mythic-spawn` - Spawn management
-    - `mythic-ped` - Character customization
-  </Accordion>
-
-  <Accordion title="Inventory & Economy" icon="box-open">
-    - `mythic-inventory` - Full inventory system
-    - `mythic-finance` - Banking and cash
-    - `mythic-businesses` - Business ownership
-    - `mythic-dealerships` - Vehicle dealerships
-  </Accordion>
-
-  <Accordion title="Jobs" icon="briefcase">
-    - `mythic-jobs` - Job framework
-    - `mythic-police`, `mythic-ems` - Emergency services
-    - `mythic-mechanic` - Mechanic job
-    - `mythic-restaurant` - Restaurant jobs
-    - More job resources...
-  </Accordion>
-
-  <Accordion title="UI Systems" icon="desktop">
-    - `mythic-hud` - Main HUD
-    - `mythic-phone` - Smartphone system
-    - `mythic-laptop` - Laptop interface
-    - `mythic-mdt` - Mobile Data Terminal
-    - `mythic-notifications` - Notifications
-  </Accordion>
-</AccordionGroup>
-
----
-
-## Verification Checklist
-
-Before moving to database configuration, verify:
-
-<Steps>
-  <Step title="FiveM Server">
-    ✅ FXServer.exe (Windows) or FXServer (Linux) exists
-  </Step>
-  <Step title="Configuration Files">
-    ✅ server.cfg exists in root
-    ✅ configs/resources.cfg exists
-  </Step>
-  <Step title="Resources">
-    ✅ resources/[mythic]/ contains 60+ Mythic resources
-    ✅ resources/oxmysql/ exists
-  </Step>
-  <Step title="Dependencies (Manual Install)">
-    ✅ Node.js installed (version 18+)
-    ✅ pnpm installed globally
-    ✅ UI dependencies installed for each resource
-  </Step>
-</Steps>
-
----
-
-## Comparison: Recipe vs Manual
-
-| Feature | txAdmin Recipe | Manual Install |
-|---------|---------------|----------------|
-| **Setup Time** | 10-15 minutes | 1-2 hours |
-| **Difficulty** | Easy | Advanced |
-| **Database Config** | Automated | Manual |
-| **Dependencies** | Auto-installed | Manual install |
-| **Updates** | Via txAdmin | Manual download |
-| **Best For** | New servers, quick setup | Experienced admins, custom setups |
-
-<Tip>
-**Recommendation:** Use the txAdmin Recipe unless you have specific reasons for manual installation. It's faster, easier, and less error-prone.
-</Tip>
-
----
-
 ## Next Steps
 
-Your server structure is now set up! Next steps:
+Your server is now deployed via txAdmin! Next steps:
 
 <CardGroup cols={2}>
-  <Card title="Database Setup" icon="database" href="/installation/database-setup">
-    Configure MongoDB and MariaDB/MySQL databases
-  </Card>
   <Card title="Server Configuration" icon="gear" href="/installation/configuration">
-    Configure server.cfg settings
+    Configure server.cfg settings and admin permissions
   </Card>
   <Card title="First Start" icon="rocket" href="/installation/first-start">
-    Start your server and create admin account
+    Start your server and create your first character
   </Card>
   <Card title="Troubleshooting" icon="wrench" href="/installation/troubleshooting">
     Common issues and solutions
@@ -496,7 +246,5 @@ Your server structure is now set up! Next steps:
 </CardGroup>
 
 <Note>
-**Important:** If you used the txAdmin recipe, database configuration is already done! Skip to [First Start](/installation/first-start).
-
-If you installed manually, continue to [Database Setup](/installation/database-setup).
+**Database Configuration:** The txAdmin recipe automatically configures all database connections. You can proceed directly to server configuration!
 </Note>

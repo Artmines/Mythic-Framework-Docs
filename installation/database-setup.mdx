@@ -36,58 +36,9 @@ Both databases are **required**. Mythic Framework will not start without both Mo
 
 ## MongoDB Setup
 
-### Create Databases
-
-MongoDB databases are created on-the-fly, but we'll verify connectivity and create them explicitly.
-
-<Tabs>
-  <Tab title="MongoDB Shell">
-    **Connect to MongoDB:**
-    ```bash
-    # Open MongoDB shell
-    mongo
-
-    # Or if you have authentication enabled:
-    mongo -u admin -p your_password --authenticationDatabase admin
-    ```
-
-    **Create the databases:**
-    ```javascript
-    // Switch to auth database
-    use auth
-
-    // Insert a dummy document to create the database
-    db.test.insertOne({test: true})
-    db.test.deleteOne({test: true})
-
-    // Switch to game database
-    use fivem
-
-    // Insert a dummy document
-    db.test.insertOne({test: true})
-    db.test.deleteOne({test: true})
-
-    // Verify databases exist
-    show dbs
-    // Should show 'auth' and 'fivem' in the list
-
-    // Exit
-    exit
-    ```
-  </Tab>
-  <Tab title="MongoDB Compass (GUI)">
-    1. Open MongoDB Compass
-    2. Connect to `mongodb://localhost:27017`
-    3. Click "Create Database"
-    4. Database name: `auth`, Collection name: `users`
-    5. Click "Create Database" again
-    6. Database name: `fivem`, Collection name: `characters`
-
-    <Tip>
-    Collections will be created automatically by Mythic Framework. We just need the databases to exist.
-    </Tip>
-  </Tab>
-</Tabs>
+<Note>
+MongoDB databases (`auth` and `fivem`) are created automatically by Mythic Framework on first start. No manual database creation is required.
+</Note>
 
 ### MongoDB Connection String
 

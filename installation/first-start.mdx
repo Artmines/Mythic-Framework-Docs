@@ -33,33 +33,11 @@ If any of these aren't complete, go back and finish them first. Starting with in
 
 ### Windows
 
-<Tabs>
-  <Tab title="Using Batch File">
-    Create or use `start.bat` in your server root:
+Simply run `FXServer.exe` in your server directory by double-clicking it. FXServer will automatically create a startup batch file if needed and launch the server with the correct configuration.
 
-    ```batch start.bat
-    @echo off
-    title Mythic Framework Server
-    echo Starting Mythic Framework...
-    echo.
-
-    FXServer.exe +exec server.cfg
-
-    pause
-    ```
-
-    Double-click `start.bat` to start the server.
-  </Tab>
-  <Tab title="Command Line">
-    ```bash
-    # Open Command Prompt in server directory
-    cd C:\Path\To\FiveMServer
-
-    # Start server
-    FXServer.exe +exec server.cfg
-    ```
-  </Tab>
-</Tabs>
+<Note>
+txAdmin will start automatically and provide you with a web URL (usually `http://localhost:40120`) where you can manage your server.
+</Note>
 
 ### Linux
 
@@ -69,22 +47,17 @@ cd ~/fivem-server
 
 # Start server
 ./run.sh
-
-# Or directly:
-./FXServer +exec server.cfg
 ```
 
-### Running as Background Service (Linux)
+<Accordion title="Running as Background Service (Optional)">
+For production servers, you can optionally run as a systemd service:
 
-For production servers, run as a systemd service:
-
-<Accordion title="Create systemd service">
 ```bash
 # Create service file
 sudo nano /etc/systemd/system/mythic-fivem.service
 ```
 
-```ini mythic-fivem.service
+```ini
 [Unit]
 Description=Mythic Framework FiveM Server
 After=network.target mongodb.service mysql.service
@@ -102,17 +75,10 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-# Reload systemd
+# Reload and start service
 sudo systemctl daemon-reload
-
-# Enable service (start on boot)
 sudo systemctl enable mythic-fivem
-
-# Start service
 sudo systemctl start mythic-fivem
-
-# Check status
-sudo systemctl status mythic-fivem
 
 # View logs
 sudo journalctl -u mythic-fivem -f
@@ -249,54 +215,9 @@ Watch the console for any red error messages:
   </Accordion>
 </AccordionGroup>
 
-### Verify Resource Status
-
-In server console, type:
-
-```bash
-# List all resources
-refresh
-status
-
-# Check specific resource
-status mythic-base
-status mythic-inventory
-```
-
-All Mythic resources should show as `started` in green.
-
-### Check Database Connections
-
-Verify databases were initialized:
-
-<Tabs>
-  <Tab title="MongoDB">
-    ```bash
-    # Connect to MongoDB
-    mongo
-
-    # Check auth database
-    use auth
-    show collections
-    # Should show: users, roles, etc.
-
-    # Check game database
-    use fivem
-    show collections
-    # Should show: characters, inventory, items, jobs, etc.
-    ```
-  </Tab>
-  <Tab title="MySQL">
-    ```bash
-    # Connect to MySQL
-    mysql -u mythic -p MythicFramework_345AE9
-
-    # Check tables
-    SHOW TABLES;
-    # Should show various tables created by framework
-    ```
-  </Tab>
-</Tabs>
+<Tip>
+The server console will automatically display any errors or warnings. If resources fail to start or databases can't connect, error messages will be shown in red. For troubleshooting, see the [Troubleshooting Guide](/installation/troubleshooting).
+</Tip>
 
 ## Connecting to Your Server
 
@@ -320,25 +241,13 @@ Verify databases were initialized:
 ### From Different Machine (LAN/Internet)
 
 <Steps>
-  <Step title="Find Server IP">
-    ```bash
-    # Windows
-    ipconfig
-    # Look for IPv4 Address
-
-    # Linux
-    ip addr show
-    # Look for inet address
-    ```
-  </Step>
-  <Step title="Open Required Ports">
-    Ensure port 30120 is open in:
-    - Windows Firewall / UFW
-    - Router port forwarding (for internet access)
+  <Step title="Ensure Firewall Port is Open">
+    Port 30120 must be open in Windows Firewall or UFW (Linux)
   </Step>
   <Step title="Connect from FiveM">
+    Press `F8` in FiveM and connect using your server's IP:
     ```
-    connect YOUR_IP:30120
+    connect YOUR_SERVER_IP:30120
     ```
   </Step>
 </Steps>
