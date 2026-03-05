@@ -67,6 +67,9 @@ end)
 -- Log job changes
 AddEventHandler('mythic-jobs:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
     COMPONENTS.Logger:Info('Jobs', 'Job changed', {
+        console = true,
+        file = true
+    }, {
         character = characterId,
         from = oldJob .. ' (Grade ' .. oldGrade .. ')',
         to = newJob .. ' (Grade ' .. newGrade .. ')'
@@ -199,11 +202,14 @@ end)
 
 -- Track employment history
 AddEventHandler('mythic-jobs:server:Hired', function(source, characterId, jobName, grade)
-    COMPONENTS.Database:insertOne('employment_history', {
-        character = characterId,
-        job = jobName,
-        grade = grade,
-        hiredAt = os.time()
+    Database.Game:insertOne({
+        collection = 'employment_history',
+        document = {
+            character = characterId,
+            job = jobName,
+            grade = grade,
+            hiredAt = os.time()
+        }
     })
 end)
 
@@ -267,10 +273,11 @@ end)
 
 -- Update employment history
 AddEventHandler('mythic-jobs:server:Fired', function(source, characterId, oldJob, oldGrade)
-    COMPONENTS.Database:updateOne('employment_history',
-        { character = characterId, job = oldJob, firedAt = nil },
-        { ['$set'] = { firedAt = os.time() } }
-    )
+    Database.Game:updateOne({
+        collection = 'employment_history',
+        query = { character = characterId, job = oldJob, firedAt = nil },
+        update = { ['$set'] = { firedAt = os.time() } }
+    })
 end)
 ```
 
@@ -518,11 +525,14 @@ end)
 
 -- Log paychecks
 AddEventHandler('mythic-jobs:server:PaycheckIssued', function(source, characterId, jobName, amount)
-    COMPONENTS.Database:insertOne('paycheck_log', {
-        character = characterId,
-        job = jobName,
-        amount = amount,
-        timestamp = os.time()
+    Database.Game:insertOne({
+        collection = 'paycheck_log',
+        document = {
+            character = characterId,
+            job = jobName,
+            amount = amount,
+            timestamp = os.time()
+        }
     })
 end)
 
@@ -537,10 +547,11 @@ AddEventHandler('mythic-jobs:server:PaycheckIssued', function(source, characterI
     COMPONENTS.Characters:RemoveMoney(characterId, 'bank', taxAmount, 'Income tax')
 
     -- Add to government funds
-    COMPONENTS.Database:updateOne('government',
-        {},
-        { ['$inc'] = { funds = taxAmount } }
-    )
+    Database.Game:updateOne({
+        collection = 'government',
+        query = {},
+        update = { ['$inc'] = { funds = taxAmount } }
+    })
 
     TriggerClientEvent('mythic-notifications:client:Send', source, {
         message = 'Tax deducted: $' .. taxAmount,

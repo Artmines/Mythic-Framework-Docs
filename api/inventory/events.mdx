@@ -67,6 +67,9 @@ end)
 -- Log item additions
 AddEventHandler('mythic-inventory:server:ItemAdded', function(characterId, itemName, count, slot, metadata)
     COMPONENTS.Logger:Info('Inventory', 'Item added', {
+        console = true,
+        file = true
+    }, {
         character = characterId,
         item = itemName,
         count = count,
@@ -78,20 +81,27 @@ end)
 AddEventHandler('mythic-inventory:server:ItemAdded', function(characterId, itemName, count, slot, metadata)
     if string.match(itemName, '^weapon_') then
         -- Log weapon given
-        COMPONENTS.Database:insertOne('weapon_logs', {
-            character = characterId,
-            weapon = itemName,
-            serial = metadata.serial,
-            action = 'added',
-            timestamp = os.time()
+        Database.Game:insertOne({
+            collection = 'weapon_logs',
+            document = {
+                character = characterId,
+                weapon = itemName,
+                serial = metadata.serial,
+                action = 'added',
+                timestamp = os.time()
+            }
         })
 
         -- Notify admins
         COMPONENTS.Logger:Info('Weapons', 'Weapon distributed', {
+            console = true,
+            file = true,
+            discord = true
+        }, {
             character = characterId,
             weapon = itemName,
             serial = metadata.serial
-        }, { discord = true })
+        })
     end
 end)
 
@@ -157,6 +167,9 @@ end)
 -- Log item removals
 AddEventHandler('mythic-inventory:server:ItemRemoved', function(characterId, itemName, count, slot)
     COMPONENTS.Logger:Info('Inventory', 'Item removed', {
+        console = true,
+        file = true
+    }, {
         character = characterId,
         item = itemName,
         count = count,
@@ -264,6 +277,9 @@ end)
 -- Log usage
 AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
     COMPONENTS.Logger:Info('Items', 'Item used', {
+        console = true,
+        file = true
+    }, {
         player = source,
         character = characterId,
         item = itemName
@@ -348,9 +364,13 @@ AddEventHandler('mythic-inventory:server:ItemMoved', function(characterId, fromS
         if moveTracking[characterId].count > 10 then
             -- Suspicious activity
             COMPONENTS.Logger:Warn('AntiCheat', 'Rapid inventory movements', {
+                console = true,
+                file = true,
+                discord = true
+            }, {
                 character = characterId,
                 moves = moveTracking[characterId].count
-            }, { discord = true })
+            })
         end
     else
         moveTracking[characterId].count = 0
@@ -398,19 +418,25 @@ end)
 -- Log trades between players
 AddEventHandler('mythic-inventory:server:ItemGiven', function(fromCharacterId, toCharacterId, itemName, count)
     COMPONENTS.Logger:Info('Trading', 'Item given', {
+        console = true,
+        file = true
+    }, {
         from = fromCharacterId,
         to = toCharacterId,
         item = itemName,
         count = count
-    }, { file = true })
+    })
 
     -- Insert trade log
-    COMPONENTS.Database:insertOne('trades', {
-        from = fromCharacterId,
-        to = toCharacterId,
-        item = itemName,
-        count = count,
-        timestamp = os.time()
+    Database.Game:insertOne({
+        collection = 'trades',
+        document = {
+            from = fromCharacterId,
+            to = toCharacterId,
+            item = itemName,
+            count = count,
+            timestamp = os.time()
+        }
     })
 end)
 
@@ -518,10 +544,13 @@ end)
 AddEventHandler('mythic-inventory:server:ItemDropped', function(source, characterId, itemName, count, coords)
     if string.match(itemName, '^weapon_') then
         COMPONENTS.Logger:Info('Weapons', 'Weapon dropped', {
+            console = true,
+            file = true
+        }, {
             character = characterId,
             weapon = itemName,
             location = coords
-        }, { file = true })
+        })
     end
 end)
 
@@ -560,6 +589,9 @@ end)
 ```lua
 AddEventHandler('mythic-inventory:server:InventoryCreated', function(characterId, inventory)
     COMPONENTS.Logger:Info('Inventory', 'Inventory created', {
+        console = true,
+        file = true
+    }, {
         character = characterId,
         maxSlots = inventory.maxSlots,
         maxWeight = inventory.maxWeight
@@ -706,11 +738,14 @@ end)
 ```lua
 -- Comprehensive inventory audit log
 local function LogInventoryAction(action, characterId, details)
-    COMPONENTS.Database:insertOne('inventory_logs', {
-        action = action,
-        character = characterId,
-        details = details,
-        timestamp = os.time()
+    Database.Game:insertOne({
+        collection = 'inventory_logs',
+        document = {
+            action = action,
+            character = characterId,
+            details = details,
+            timestamp = os.time()
+        }
     })
 end
 
@@ -780,7 +815,11 @@ end)
     ```lua
     AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
         -- Validate character
-        local char = COMPONENTS.Characters:GetCharacterByID(characterId)
+        local player = Fetch:SID(characterId)
+        if not player then
+            return
+        end
+        local char = player:GetData('Character')
         if not char then
             return
         end
@@ -789,6 +828,9 @@ end)
         local item = COMPONENTS.Items:Get(itemName)
         if not item then
             COMPONENTS.Logger:Warn('Inventory', 'Invalid item used', {
+                console = true,
+                file = true
+            }, {
                 character = characterId,
                 item = itemName
             })
@@ -825,9 +867,12 @@ end)
     local eventTracking = {}
 
     AddEventHandler('playerDropped', function()
-        local char = COMPONENTS.Characters:GetCharacter(source)
-        if char then
-            eventTracking[char.SID] = nil
+        local player = Fetch:Source(source)
+        if player then
+            local char = player:GetData('Character')
+            if char then
+                eventTracking[char:GetData('SID')] = nil
+            end
         end
     end)
     ```

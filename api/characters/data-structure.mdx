@@ -457,10 +457,12 @@ char:SetData('MetaData', metadata)
 ### Find by Name
 
 ```lua
-local characters = COMPONENTS.Database:find('characters', {
-    First = 'John',
-    Last = 'Doe'
-})
+COMPONENTS.Database.Game:find({
+    collection = 'characters',
+    query = { First = 'John', Last = 'Doe' }
+}, function(success, characters)
+    -- process characters
+end)
 ```
 
 ### Find by User (Account ID)

@@ -89,15 +89,18 @@ exports['mythic-base']:RegisterComponent('Inventory', {
     _name = 'inventory',
 
     -- Required methods
-    Get = function(self, characterId)
-        return COMPONENTS.Database:findOne('inventory', {
-            owner = characterId
-        })
+    Get = function(self, characterId, cb)
+        COMPONENTS.Database.Game:findOne({
+            collection = 'inventory',
+            query = { owner = characterId }
+        }, cb)
     end,
 
     AddItem = function(self, characterId, item, count, metadata)
         -- Add item logic
         COMPONENTS.Logger:Info('Inventory', 'Item added', {
+            console = true
+        }, {
             character = characterId,
             item = item,
             count = count
@@ -204,8 +207,10 @@ AddEventHandler('Core:Shared:Ready', function()
     -- Components are now available in COMPONENTS global
     COMPONENTS.Logger:Info('MyResource', 'Starting up')
 
-    local character = COMPONENTS.Characters:GetCharacter(source)
-    local inventory = COMPONENTS.Inventory:Get(character.SID)
+    local player = Fetch:Source(source)
+    if player then
+        local char = player:GetData('Character')
+    end
 end)
 ```
 
@@ -314,7 +319,9 @@ local originalAddItem = COMPONENTS.Inventory.AddItem
 exports['mythic-base']:ExtendComponent('Inventory', {
     AddItem = function(self, characterId, item, count, metadata)
         -- Log before
-        COMPONENTS.Logger:Debug('Inventory', 'Adding item', {
+        COMPONENTS.Logger:Trace('Inventory', 'Adding item', {
+            console = true
+        }, {
             character = characterId,
             item = item,
             count = count
@@ -360,11 +367,15 @@ exports['mythic-base']:ExtendComponent('Inventory', {
 ### Notes
 
 <Note>
-**Non-Destructive:** `ExtendComponent` adds methods without removing existing ones. If a method already exists, it will be overridden.
+**Non-Destructive:** `ExtendComponent` adds methods without removing existing ones. If a method name already exists on the component, it will be overridden with the new implementation.
 </Note>
 
+<Warning>
+**Protected Components:** `ExtendComponent` **cannot** extend components that have `_protected = true`. Attempting to do so will fail with a warning: `"Attempt To Extend Protected Component"`. Core components like `Database` and `Logger` are protected.
+</Warning>
+
 <Tip>
-**Modular Extensions:** Use `ExtendComponent` to add resource-specific functionality to core components without modifying the original resource.
+**Modular Extensions:** Use `ExtendComponent` to add resource-specific functionality to non-protected components without modifying the original resource.
 </Tip>
 
 ---
@@ -541,12 +552,12 @@ Use `Core:Shared:Ready` when you need to:
 AddEventHandler('Core:Shared:Ready', function()
     -- Fetch client components
     local Logger = exports['mythic-base']:FetchComponent('Logger')
-    local Callbacks = exports['mythic-base']:FetchComponent('Callback')
+    local Callbacks = exports['mythic-base']:FetchComponent('Callbacks')
 
     Logger:Info('HUD', 'Initializing HUD')
 
-    -- Register callbacks
-    Callbacks:RegisterCallback('hud:getData', function(data, cb)
+    -- Register client callbacks
+    Callbacks:RegisterClientCallback('hud:getData', function(data, cb)
         cb({ status = 'ok' })
     end)
 
@@ -565,14 +576,22 @@ AddEventHandler('Core:Shared:Ready', function()
     COMPONENTS.Logger:Info('Jobs', 'Loading jobs system')
 
     -- Load jobs from database
-    local jobs = COMPONENTS.Database:find('jobs', {})
-
-    COMPONENTS.Logger:Info('Jobs', 'Loaded ' .. #jobs .. ' jobs')
+    COMPONENTS.Database.Game:find({
+        collection = 'jobs',
+        query = {}
+    }, function(success, jobs)
+        if success then
+            COMPONENTS.Logger:Info('Jobs', 'Loaded ' .. #jobs .. ' jobs')
+        end
+    end)
 
     -- Set up event handlers
     RegisterNetEvent('jobs:server:clockIn', function(jobId)
-        local char = COMPONENTS.Characters:GetCharacter(source)
-        COMPONENTS.Jobs:ClockIn(char.SID, jobId)
+        local player = Fetch:Source(source)
+        local char = player:GetData('Character')
+        if char then
+            COMPONENTS.Jobs:ClockIn(char:GetData('SID'), jobId)
+        end
     end)
 end)
 ```
@@ -592,7 +611,7 @@ local Database = exports['mythic-base']:FetchComponent('Database')
 
 -- Use this:
 COMPONENTS.Logger:Info('MyResource', 'Message')
-COMPONENTS.Database:findOne('collection', {})
+COMPONENTS.Database.Game:findOne({ collection = 'characters', query = {} }, callback)
 ```
 
 ### Available After
@@ -608,7 +627,7 @@ COMPONENTS.Database:findOne('collection', {})
     COMPONENTS.Logger
     COMPONENTS.Database
     COMPONENTS.Middleware
-    COMPONENTS.Callback
+    COMPONENTS.Callbacks
     COMPONENTS.Punishment
 
     -- Feature components (if resources loaded)
@@ -626,7 +645,7 @@ COMPONENTS.Database:findOne('collection', {})
     ```lua
     -- Core client components
     COMPONENTS.Logger
-    COMPONENTS.Callback
+    COMPONENTS.Callbacks
     COMPONENTS.Keybinds
     COMPONENTS.Notifications
 

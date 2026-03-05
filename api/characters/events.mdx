@@ -70,6 +70,9 @@ AddEventHandler('mythic-characters:server:CharacterCreated', function(source, ch
     })
 
     COMPONENTS.Logger:Info('Characters', 'New character created', {
+        console = true,
+        file = true
+    }, {
         player = source,
         character = character.SID,
         name = character.First .. ' ' .. character.Last
@@ -92,12 +95,15 @@ end)
 
 -- Create default bank account
 AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
-    COMPONENTS.Database:insertOne('bank_accounts', {
-        owner = character.SID,
-        type = 'checking',
-        balance = 5000,  -- Starting balance
-        accountNumber = GenerateAccountNumber(),
-        createdAt = os.time()
+    COMPONENTS.Database.Game:insertOne({
+        collection = 'bank_accounts',
+        document = {
+            owner = character.SID,
+            type = 'checking',
+            balance = 5000,  -- Starting balance
+            accountNumber = GenerateAccountNumber(),
+            createdAt = os.time()
+        }
     })
 end)
 ```
@@ -134,12 +140,24 @@ AddEventHandler('mythic-characters:server:CharacterSelected', function(source, c
     TriggerClientEvent('mythic-inventory:client:SetInventory', source, inventory)
 
     -- Load vehicles
-    local vehicles = COMPONENTS.Database:find('vehicles', { owner = character.SID })
-    TriggerClientEvent('mythic-vehicles:client:SetVehicles', source, vehicles)
+    COMPONENTS.Database.Game:find({
+        collection = 'vehicles',
+        query = { owner = character.SID }
+    }, function(success, vehicles)
+        if success then
+            TriggerClientEvent('mythic-vehicles:client:SetVehicles', source, vehicles)
+        end
+    end)
 
     -- Load properties
-    local properties = COMPONENTS.Database:find('properties', { owner = character.SID })
-    TriggerClientEvent('mythic-properties:client:SetProperties', source, properties)
+    COMPONENTS.Database.Game:find({
+        collection = 'properties',
+        query = { owner = character.SID }
+    }, function(success, properties)
+        if success then
+            TriggerClientEvent('mythic-properties:client:SetProperties', source, properties)
+        end
+    end)
 
     -- Set job
     TriggerClientEvent('mythic-jobs:client:SetJob', source, {
@@ -152,6 +170,9 @@ end)
 -- Log character selection
 AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
     COMPONENTS.Logger:Info('Characters', 'Character selected', {
+        console = true,
+        file = true
+    }, {
         player = source,
         playerName = GetPlayerName(source),
         character = character.SID,
@@ -166,14 +187,14 @@ end)
 
 -- Check for pending notifications
 AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
-    local notifications = COMPONENTS.Database:find('notifications', {
-        target = character.SID,
-        read = false
-    })
-
-    if #notifications > 0 then
-        TriggerClientEvent('mythic-phone:client:ReceiveNotifications', source, notifications)
-    end
+    COMPONENTS.Database.Game:find({
+        collection = 'notifications',
+        query = { target = character.SID, read = false }
+    }, function(success, notifications)
+        if success and notifications and #notifications > 0 then
+            TriggerClientEvent('mythic-phone:client:ReceiveNotifications', source, notifications)
+        end
+    end)
 end)
 ```
 
@@ -208,34 +229,49 @@ AddEventHandler('mythic-characters:server:CharacterDeleted', function(source, ch
     COMPONENTS.Inventory:Delete(characterId)
 
     -- Delete all vehicles
-    COMPONENTS.Database:deleteMany('vehicles', { owner = characterId })
+    COMPONENTS.Database.Game:delete({
+        collection = 'vehicles',
+        query = { owner = characterId }
+    })
 
     -- Delete properties
-    COMPONENTS.Database:deleteMany('property_ownership', { owner = characterId })
+    COMPONENTS.Database.Game:delete({
+        collection = 'property_ownership',
+        query = { owner = characterId }
+    })
 
     -- Delete phone data
-    COMPONENTS.Database:deleteMany('phone_messages', {
-        ['$or'] = {
-            { sender = characterId },
-            { receiver = characterId }
+    COMPONENTS.Database.Game:delete({
+        collection = 'phone_messages',
+        query = {
+            ['$or'] = {
+                { sender = characterId },
+                { receiver = characterId }
+            }
         }
     })
 
     -- Delete bank accounts
-    COMPONENTS.Database:deleteMany('bank_accounts', { owner = characterId })
+    COMPONENTS.Database.Game:delete({
+        collection = 'bank_accounts',
+        query = { owner = characterId }
+    })
 
     COMPONENTS.Logger:Info('Characters', 'Character data cleaned up', {
-        character = characterId
-    })
+        console = true, file = true
+    }, { character = characterId })
 end)
 
 -- Log deletion for audit
 AddEventHandler('mythic-characters:server:CharacterDeleted', function(source, characterId)
-    COMPONENTS.Database:insertOne('audit_log', {
-        type = 'character_deleted',
-        player = GetPlayerIdentifier(source, 0),
-        character = characterId,
-        timestamp = os.time()
+    COMPONENTS.Database.Game:insertOne({
+        collection = 'audit_log',
+        document = {
+            type = 'character_deleted',
+            player = GetPlayerIdentifier(source, 0),
+            character = characterId,
+            timestamp = os.time()
+        }
     })
 end)
 ```
@@ -401,13 +437,16 @@ end)
 
 -- Transaction log
 AddEventHandler('mythic-characters:server:MoneyChanged', function(characterId, account, amount, newBalance, reason)
-    COMPONENTS.Database:insertOne('transactions', {
-        character = characterId,
-        account = account,
-        amount = amount,
-        balance = newBalance,
-        reason = reason,
-        timestamp = os.time()
+    COMPONENTS.Database.Game:insertOne({
+        collection = 'transactions',
+        document = {
+            character = characterId,
+            account = account,
+            amount = amount,
+            balance = newBalance,
+            reason = reason,
+            timestamp = os.time()
+        }
     })
 end)
 ```

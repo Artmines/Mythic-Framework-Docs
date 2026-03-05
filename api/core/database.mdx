@@ -1,111 +1,88 @@
 ---
 title: Database API
-description: MongoDB and MySQL database operations for Mythic Framework
+description: MongoDB database operations for Mythic Framework
 icon: 'database'
 ---
 
-The Database component provides a unified interface for both MongoDB (primary) and MySQL (compatibility) database operations.
+The Database component provides access to MongoDB for all persistent data storage. It uses a dual-database architecture with separate databases for authentication and game data.
 
 ## Overview
 
-Access the Database component via `Database.Game` (for game data) or `Database.Auth` (for authentication data) after the `Core:Shared:Ready` event.
-
-### Dual Database Architecture
+Access the Database component via `Database.Game` (for game data) or `Database.Auth` (for authentication data).
 
 ```lua
-Database.Game    -- Primary database for game data (characters, inventory, vehicles, etc.)
-Database.Auth    -- Separate database for authentication (users, roles, permissions)
+Database.Game    -- Characters, vehicles, inventory, properties, phone data, etc.
+Database.Auth    -- Accounts, bans
 ```
-
-<CardGroup cols={2}>
-  <Card title="MongoDB Primary" icon="leaf">
-    Document database for game data, characters, inventory
-  </Card>
-  <Card title="MySQL Support" icon="database">
-    Relational database via oxmysql for compatibility
-  </Card>
-  <Card title="Promise-Based" icon="hourglass">
-    Async/await patterns with callbacks
-  </Card>
-  <Card title="Type-Safe" icon="shield-check">
-    Automatic data type handling
-  </Card>
-</CardGroup>
 
 <Warning>
 **Server-Side Only:** Database operations are only available on the server. Never attempt database queries from client-side code.
 </Warning>
 
+<Warning>
+**Params Table Pattern:** All MongoDB methods use a single `params` table as the first argument — NOT separate positional arguments. See examples below.
+</Warning>
+
 ---
 
-## MongoDB Operations
+## Call Signature
 
-MongoDB is the primary database for Mythic Framework, storing characters, inventory, vehicles, and most game data.
+Every database method follows the same pattern:
+
+```lua
+Database.Game:methodName({
+    collection = "collectionName",
+    query = { ... },        -- for find/update/delete
+    document = { ... },     -- for insertOne
+    documents = { ... },    -- for insert (bulk)
+    update = { ... },       -- for update/updateOne
+    options = { ... },      -- optional MongoDB options
+    limit = 10,             -- optional result limit (find)
+    aggregate = { ... },    -- pipeline stages (aggregate only)
+}, function(success, result, insertedIds)
+    -- success (boolean) - whether the operation succeeded
+    -- result - data on success, error message string on failure
+    -- insertedIds - array of IDs (insert operations only)
+end)
+```
+
+---
+
+## Methods
 
 ### findOne
 
 Find a single document matching the query.
 
 ```lua
-Database.Game:findOne(params, callback)
+Database.Game:findOne({
+    collection = "characters",
+    query = { SID = 1 }
+}, function(success, results)
+    if success and results and #results > 0 then
+        local character = results[1]
+        print("Found:", character.First, character.Last)
+    end
+end)
 ```
 
-<ParamField path="params" type="table" required>
-  Parameter table with the following fields:
-  - `collection` (string) - Collection name
-  - `query` (table) - Query filter
-  - `options` (table, optional) - Query options (projection, etc.)
-</ParamField>
+<Note>
+`findOne` internally calls `find` with `limit = 1`. The callback receives an array — access the first element with `results[1]`.
+</Note>
 
-<ParamField path="callback" type="function" required>
-  Callback function receiving `(success, result)`
-  - `success` (boolean) - Whether query succeeded
-  - `result` (table|nil) - Document found, or nil if not found
-</ParamField>
-
-**Examples:**
+**With projection (return only specific fields):**
 
 ```lua
--- Basic findOne
 Database.Game:findOne({
-    collection = 'characters',
-    query = {
-        SID = 1
-    }
-}, function(success, character)
-    if success and character then
-        print('Found character:', character.First, character.Last)
-    else
-        print('Character not found')
-    end
-end)
-
--- Query by multiple fields
-Database.Game:findOne({
-    collection = 'inventory',
-    query = {
-        owner = characterId,
-        type = 'main'
-    }
-}, function(success, inventory)
-    if success and inventory then
-        -- Process inventory
-    end
-end)
-
--- With projection (only specific fields)
-Database.Game:findOne({
-    collection = 'characters',
+    collection = "characters",
     query = { SID = 1 },
     options = {
-        projection = {
-            First = 1,
-            Last = 1,
-            Cash = 1
-        }
+        projection = { First = 1, Last = 1, Cash = 1 }
     }
-}, function(success, character)
-    -- character only contains First, Last, Cash fields
+}, function(success, results)
+    if success and results and #results > 0 then
+        -- results[1] only contains First, Last, Cash, _id
+    end
 end)
 ```
 
@@ -116,197 +93,100 @@ end)
 Find multiple documents matching the query.
 
 ```lua
-Database.Game:find(params, callback)
-```
-
-<ParamField path="params" type="table" required>
-  Parameter table with the following fields:
-  - `collection` (string) - Collection name
-  - `query` (table) - Query filter
-  - `options` (table, optional) - Query options:
-    - `limit` (number) - Maximum documents to return
-    - `skip` (number) - Skip first N documents
-    - `sort` (table) - Sort order `{ field = 1 }` (asc) or `{ field = -1 }` (desc)
-    - `projection` (table) - Fields to include/exclude
-</ParamField>
-
-<ParamField path="callback" type="function" required>
-  Callback function receiving `(success, results)`
-  - `success` (boolean) - Whether query succeeded
-  - `results` (table) - Array of documents (empty array if none found)
-</ParamField>
-
-**Examples:**
-
-```lua
--- Find all documents
 Database.Game:find({
-    collection = 'characters',
-    query = {}
-}, function(success, allCharacters)
+    collection = "characters",
+    query = { ["Jobs.Id"] = "police" }
+}, function(success, results)
     if success then
-        print('Found', #allCharacters, 'characters')
+        print("Found", #results, "police officers")
     end
 end)
+```
 
--- Find with filter
+**With limit:**
+
+```lua
 Database.Game:find({
-    collection = 'characters',
-    query = {
-        ['Jobs.Id'] = 'police'  -- Query array fields
-    }
-}, function(success, policeOfficers)
-    -- Process results
+    collection = "characters",
+    query = {},
+    limit = 10
+}, function(success, results)
+    if success then
+        for _, char in ipairs(results) do
+            print(char.First, char.Last)
+        end
+    end
 end)
+```
 
--- Find with limit and sort
+**With options (sort, projection):**
+
+```lua
 Database.Game:find({
-    collection = 'characters',
+    collection = "characters",
     query = {},
     options = {
-        limit = 10,
-        sort = { createdAt = -1 }  -- Newest first
-    }
-}, function(success, recentCharacters)
-    -- Process results
+        sort = { createdAt = -1 },
+        projection = { First = 1, Last = 1, _id = 0 }
+    },
+    limit = 20
+}, function(success, results)
+    -- 20 most recent characters, names only
 end)
-
--- Find with pagination
-Database.Game:find({
-    collection = 'characters',
-    query = {},
-    options = {
-        skip = 20,
-        limit = 20  -- Page 2 (20 per page)
-    }
-}, function(success, page2)
-    -- Process results
-end)
-
--- Find with projection
-Database.Game:find({
-    collection = 'characters',
-    query = {},
-    options = {
-        projection = {
-            First = 1,
-            Last = 1,
-            _id = 0  -- Exclude _id
-        }
-    }
-}, function(success, characterNames)
-    -- Results only contain First and Last fields
-end)
-
--- Complex query
-local activePolice = COMPONENTS.Database:find('characters', {
-    job = 'police',
-    onDuty = true
-}, {
-    limit = 50,
-    sort = { rank = -1 }
-})
 ```
 
 ---
 
 ### insertOne
 
-Insert a single document into a collection.
+Insert a single document.
 
 ```lua
-COMPONENTS.Database:insertOne(collection, document, callback)
-```
-
-<ParamField path="collection" type="string" required>
-  MongoDB collection name
-</ParamField>
-
-<ParamField path="document" type="table" required>
-  Document to insert as key-value pairs
-</ParamField>
-
-<ParamField path="callback" type="function" optional>
-  Callback function receiving `(success, insertedId)`
-</ParamField>
-
-**Examples:**
-
-```lua
--- Insert character
-COMPONENTS.Database:insertOne('characters', {
-    SID = 1,
-    First = 'John',
-    Last = 'Doe',
-    DOB = '1990-01-15',
-    Gender = 'Male',
-    job = 'unemployed',
-    createdAt = os.time()
-}, function(success, id)
+Database.Game:insertOne({
+    collection = "characters",
+    document = {
+        SID = 1,
+        First = "John",
+        Last = "Doe",
+        DOB = "1990-01-15",
+        Gender = "Male",
+        createdAt = os.time()
+    }
+}, function(success, count, ids)
     if success then
-        print('Character created with ID:', id)
-    else
-        print('Failed to create character')
+        print("Inserted with ID:", ids[1])
     end
 end)
-
--- Insert inventory
-COMPONENTS.Database:insertOne('inventory', {
-    owner = characterId,
-    type = 'main',
-    items = {},
-    maxSlots = 50,
-    maxWeight = 100
-})
-
--- Insert log entry
-COMPONENTS.Database:insertOne('logs', {
-    type = 'admin_action',
-    admin = adminId,
-    action = 'teleport',
-    target = targetId,
-    timestamp = os.time()
-})
 ```
+
+<Note>
+`insertOne` wraps the `document` into a single-element array and calls `insert` internally. The callback signature is `(success, insertedCount, arrayOfIds)`.
+</Note>
 
 ---
 
-### insertMany
+### insert
 
-Insert multiple documents at once.
-
-```lua
-COMPONENTS.Database:insertMany(collection, documents, callback)
-```
-
-<ParamField path="collection" type="string" required>
-  MongoDB collection name
-</ParamField>
-
-<ParamField path="documents" type="table" required>
-  Array of documents to insert
-</ParamField>
-
-<ParamField path="callback" type="function" optional>
-  Callback function receiving `(success, insertedIds)`
-</ParamField>
-
-**Example:**
+Insert multiple documents at once (bulk insert).
 
 ```lua
--- Insert multiple items
-local items = {
-    { name = 'water', label = 'Water Bottle', weight = 0.5 },
-    { name = 'sandwich', label = 'Sandwich', weight = 0.3 },
-    { name = 'phone', label = 'Phone', weight = 0.2 }
-}
-
-COMPONENTS.Database:insertMany('items', items, function(success, ids)
+Database.Game:insert({
+    collection = "logs",
+    documents = {
+        { type = "join", player = "John", timestamp = os.time() },
+        { type = "join", player = "Jane", timestamp = os.time() },
+        { type = "join", player = "Bob", timestamp = os.time() }
+    }
+}, function(success, insertedCount, ids)
     if success then
-        print('Inserted', #ids, 'items')
+        print("Inserted", insertedCount, "documents")
     end
 end)
 ```
+
+<Warning>
+The method name is `insert`, NOT `insertMany`. The `params.documents` field must be an array of document tables.
+</Warning>
 
 ---
 
@@ -315,121 +195,82 @@ end)
 Update a single document matching the query.
 
 ```lua
-COMPONENTS.Database:updateOne(collection, query, update, callback)
+Database.Game:updateOne({
+    collection = "characters",
+    query = { SID = 1 },
+    update = {
+        ["$set"] = {
+            job = "police",
+            grade = "officer"
+        }
+    }
+}, function(success, modifiedCount)
+    if success then
+        print("Modified", modifiedCount, "documents")
+    end
+end)
 ```
 
-<ParamField path="collection" type="string" required>
-  MongoDB collection name
-</ParamField>
-
-<ParamField path="query" type="table" required>
-  Query filter to find document to update
-</ParamField>
-
-<ParamField path="update" type="table" required>
-  Update operations using MongoDB update operators (`$set`, `$inc`, `$push`, etc.)
-</ParamField>
-
-<ParamField path="callback" type="function" optional>
-  Callback function receiving `(success, modifiedCount)`
-</ParamField>
-
-**Examples:**
+**Increment values:**
 
 ```lua
--- Update character job
-COMPONENTS.Database:updateOne('characters',
-    { SID = 1 },
-    {
-        ['$set'] = {
-            job = 'police',
-            grade = 'officer',
-            onDuty = true
-        }
+Database.Game:updateOne({
+    collection = "characters",
+    query = { SID = 1 },
+    update = {
+        ["$inc"] = { cash = 500 }
     }
-)
+})
+```
 
--- Increment money
-COMPONENTS.Database:updateOne('characters',
-    { SID = characterId },
-    {
-        ['$inc'] = {
-            cash = 500  -- Add $500
-        }
-    }
-)
+**Push to array:**
 
--- Push to array
-COMPONENTS.Database:updateOne('characters',
-    { SID = characterId },
-    {
-        ['$push'] = {
-            licenses = 'drivers_license'
-        }
+```lua
+Database.Game:updateOne({
+    collection = "characters",
+    query = { SID = 1 },
+    update = {
+        ["$push"] = { licenses = "drivers_license" }
     }
-)
+})
+```
 
--- Update nested field
-COMPONENTS.Database:updateOne('inventory',
-    { owner = characterId },
-    {
-        ['$set'] = {
-            ['items.1.count'] = 5  -- Update item count in slot 1
-        }
-    }
-)
+**Multiple operations at once:**
 
--- Multiple operations
-COMPONENTS.Database:updateOne('characters',
-    { SID = characterId },
-    {
-        ['$set'] = {
-            job = 'police',
-            lastUpdated = os.time()
-        },
-        ['$inc'] = {
-            arrests = 1
-        }
+```lua
+Database.Game:updateOne({
+    collection = "characters",
+    query = { SID = 1 },
+    update = {
+        ["$set"] = { job = "police", lastUpdated = os.time() },
+        ["$inc"] = { arrests = 1 }
     }
-)
+})
 ```
 
 ---
 
-### updateMany
+### update
 
-Update all documents matching the query.
-
-```lua
-COMPONENTS.Database:updateMany(collection, query, update, callback)
-```
-
-**Example:**
+Update all documents matching the query (bulk update).
 
 ```lua
--- Clock out all police officers
-COMPONENTS.Database:updateMany('characters',
-    { job = 'police', onDuty = true },
-    {
-        ['$set'] = {
-            onDuty = false
-        }
-    },
-    function(success, count)
-        print('Clocked out', count, 'officers')
-    end
-)
-
--- Reset all character positions (server restart)
-COMPONENTS.Database:updateMany('characters',
-    {},
-    {
-        ['$set'] = {
-            lastPosition = { x = 0, y = 0, z = 0 }
-        }
+Database.Game:update({
+    collection = "characters",
+    query = { job = "police", onDuty = true },
+    update = {
+        ["$set"] = { onDuty = false }
     }
-)
+}, function(success, modifiedCount)
+    if success then
+        print("Clocked out", modifiedCount, "officers")
+    end
+end)
 ```
+
+<Warning>
+The method name is `update`, NOT `updateMany`. Without the internal `isUpdateOne` flag, `update` applies to ALL matching documents.
+</Warning>
 
 ---
 
@@ -438,66 +279,65 @@ COMPONENTS.Database:updateMany('characters',
 Delete a single document matching the query.
 
 ```lua
-COMPONENTS.Database:deleteOne(collection, query, callback)
-```
-
-<ParamField path="collection" type="string" required>
-  MongoDB collection name
-</ParamField>
-
-<ParamField path="query" type="table" required>
-  Query filter to find document to delete
-</ParamField>
-
-<ParamField path="callback" type="function" optional>
-  Callback function receiving `(success, deletedCount)`
-</ParamField>
-
-**Examples:**
-
-```lua
--- Delete character
-COMPONENTS.Database:deleteOne('characters', { SID = 1 }, function(success, count)
-    if success and count > 0 then
-        print('Character deleted')
-    else
-        print('Character not found')
+Database.Game:deleteOne({
+    collection = "characters",
+    query = { SID = 1 }
+}, function(success, deletedCount)
+    if success and deletedCount > 0 then
+        print("Character deleted")
     end
 end)
-
--- Delete inventory
-COMPONENTS.Database:deleteOne('inventory', { owner = characterId })
-
--- Delete old log entry
-COMPONENTS.Database:deleteOne('logs', { _id = logId })
 ```
 
 ---
 
-### deleteMany
+### delete
 
-Delete all documents matching the query.
-
-```lua
-COMPONENTS.Database:deleteMany(collection, query, callback)
-```
-
-**Example:**
+Delete all documents matching the query (bulk delete).
 
 ```lua
--- Delete old logs (older than 30 days)
 local thirtyDaysAgo = os.time() - (30 * 24 * 60 * 60)
 
-COMPONENTS.Database:deleteMany('logs',
-    { timestamp = { ['$lt'] = thirtyDaysAgo } },
-    function(success, count)
-        print('Deleted', count, 'old logs')
+Database.Game:delete({
+    collection = "logs",
+    query = { timestamp = { ["$lt"] = thirtyDaysAgo } }
+}, function(success, deletedCount)
+    if success then
+        print("Deleted", deletedCount, "old logs")
     end
-)
-
--- Delete all vehicles for a character
-COMPONENTS.Database:deleteMany('vehicles', { owner = characterId })
+end)
 ```
+
+<Warning>
+The method name is `delete`, NOT `deleteMany`. Without the internal `isDeleteOne` flag, `delete` removes ALL matching documents.
+</Warning>
+
+---
+
+### findOneAndUpdate
+
+Atomically find a document, update it, and return the result.
+
+```lua
+Database.Game:findOneAndUpdate({
+    collection = "sequences",
+    query = { _id = "characterSID" },
+    update = {
+        ["$inc"] = { value = 1 }
+    },
+    options = {
+        returnDocument = "after"  -- return the updated document
+    }
+}, function(success, document)
+    if success and document then
+        print("New sequence value:", document.value)
+    end
+end)
+```
+
+<Note>
+This method is useful for atomic operations like generating sequential IDs.
+</Note>
 
 ---
 
@@ -506,335 +346,170 @@ COMPONENTS.Database:deleteMany('vehicles', { owner = characterId })
 Count documents matching the query.
 
 ```lua
-COMPONENTS.Database:count(collection, query, callback)
-```
-
-<ParamField path="collection" type="string" required>
-  MongoDB collection name
-</ParamField>
-
-<ParamField path="query" type="table" required>
-  Query filter
-</ParamField>
-
-<ParamField path="callback" type="function" optional>
-  Callback function receiving `(success, count)`
-</ParamField>
-
-**Examples:**
-
-```lua
--- Count all characters
-local totalCharacters = COMPONENTS.Database:count('characters', {})
-print('Total characters:', totalCharacters)
-
--- Count online police
-local onlinePolice = COMPONENTS.Database:count('characters', {
-    job = 'police',
-    onDuty = true
-})
-
--- Count vehicles by type
-local sportsCars = COMPONENTS.Database:count('vehicles', {
-    class = 'Sports'
-})
+Database.Game:count({
+    collection = "characters",
+    query = { job = "police", onDuty = true }
+}, function(success, count)
+    if success then
+        print("Online police:", count)
+    end
+end)
 ```
 
 ---
 
 ### aggregate
 
-Perform aggregation operations (advanced queries).
+Run an aggregation pipeline.
 
 ```lua
-COMPONENTS.Database:aggregate(collection, pipeline, callback)
-```
-
-<ParamField path="collection" type="string" required>
-  MongoDB collection name
-</ParamField>
-
-<ParamField path="pipeline" type="table" required>
-  Array of aggregation stages
-</ParamField>
-
-<ParamField path="callback" type="function" optional>
-  Callback function receiving `(success, results)`
-</ParamField>
-
-**Examples:**
-
-```lua
--- Count characters by job
-COMPONENTS.Database:aggregate('characters', {
-    {
-        ['$group'] = {
-            _id = '$job',
-            count = { ['$sum'] = 1 }
+Database.Game:aggregate({
+    collection = "characters",
+    aggregate = {
+        {
+            ["$group"] = {
+                _id = "$job",
+                count = { ["$sum"] = 1 }
+            }
+        },
+        {
+            ["$sort"] = { count = -1 }
         }
-    },
-    {
-        ['$sort'] = { count = -1 }
     }
 }, function(success, results)
-    for _, result in ipairs(results) do
-        print(result._id, 'has', result.count, 'members')
-    end
-end)
-
--- Get richest players
-COMPONENTS.Database:aggregate('characters', {
-    {
-        ['$project'] = {
-            name = { ['$concat'] = { '$First', ' ', '$Last' } },
-            totalMoney = { ['$add'] = { '$cash', '$bank' } }
-        }
-    },
-    {
-        ['$sort'] = { totalMoney = -1 }
-    },
-    {
-        ['$limit'] = 10
-    }
-})
-```
-
----
-
-## MySQL Operations
-
-MySQL operations use oxmysql for compatibility with existing FiveM resources.
-
-### fetchAll
-
-Execute a SELECT query and return all results.
-
-```lua
-COMPONENTS.Database.MySQL:fetchAll(query, parameters, callback)
-```
-
-<ParamField path="query" type="string" required>
-  SQL SELECT query (use `?` for parameters)
-</ParamField>
-
-<ParamField path="parameters" type="table" optional>
-  Array of parameter values to replace `?` in query
-</ParamField>
-
-<ParamField path="callback" type="function" optional>
-  Callback function receiving results
-</ParamField>
-
-**Examples:**
-
-```lua
--- Fetch all banned players
-local banned = COMPONENTS.Database.MySQL:fetchAll('SELECT * FROM bans WHERE active = ?', { 1 })
-
-for _, ban in ipairs(banned) do
-    print('Banned:', ban.player_name, 'Reason:', ban.reason)
-end
-
--- Fetch characters for player
-COMPONENTS.Database.MySQL:fetchAll(
-    'SELECT * FROM characters WHERE owner = ? ORDER BY created_at DESC',
-    { playerId },
-    function(characters)
-        print('Found', #characters, 'characters')
-    end
-)
-
--- Join query
-local vehicles = COMPONENTS.Database.MySQL:fetchAll([[
-    SELECT v.*, c.First, c.Last
-    FROM vehicles v
-    JOIN characters c ON v.owner = c.SID
-    WHERE v.type = ?
-]], { 'car' })
-```
-
----
-
-### fetchScalar
-
-Execute a query and return a single value.
-
-```lua
-COMPONENTS.Database.MySQL:fetchScalar(query, parameters, callback)
-```
-
-**Examples:**
-
-```lua
--- Count total characters
-local count = COMPONENTS.Database.MySQL:fetchScalar('SELECT COUNT(*) FROM characters')
-print('Total characters:', count)
-
--- Get specific value
-local cash = COMPONENTS.Database.MySQL:fetchScalar(
-    'SELECT cash FROM characters WHERE SID = ?',
-    { characterId }
-)
-```
-
----
-
-### execute
-
-Execute an INSERT, UPDATE, or DELETE query.
-
-```lua
-COMPONENTS.Database.MySQL:execute(query, parameters, callback)
-```
-
-<ParamField path="query" type="string" required>
-  SQL query (INSERT, UPDATE, DELETE)
-</ParamField>
-
-<ParamField path="parameters" type="table" optional>
-  Array of parameter values
-</ParamField>
-
-<ParamField path="callback" type="function" optional>
-  Callback receiving affected rows or insert ID
-</ParamField>
-
-**Examples:**
-
-```lua
--- Insert
-COMPONENTS.Database.MySQL:execute(
-    'INSERT INTO logs (type, player, action, timestamp) VALUES (?, ?, ?, ?)',
-    { 'admin', playerId, 'teleport', os.time() },
-    function(insertId)
-        print('Log created with ID:', insertId)
-    end
-)
-
--- Update
-COMPONENTS.Database.MySQL:execute(
-    'UPDATE characters SET cash = cash + ? WHERE SID = ?',
-    { 500, characterId }
-)
-
--- Delete
-COMPONENTS.Database.MySQL:execute(
-    'DELETE FROM logs WHERE timestamp < ?',
-    { thirtyDaysAgo },
-    function(affectedRows)
-        print('Deleted', affectedRows, 'old logs')
-    end
-)
-```
-
----
-
-### transaction
-
-Execute multiple queries in a transaction.
-
-```lua
-COMPONENTS.Database.MySQL:transaction(queries, callback)
-```
-
-**Example:**
-
-```lua
--- Transfer money between characters
-COMPONENTS.Database.MySQL:transaction({
-    {
-        query = 'UPDATE characters SET cash = cash - ? WHERE SID = ?',
-        parameters = { amount, senderId }
-    },
-    {
-        query = 'UPDATE characters SET cash = cash + ? WHERE SID = ?',
-        parameters = { amount, receiverId }
-    },
-    {
-        query = 'INSERT INTO transactions (from, to, amount, timestamp) VALUES (?, ?, ?, ?)',
-        parameters = { senderId, receiverId, amount, os.time() }
-    }
-}, function(success)
     if success then
-        print('Transaction completed')
-    else
-        print('Transaction failed (rolled back)')
+        for _, result in ipairs(results) do
+            print(result._id, "has", result.count, "members")
+        end
     end
 end)
 ```
+
+<Warning>
+The pipeline stages go in `params.aggregate` (NOT a separate `pipeline` argument).
+</Warning>
+
+---
+
+## Auth Database
+
+The Auth database has the same methods as Game. Use it for accounts and bans:
+
+```lua
+-- Find account
+Database.Auth:findOne({
+    collection = "accounts",
+    query = { Identifier = identifier }
+}, function(success, results)
+    if success and results and #results > 0 then
+        local account = results[1]
+        print("Account:", account.AccountID)
+    end
+end)
+
+-- Check for ban
+Database.Auth:findOne({
+    collection = "bans",
+    query = { Identifier = identifier, active = true }
+}, function(success, results)
+    if success and results and #results > 0 then
+        print("Player is banned:", results[1].reason)
+    end
+end)
+```
+
+---
+
+## Deprecated Methods
+
+The top-level `Database:method()` calls (without `.Game` or `.Auth`) still work but print deprecation warnings. Always use `Database.Game:method()` or `Database.Auth:method()`.
+
+```lua
+-- ❌ Deprecated (prints warning)
+Database:findOne({ collection = "characters", query = { SID = 1 } }, callback)
+
+-- ✅ Correct
+Database.Game:findOne({ collection = "characters", query = { SID = 1 } }, callback)
+```
+
+---
+
+## MySQL (oxmysql)
+
+MySQL is available via the `oxmysql` resource for the inventory system and compatibility. It is **NOT** accessed through the Database component — use oxmysql exports directly:
+
+```lua
+-- oxmysql exports (not part of Database component)
+exports.oxmysql:execute("SELECT * FROM inventory WHERE id = ?", { itemId }, function(results)
+    -- Process results
+end)
+
+exports.oxmysql:scalar("SELECT COUNT(*) FROM inventory", {}, function(count)
+    print("Total items:", count)
+end)
+
+exports.oxmysql:insert("INSERT INTO inventory (name, item_id, slot) VALUES (?, ?, ?)", {
+    name, itemId, slot
+}, function(insertId)
+    print("Inserted row:", insertId)
+end)
+```
+
+See [oxmysql documentation](https://overextended.dev/oxmysql) for full API reference.
 
 ---
 
 ## Best Practices
 
 <AccordionGroup>
-  <Accordion title="Use MongoDB for Game Data" icon="leaf">
-    **MongoDB is preferred for:**
-    - Characters, inventory, vehicles (flexible schema)
-    - Nested data structures
-    - Arrays and embedded documents
-    - Rapidly changing data
-
-    **MySQL is better for:**
-    - Transactional data (banking, trades)
-    - Relations between entities
-    - Legacy compatibility
-    - Complex joins
+  <Accordion title="Always Use Database.Game or Database.Auth" icon="database">
+    Never use the top-level deprecated methods:
 
     ```lua
-    -- ✅ Good: Store character in MongoDB
-    COMPONENTS.Database:insertOne('characters', {
-        SID = 1,
-        First = 'John',
-        Last = 'Doe',
-        metadata = {  -- Nested data
-            appearance = { ... },
-            tattoos = { ... }
-        },
-        licenses = { 'drivers', 'weapon' }  -- Array
-    })
+    -- ✅ Good
+    Database.Game:findOne({ collection = "characters", query = { SID = 1 } }, cb)
+    Database.Auth:findOne({ collection = "accounts", query = { id = 1 } }, cb)
+
+    -- ❌ Bad (deprecated, prints warning)
+    Database:findOne({ collection = "characters", query = { SID = 1 } }, cb)
     ```
   </Accordion>
 
-  <Accordion title="Always Use Parameters" icon="shield">
-    **❌ Dangerous (SQL Injection):**
+  <Accordion title="Handle Errors in Callbacks" icon="triangle-exclamation">
     ```lua
-    local query = 'SELECT * FROM users WHERE name = "' .. playerName .. '"'
-    COMPONENTS.Database.MySQL:fetchAll(query)  -- Vulnerable!
-    ```
-
-    **✅ Safe (Parameterized):**
-    ```lua
-    COMPONENTS.Database.MySQL:fetchAll(
-        'SELECT * FROM users WHERE name = ?',
-        { playerName }  -- Safe from injection
-    )
-    ```
-  </Accordion>
-
-  <Accordion title="Handle Errors Gracefully" icon="triangle-exclamation">
-    ```lua
-    -- ❌ Bad: Assume success
-    local character = COMPONENTS.Database:findOne('characters', { SID = id })
-    print(character.First)  -- May error if not found
-
-    -- ✅ Good: Check result
-    local character = COMPONENTS.Database:findOne('characters', { SID = id })
-    if character then
-        print(character.First)
-    else
-        COMPONENTS.Logger:Warn('Database', 'Character not found', { SID = id })
-    end
-
-    -- ✅ Better: Use callback with error handling
-    COMPONENTS.Database:findOne('characters', { SID = id }, function(success, character)
-        if success and character then
-            print(character.First)
-        else
-            COMPONENTS.Logger:Error('Database', 'Failed to fetch character')
+    Database.Game:findOne({
+        collection = "characters",
+        query = { SID = id }
+    }, function(success, results)
+        if not success then
+            print("Database error:", results) -- results is error message on failure
+            return
         end
+
+        if not results or #results == 0 then
+            print("Character not found")
+            return
+        end
+
+        local character = results[1]
+        -- Safe to use character
     end)
     ```
+  </Accordion>
+
+  <Accordion title="Use Params Table Correctly" icon="code">
+    All methods take a single params table. The fields vary by method:
+
+    | Method | Required Fields | Optional Fields |
+    |--------|----------------|-----------------|
+    | `find` / `findOne` | `collection`, `query` | `options`, `limit` |
+    | `insertOne` | `collection`, `document` | `options` |
+    | `insert` | `collection`, `documents` | `options` |
+    | `updateOne` / `update` | `collection`, `query`, `update` | `options` |
+    | `deleteOne` / `delete` | `collection`, `query` | `options` |
+    | `findOneAndUpdate` | `collection`, `query`, `update` | `options` |
+    | `count` | `collection`, `query` | `options` |
+    | `aggregate` | `collection`, `aggregate` | — |
   </Accordion>
 
   <Accordion title="Index Your Collections" icon="magnifying-glass">
@@ -846,42 +521,6 @@ end)
     db.inventory.createIndex({ owner: 1 })
     db.vehicles.createIndex({ owner: 1, plate: 1 })
     db.logs.createIndex({ timestamp: -1 })
-    ```
-
-    ```sql
-    -- MySQL
-    CREATE INDEX idx_owner ON vehicles(owner);
-    CREATE INDEX idx_timestamp ON logs(timestamp);
-    ```
-  </Accordion>
-
-  <Accordion title="Optimize Queries" icon="gauge">
-    **❌ Bad: Fetch everything**
-    ```lua
-    local allCharacters = COMPONENTS.Database:find('characters', {})
-    for _, char in ipairs(allCharacters) do
-        if char.job == 'police' then
-            -- Process
-        end
-    end
-    ```
-
-    **✅ Good: Filter at database**
-    ```lua
-    local police = COMPONENTS.Database:find('characters', { job = 'police' })
-    for _, char in ipairs(police) do
-        -- Process
-    end
-    ```
-
-    **✅ Better: Use projection**
-    ```lua
-    local police = COMPONENTS.Database:find('characters',
-        { job = 'police' },
-        {
-            projection = { First = 1, Last = 1, rank = 1 }  -- Only needed fields
-        }
-    )
     ```
   </Accordion>
 </AccordionGroup>
@@ -904,7 +543,3 @@ end)
     Configure databases
   </Card>
 </CardGroup>
-
-<Warning>
-**Performance Note:** Database queries are I/O operations and can be slow. Always use indexes, limit results, and avoid queries in tight loops or every frame.
-</Warning>

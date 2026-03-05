@@ -452,8 +452,9 @@ exports['mythic-base']:RequestDependencies('Garage', {
                 end
 
                 -- Check ownership
-                local char = COMPONENTS.Characters:GetCharacter(player)
-                if vehicle.owner ~= char.SID then
+                local playerData = Fetch:Source(player)
+                local char = playerData and playerData:GetData('Character')
+                if not char or vehicle.owner ~= char:GetData('SID') then
                     if callback then callback(false, 'Not your vehicle') end
                     return
                 end

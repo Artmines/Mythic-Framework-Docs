@@ -223,6 +223,10 @@ Files are organized by component name and date. New file created daily.
 
 ### Discord Output
 
+<Note>
+Discord logging only fires when `GlobalState.IsProduction` is true AND the log level meets the minimum threshold (`COMPONENTS.Convar.LOGGING.value`). It will not send webhooks in development mode.
+</Note>
+
 ```lua
 -- Simple Discord webhook
 flags = {
@@ -233,11 +237,11 @@ flags = {
 flags = {
     discord = {
         embed = true,
-        type = 'info',  -- or 'success', 'warning', 'error'
+        type = 'info',  -- or 'success', 'warning', 'error', 'critical'
         title = 'System Alert',
         description = 'Optional description',
         content = 'Message content',
-        webhook = 'https://discord.com/api/webhooks/...'  -- Optional custom webhook
+        webhook = 'https://discord.com/api/webhooks/...'  -- Optional override webhook
     }
 }
 ```
@@ -305,7 +309,10 @@ flags = {
 ```
 
 <Warning>
-Database logging only works when `GlobalState.IsProduction` is true and requires `flags.database = true`.
+Database logging only works when **all** of these conditions are met:
+1. `COMPONENTS.Proxy.DatabaseReady` is true (database connection established)
+2. `GlobalState.IsProduction` is true (environment set to `"prod"`)
+3. `flags.database = true` is set in the flags parameter
 </Warning>
 
 ---

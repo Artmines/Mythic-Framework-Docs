@@ -827,13 +827,16 @@ end)
   <Accordion title="Track Job Changes" icon="file-lines">
     ```lua
     AddEventHandler('mythic-characters:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
-        COMPONENTS.Database:insertOne('job_history', {
-            character = characterId,
-            oldJob = oldJob,
-            oldGrade = oldGrade,
-            newJob = newJob,
-            newGrade = newGrade,
-            timestamp = os.time()
+        Database.Game:insertOne({
+            collection = 'job_history',
+            document = {
+                character = characterId,
+                oldJob = oldJob,
+                oldGrade = oldGrade,
+                newJob = newJob,
+                newGrade = newGrade,
+                timestamp = os.time()
+            }
         })
     end)
     ```

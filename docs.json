@@ -81,7 +81,7 @@
         "tab": "API Reference",
         "groups": [
           {
-            "group": "Core API",
+            "group": "Mythic Components API",
             "pages": [
               "api/core/base",
               "api/core/fetch",

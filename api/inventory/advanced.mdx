@@ -270,10 +270,13 @@ RegisterServerEvent('police:server:SearchPlayer', function(targetSource)
     COMPONENTS.Inventory.Search:Character(src, targetSource, targetChar:GetData('SID'))
 
     -- Log search
-    Logger:Info('Police', string.format('%s %s searched %s %s',
+    COMPONENTS.Logger:Info('Police', string.format('%s %s searched %s %s',
         char:GetData('First'), char:GetData('Last'),
         targetChar:GetData('First'), targetChar:GetData('Last')
-    ))
+    ), {
+        console = true,
+        file = true
+    })
 end)
 ```
 
@@ -341,10 +344,13 @@ RegisterServerEvent('crime:server:RobPlayer', function(targetSource)
     })
 
     -- Log robbery
-    Logger:Info('Crime', string.format('%s %s robbed %s %s',
+    COMPONENTS.Logger:Info('Crime', string.format('%s %s robbed %s %s',
         char:GetData('First'), char:GetData('Last'),
         targetChar:GetData('First'), targetChar:GetData('Last')
-    ))
+    ), {
+        console = true,
+        file = true
+    })
 end)
 ```
 
