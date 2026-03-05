@@ -1,0 +1,251 @@
+---
+title: Phone - Events
+description: Phone events for data updates, notifications, and state changes
+icon: 'bolt'
+---
+
+Phone events allow resources to react to phone state changes, data updates, and notification events.
+
+## Server Events
+
+### Phone:Server:RegisterMiddleware
+
+Fired when the phone registers middleware handlers.
+
+```lua
+AddEventHandler('Phone:Server:RegisterMiddleware', function()
+    -- Register phone-related middleware
+end)
+```
+
+---
+
+### Phone:Server:RegisterCallbacks
+
+Fired when the phone registers server callbacks.
+
+```lua
+AddEventHandler('Phone:Server:RegisterCallbacks', function()
+    -- Register phone-related callbacks
+end)
+```
+
+---
+
+### Phone:Server:AliasUpdated
+
+Fired when a player updates an app alias.
+
+```lua
+AddEventHandler('Phone:Server:AliasUpdated', function(source, app, alias)
+    -- Handle alias change
+end)
+```
+
+---
+
+### Phone:Server:UIReset
+
+Fired when the phone UI resets.
+
+```lua
+AddEventHandler('Phone:Server:UIReset', function(source)
+    -- Handle UI reset
+end)
+```
+
+---
+
+## Client Events
+
+### Phone:Client:SetData
+
+Sent from server to set phone data on the client.
+
+```lua
+AddEventHandler('Phone:Client:SetData', function(key, data)
+    -- Phone data was set
+end)
+```
+
+---
+
+### Phone:Client:AddData
+
+Sent from server to add data to the phone.
+
+```lua
+AddEventHandler('Phone:Client:AddData', function(type, data, key)
+    -- Data was added
+end)
+```
+
+---
+
+### Phone:Client:UpdateData
+
+Sent from server to update phone data.
+
+```lua
+AddEventHandler('Phone:Client:UpdateData', function(type, id, data)
+    -- Data was updated
+end)
+```
+
+---
+
+### Phone:Client:RemoveData
+
+Sent from server to remove phone data.
+
+```lua
+AddEventHandler('Phone:Client:RemoveData', function(key, id)
+    -- Data was removed
+end)
+```
+
+---
+
+### Phone:Client:ResetData
+
+Sent from server to reset all phone data.
+
+```lua
+AddEventHandler('Phone:Client:ResetData', function()
+    -- All phone data was reset
+end)
+```
+
+---
+
+### Phone:Client:Notifications:Add
+
+Sent from server to add a notification.
+
+```lua
+AddEventHandler('Phone:Client:Notifications:Add', function(title, description, time, duration, app, actions, notifData)
+    -- Notification received
+end)
+```
+
+---
+
+### Phone:Client:Notifications:AddWithId
+
+Sent from server to add a tracked notification.
+
+```lua
+AddEventHandler('Phone:Client:Notifications:AddWithId', function(id, title, description, time, duration, app, actions, notifData)
+    -- Tracked notification received
+end)
+```
+
+---
+
+### Phone:Client:Notifications:Update
+
+Sent from server to update an existing notification.
+
+```lua
+AddEventHandler('Phone:Client:Notifications:Update', function(id, title, description)
+    -- Notification updated
+end)
+```
+
+---
+
+### Phone:Client:Notifications:Remove
+
+Sent from server to remove a notification.
+
+```lua
+AddEventHandler('Phone:Client:Notifications:Remove', function(id)
+    -- Notification removed
+end)
+```
+
+---
+
+### Phone:Client:Close
+
+Sent from server to close the phone.
+
+```lua
+AddEventHandler('Phone:Client:Close', function()
+    -- Phone was closed by server
+end)
+```
+
+---
+
+### Phone:Client:ReceiveShare
+
+Sent when the player receives shared data (contact, document, etc.).
+
+```lua
+AddEventHandler('Phone:Client:ReceiveShare', function(data)
+    -- Handle received share
+end)
+```
+
+---
+
+## Server Callbacks
+
+These callbacks are used by the phone UI to communicate with the server.
+
+| Callback | Description |
+|----------|-------------|
+| `Phone:Apps:Home` | Manage home screen apps (add/remove) |
+| `Phone:Apps:Dock` | Manage dock apps (add/remove) |
+| `Phone:Apps:Reorder` | Reorder apps on home/dock |
+| `Phone:UpdateAlias` | Update app alias |
+| `Phone:ShareMyContact` | Share contact with nearby players |
+| `Phone:Permissions` | Check phone permissions |
+| `Phone:Gallery:GetUploadURL` | Get upload URL for photos |
+| `Phone:Gallery:SavePhoto` | Save photo to gallery |
+| `Phone:Messages:GetBurnerMessages` | Get burner phone messages |
+
+---
+
+## Middleware Events
+
+### Characters:Spawning
+
+The phone hooks into character spawning to initialize phone data.
+
+```lua
+-- Internally, the phone registers middleware on Characters:Spawning
+-- This initializes: apps, settings, permissions, aliases, job data
+COMPONENTS.Middleware:Add('Characters:Spawning', function(source, character)
+    -- Phone initialization happens here
+end)
+```
+
+### Characters:Creating
+
+The phone hooks into character creation to set up default phone data.
+
+```lua
+-- Default phone data created for new characters:
+-- Apps = { installed = {}, home = {}, dock = {} }
+-- PhoneSettings = { wallpaper, ringtone, texttone, colors, zoom, volume, notifications }
+-- PhonePermissions = { redline = { create = false } }
+-- PhoneType = "android"
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Phone - Exports" icon="mobile" href="/api/phone/exports">
+    Phone API methods
+  </Card>
+  <Card title="Phone - Apps" icon="grid-2" href="/api/phone/apps">
+    App configuration
+  </Card>
+  <Card title="Middleware API" icon="filter" href="/api/core/middleware">
+    Middleware system
+  </Card>
+</CardGroup>

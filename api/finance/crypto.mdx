@@ -1,0 +1,307 @@
+---
+title: Finance - Crypto
+description: Cryptocurrency coin management, wallets, and exchange operations
+icon: 'bitcoin-sign'
+---
+
+The Crypto component manages cryptocurrency coins, player wallets, and exchange operations (buying, selling, transferring).
+
+## Overview
+
+Access via `COMPONENTS.Crypto` (server-side only).
+
+<CardGroup cols={2}>
+  <Card title="Coin Management" icon="coins">
+    Create and manage coin types
+  </Card>
+  <Card title="Wallets" icon="wallet">
+    Player crypto holdings
+  </Card>
+  <Card title="Exchange" icon="arrow-right-arrow-left">
+    Buy, sell, and transfer crypto
+  </Card>
+</CardGroup>
+
+<Note>
+Crypto balances are stored in the character's data as `Crypto[ACRONYM] = amount`. Players access crypto through a CryptoWallet ID linked to their character.
+</Note>
+
+---
+
+## Coin Management
+
+### Crypto.Coin:Create
+
+Register or update a cryptocurrency type.
+
+```lua
+COMPONENTS.Crypto.Coin:Create(name, acronym, price, buyable, sellable)
+```
+
+<ParamField path="name" type="string" required>
+  Full coin name (e.g., "Bitcoin")
+</ParamField>
+
+<ParamField path="acronym" type="string" required>
+  Short identifier (e.g., "BTC")
+</ParamField>
+
+<ParamField path="price" type="number" required>
+  Price per unit in dollars
+</ParamField>
+
+<ParamField path="buyable" type="boolean" required>
+  Whether players can buy this coin
+</ParamField>
+
+<ParamField path="sellable" type="boolean" required>
+  Whether players can sell this coin
+</ParamField>
+
+**Example:**
+
+```lua
+-- Register coins
+COMPONENTS.Crypto.Coin:Create('Bitcoin', 'BTC', 50000, true, true)
+COMPONENTS.Crypto.Coin:Create('Cayo Coin', 'CAYO', 150, true, false)  -- Can buy, can't sell
+```
+
+---
+
+### Crypto.Coin:Get
+
+Get data for a specific coin.
+
+```lua
+COMPONENTS.Crypto.Coin:Get(acronym)
+```
+
+<ResponseField name="coin" type="table|nil">
+  Coin data or `nil` if not registered
+</ResponseField>
+
+---
+
+### Crypto.Coin:GetAll
+
+Get all registered coins.
+
+```lua
+COMPONENTS.Crypto.Coin:GetAll()
+```
+
+<ResponseField name="coins" type="table">
+  Array of all registered coin data
+</ResponseField>
+
+---
+
+## Wallet Operations
+
+### Crypto:Has
+
+Check if a player owns a minimum amount of a coin.
+
+```lua
+COMPONENTS.Crypto:Has(source, coin, amount)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="coin" type="string" required>
+  Coin acronym (e.g., "BTC")
+</ParamField>
+
+<ParamField path="amount" type="number" required>
+  Minimum amount to check
+</ParamField>
+
+<ResponseField name="has" type="boolean">
+  `true` if player owns >= amount
+</ResponseField>
+
+**Example:**
+
+```lua
+if COMPONENTS.Crypto:Has(source, 'BTC', 2) then
+    -- Player has at least 2 BTC
+end
+```
+
+---
+
+## Exchange Operations
+
+### Crypto.Exchange:IsListed
+
+Check if a coin is tradeable on the exchange.
+
+```lua
+COMPONENTS.Crypto.Exchange:IsListed(coin)
+```
+
+---
+
+### Crypto.Exchange:Buy
+
+Purchase cryptocurrency using the player's bank account.
+
+```lua
+COMPONENTS.Crypto.Exchange:Buy(coin, target, amount)
+```
+
+<ParamField path="coin" type="string" required>
+  Coin acronym
+</ParamField>
+
+<ParamField path="target" type="number" required>
+  Player server ID or CryptoWallet ID
+</ParamField>
+
+<ParamField path="amount" type="number" required>
+  Amount of coin to buy
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if purchase was successful
+</ResponseField>
+
+---
+
+### Crypto.Exchange:Sell
+
+Sell cryptocurrency back for bank balance.
+
+```lua
+COMPONENTS.Crypto.Exchange:Sell(coin, target, amount)
+```
+
+<ParamField path="coin" type="string" required>
+  Coin acronym (must be sellable)
+</ParamField>
+
+<ParamField path="target" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="amount" type="number" required>
+  Amount of coin to sell
+</ParamField>
+
+<ResponseField name="result" type="number|boolean">
+  New balance or `false` if failed
+</ResponseField>
+
+---
+
+### Crypto.Exchange:Add
+
+Add cryptocurrency directly to a wallet (no bank charge).
+
+```lua
+COMPONENTS.Crypto.Exchange:Add(coin, target, amount, skipAlert)
+```
+
+<ParamField path="coin" type="string" required>
+  Coin acronym
+</ParamField>
+
+<ParamField path="target" type="number|string" required>
+  Player server ID (if online) or CryptoWallet ID
+</ParamField>
+
+<ParamField path="amount" type="number" required>
+  Amount to add
+</ParamField>
+
+<ParamField path="skipAlert" type="boolean" optional>
+  Skip phone notification
+</ParamField>
+
+**Example:**
+
+```lua
+-- Reward crypto for completing a job
+COMPONENTS.Crypto.Exchange:Add('BTC', source, 0.5)
+
+TriggerClientEvent('mythic-notifications:client:Send', source, {
+    message = 'Received 0.5 BTC',
+    type = 'success'
+})
+```
+
+---
+
+### Crypto.Exchange:Remove
+
+Remove cryptocurrency from a wallet.
+
+```lua
+COMPONENTS.Crypto.Exchange:Remove(coin, target, amount, skipAlert)
+```
+
+<ResponseField name="success" type="boolean">
+  `true` if successfully removed
+</ResponseField>
+
+---
+
+### Crypto.Exchange:Transfer
+
+Transfer cryptocurrency between two wallets.
+
+```lua
+COMPONENTS.Crypto.Exchange:Transfer(coin, sender, target, amount)
+```
+
+<ParamField path="coin" type="string" required>
+  Coin acronym
+</ParamField>
+
+<ParamField path="sender" type="number" required>
+  Sender's server ID or wallet ID
+</ParamField>
+
+<ParamField path="target" type="number" required>
+  Recipient's server ID or wallet ID
+</ParamField>
+
+<ParamField path="amount" type="number" required>
+  Amount to transfer
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if transfer was successful
+</ResponseField>
+
+**Example:**
+
+```lua
+-- Transfer crypto between players
+local success = COMPONENTS.Crypto.Exchange:Transfer('BTC', source, targetSource, 1.5)
+
+if success then
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'Sent 1.5 BTC',
+        type = 'success'
+    })
+end
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Finance - Banking" icon="building-columns" href="/api/finance/banking">
+    Bank account operations
+  </Card>
+  <Card title="Finance - Billing" icon="file-invoice-dollar" href="/api/finance/billing">
+    Bills and fines
+  </Card>
+  <Card title="Characters API" icon="user" href="/api/characters/exports">
+    Character data access
+  </Card>
+</CardGroup>

@@ -1,0 +1,189 @@
+---
+title: Phone - Apps
+description: Phone app configuration, restrictions, and default settings
+icon: 'grid-2'
+---
+
+The phone app system manages which apps are available to players based on job, permissions, reputation, and phone type.
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="App Restrictions" icon="lock">
+    Job, permission, and reputation gates
+  </Card>
+  <Card title="Phone Types" icon="mobile">
+    Android, burner, and custom types
+  </Card>
+  <Card title="Settings" icon="gear">
+    Wallpaper, ringtone, volume, zoom
+  </Card>
+  <Card title="Permissions" icon="shield-check">
+    Per-app permission system
+  </Card>
+</CardGroup>
+
+---
+
+## Available Apps
+
+| App ID | Description | Restriction |
+|--------|-------------|------------|
+| `phone` | Phone dialer and call log | None |
+| `contacts` | Contact management | None |
+| `messages` | SMS messaging | None |
+| `email` | Email inbox | None |
+| `gallery` | Photo gallery | None |
+| `settings` | Phone settings | None |
+| `bank` | Banking app | None |
+| `crypto` | Cryptocurrency wallet | None |
+| `garage` | Vehicle management | None |
+| `twitter` | Social media (Bleeter) | None |
+| `adverts` | Classified advertisements | None |
+| `store` | App store | None |
+| `documents` | ID and documents | None |
+| `irc` | IRC chat channels | None |
+| `labor` | Labor/side jobs | None |
+| `loans` | Loan management | None |
+| `pingem` | Player pinging | None |
+| `casino` | Casino app | None |
+| `homemanage` | Property management | None |
+| `blueline` | Police MDT | Job: `police` |
+| `leoassist` | LEO assistance tools | Job: `police` |
+| `govt` | Government management | Job: `government` |
+| `comanager` | Company management | Job-based |
+| `redline` | Street racing | Permission-based |
+| `lsunderground` | Underground market | Reputation-based |
+| `trapphone` | Burner phone messaging | Phone type: `burner` |
+| `dyn8` | Real estate | Job: `realestate` |
+
+---
+
+## App Restriction Types
+
+Apps can be restricted by multiple criteria:
+
+### Job Restriction
+
+App is only available to players with a specific job.
+
+```lua
+{
+    job = 'police',
+    workplace = 'lspd',        -- Optional: specific workplace
+    gradeLevel = 2             -- Optional: minimum grade
+}
+```
+
+### State Restriction
+
+App requires a specific character state.
+
+```lua
+{
+    state = 'onDuty'           -- Character must be on duty
+}
+```
+
+### Job Permission
+
+App requires a specific job permission flag.
+
+```lua
+{
+    jobPermission = 'mdt_access'
+}
+```
+
+### Phone Permission
+
+App requires a phone-level permission.
+
+```lua
+{
+    phonePermission = 'create'  -- e.g., redline race creation
+}
+```
+
+### Reputation
+
+App requires minimum reputation level.
+
+```lua
+{
+    reputation = 'underground',
+    level = 5
+}
+```
+
+---
+
+## Default Settings
+
+New characters are created with these default phone settings:
+
+```lua
+{
+    wallpaper = "wallpaper",       -- Default wallpaper
+    ringtone = "ringtone1.ogg",    -- Default ringtone
+    texttone = "text1.ogg",        -- Default text tone
+    colors = {
+        accent = "#1a7cc1"         -- UI accent color
+    },
+    zoom = 75,                     -- UI zoom level
+    volume = 100,                  -- Volume (0-100)
+    notifications = true,          -- Global notification toggle
+    appNotifications = {}          -- Per-app notification overrides
+}
+```
+
+---
+
+## Default Permissions
+
+```lua
+{
+    redline = {
+        create = false             -- Cannot create races by default
+    }
+}
+```
+
+---
+
+## Phone Character Data
+
+The phone stores data in the character's data under these keys:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `Apps` | table | `{ installed = {}, home = {}, dock = {} }` |
+| `PhoneSettings` | table | Wallpaper, ringtone, volume, etc. |
+| `PhonePermissions` | table | Per-app permissions |
+| `PhoneType` | string | `"android"`, `"burner"`, etc. |
+| `Alias` | table | Per-app aliases `{ [appName] = {...} }` |
+
+---
+
+## Text Tones
+
+| ID | Label |
+|----|-------|
+| `text` | Text Tone 1 |
+| `text2` | Text Tone 2 |
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Phone - Exports" icon="mobile" href="/api/phone/exports">
+    Phone API methods
+  </Card>
+  <Card title="Phone - Events" icon="bolt" href="/api/phone/events">
+    Phone events
+  </Card>
+  <Card title="Jobs API" icon="briefcase" href="/api/jobs/exports">
+    Job system for restrictions
+  </Card>
+</CardGroup>

@@ -1,0 +1,202 @@
+---
+title: Chat - Events
+description: Chat events for message handling and client communication
+icon: 'bolt'
+---
+
+Chat events allow resources to intercept messages, add suggestions, and control the chat UI.
+
+## Server Events
+
+### chatMessage
+
+Fired when a player sends a chat message. Can be cancelled to prevent the message from being processed.
+
+```lua
+AddEventHandler('chatMessage', function(source, author, message)
+    -- Handle or cancel message
+    CancelEvent()  -- Prevents default processing
+end)
+```
+
+**Parameters:**
+
+<ParamField path="source" type="number">
+  Player server ID
+</ParamField>
+
+<ParamField path="author" type="string">
+  Player name
+</ParamField>
+
+<ParamField path="message" type="string">
+  Message content
+</ParamField>
+
+**Example:**
+
+```lua
+-- Filter profanity
+local bannedWords = { 'badword1', 'badword2' }
+
+AddEventHandler('chatMessage', function(source, author, message)
+    local lower = string.lower(message)
+
+    for _, word in ipairs(bannedWords) do
+        if string.find(lower, word) then
+            CancelEvent()
+            COMPONENTS.Chat.Send.System:Single(source, 'Message blocked: inappropriate language')
+            return
+        end
+    end
+end)
+
+-- Log all chat messages
+AddEventHandler('chatMessage', function(source, author, message)
+    COMPONENTS.Logger:Info('Chat', string.format('%s: %s', author, message), {
+        file = true
+    })
+end)
+```
+
+---
+
+## Client Events
+
+### chat:addMessage
+
+Add a message to the chat UI.
+
+```lua
+TriggerClientEvent('chat:addMessage', source, type, message, author, time)
+```
+
+<ParamField path="type" type="string">
+  Message type (see Message Types below)
+</ParamField>
+
+<ParamField path="message" type="string">
+  Message content
+</ParamField>
+
+<ParamField path="author" type="string">
+  Sender name
+</ParamField>
+
+<ParamField path="time" type="number">
+  Timestamp
+</ParamField>
+
+---
+
+### chat:clearChat
+
+Clear the chat for a specific player.
+
+```lua
+TriggerClientEvent('chat:clearChat', source)
+```
+
+---
+
+### chat:addSuggestion
+
+Add a command suggestion to the player's chat.
+
+```lua
+TriggerClientEvent('chat:addSuggestion', source, command, help, params)
+```
+
+<ParamField path="command" type="string">
+  Command name with `/` prefix
+</ParamField>
+
+<ParamField path="help" type="string">
+  Help text
+</ParamField>
+
+<ParamField path="params" type="table">
+  Parameter definitions
+</ParamField>
+
+---
+
+### chat:removeSuggestion
+
+Remove a command suggestion.
+
+```lua
+TriggerClientEvent('chat:removeSuggestion', source, command)
+```
+
+---
+
+### chat:resetSuggestions
+
+Reset all command suggestions for a player.
+
+```lua
+TriggerClientEvent('chat:resetSuggestions', source)
+```
+
+---
+
+## Message Types
+
+| Type | Description | Visibility |
+|------|-------------|-----------|
+| `server` | Server message | All players |
+| `system` | System message | Target player(s) |
+| `ooc` | Out of character | All players |
+| `broadcast` | Broadcast message | All players |
+| `911` | Emergency call | Police/EMS on duty |
+| `311` | Non-emergency call | Police/EMS on duty |
+| `dispatch` | Dispatch message | Target player |
+| `tests` | Test result | Target player |
+
+---
+
+## Middleware Events
+
+### Characters:Spawning
+
+Chat refreshes available commands when a character spawns (priority 3).
+
+```lua
+-- Internally registered at priority 3
+COMPONENTS.Middleware:Add('Characters:Spawning', function(source, character)
+    -- Refreshes command suggestions based on job/permissions
+end, 3)
+```
+
+---
+
+### Job:Server:DutyAdd / Job:Server:DutyRemove
+
+Chat refreshes commands when duty status changes.
+
+```lua
+AddEventHandler('Job:Server:DutyAdd', function(source)
+    COMPONENTS.Chat:Refresh:Commands(source)
+end)
+
+AddEventHandler('Job:Server:DutyRemove', function(source)
+    COMPONENTS.Chat:Refresh:Commands(source)
+end)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Chat - Exports" icon="message" href="/api/chat/exports">
+    Command registration and messaging
+  </Card>
+  <Card title="Middleware API" icon="filter" href="/api/core/middleware">
+    Event middleware system
+  </Card>
+  <Card title="Jobs Events" icon="bolt" href="/api/jobs/events">
+    Job-related events
+  </Card>
+</CardGroup>

@@ -135,6 +135,52 @@
               "api/hud/notifications",
               "api/hud/menus"
             ]
+          },
+          {
+            "group": "Finance",
+            "pages": [
+              "api/finance/banking",
+              "api/finance/billing",
+              "api/finance/crypto",
+              "api/finance/loans"
+            ]
+          },
+          {
+            "group": "Phone",
+            "pages": [
+              "api/phone/exports",
+              "api/phone/events",
+              "api/phone/apps"
+            ]
+          },
+          {
+            "group": "Doors",
+            "pages": [
+              "api/doors/exports",
+              "api/doors/configuration"
+            ]
+          },
+          {
+            "group": "Status",
+            "pages": [
+              "api/status/exports",
+              "api/status/defaults"
+            ]
+          },
+          {
+            "group": "Chat",
+            "pages": [
+              "api/chat/exports",
+              "api/chat/events"
+            ]
+          },
+          {
+            "group": "Admin",
+            "pages": [
+              "api/admin/commands",
+              "api/admin/callbacks",
+              "api/admin/permissions"
+            ]
           }
         ]
       }

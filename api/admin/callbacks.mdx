@@ -1,0 +1,417 @@
+---
+title: Admin - Callbacks
+description: Admin panel server callbacks for player, business, job, and door management
+icon: 'server'
+---
+
+The admin panel communicates with the server through callbacks. These handle all admin actions from the NUI panel.
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="Player Management" icon="users">
+    List, kick, ban, heal, teleport
+  </Card>
+  <Card title="Business & Jobs" icon="briefcase">
+    Manage employment and businesses
+  </Card>
+  <Card title="Items" icon="box">
+    Give items to players
+  </Card>
+  <Card title="Doors & Elevators" icon="door-open">
+    Create, edit, delete doors
+  </Card>
+</CardGroup>
+
+<Warning>
+All admin callbacks verify permissions before executing. Admin callbacks require `IsAdmin()`, some support `IsStaff()` with limited functionality.
+</Warning>
+
+---
+
+## Player Management
+
+### Admin:GetPlayerList
+
+Get all currently connected players.
+
+**Returns:** Array of player data (source, name, character info, job)
+
+---
+
+### Admin:GetDisconnectedPlayerList
+
+Get recently disconnected players.
+
+**Returns:** Array of disconnected player records
+
+---
+
+### Admin:GetPlayer
+
+Get detailed information about a specific player.
+
+**Data:** `{ source = number }`
+
+**Returns:** Full player and character data
+
+---
+
+### Admin:BanPlayer
+
+Ban a player from the server.
+
+**Data:**
+```lua
+{
+    source = number,        -- Target player server ID
+    reason = string,        -- Ban reason
+    duration = number       -- Ban duration in days (0 = permanent)
+}
+```
+
+**Logging:** Bans are logged to console, file, database, and Discord with embed.
+
+---
+
+### Admin:KickPlayer
+
+Kick a player from the server.
+
+**Data:**
+```lua
+{
+    source = number,        -- Target player server ID
+    reason = string         -- Kick reason
+}
+```
+
+---
+
+### Admin:ActionPlayer
+
+Perform an action on a player (bring, goto, heal, attach, marker).
+
+**Data:**
+```lua
+{
+    action = string,        -- "bring", "goto", "heal", "attach", "marker"
+    targetSource = number   -- Target player server ID
+}
+```
+
+**Actions:**
+
+| Action | Description |
+|--------|-------------|
+| `bring` | Teleport target player to admin |
+| `goto` | Teleport admin to target player |
+| `heal` | Fully heal target player |
+| `attach` | Attach admin camera to target |
+| `marker` | Place marker on target's position |
+
+---
+
+### Admin:ToggleInvisible
+
+Toggle admin invisibility.
+
+---
+
+### Admin:NoClip
+
+Log noclip usage (toggled via chat command).
+
+---
+
+## Business Management
+
+### Admin:GetBusinessList
+
+Get all registered businesses.
+
+**Returns:** Array of business data
+
+---
+
+### Admin:GetBusinessDetail
+
+Get detailed info about a specific business.
+
+**Data:** `{ businessId = string }`
+
+---
+
+### Admin:FireEmployee
+
+Remove an employee from a business.
+
+**Data:**
+```lua
+{
+    businessId = string,
+    characterSID = number
+}
+```
+
+---
+
+## Job Management
+
+### Admin:GetJobList
+
+Get all available jobs and their grades.
+
+**Returns:** Array of job definitions
+
+---
+
+### Admin:GiveJob
+
+Give a job to a player.
+
+**Data:**
+```lua
+{
+    targetSource = number,
+    job = string,
+    grade = number
+}
+```
+
+---
+
+### Admin:RemoveJob
+
+Remove a player's job (set to unemployed).
+
+**Data:**
+```lua
+{
+    targetSource = number
+}
+```
+
+---
+
+## Item Management
+
+### Admin:GetItemList
+
+Get all registered items.
+
+**Returns:** Array of item definitions
+
+---
+
+### Admin:GiveItem
+
+Give an item to a player.
+
+**Data:**
+```lua
+{
+    targetSource = number,
+    item = string,
+    count = number
+}
+```
+
+---
+
+## Door & Elevator Management
+
+### Admin:GetDoorList
+
+Get all door definitions.
+
+**Returns:** Array of door data
+
+---
+
+### Admin:CreateDoor
+
+Create a new dynamic door (saved to database).
+
+**Data:** Door definition table (see Doors Configuration)
+
+---
+
+### Admin:UpdateDoor
+
+Update an existing dynamic door.
+
+**Data:**
+```lua
+{
+    doorIndex = number,
+    doorData = table          -- Updated door definition
+}
+```
+
+---
+
+### Admin:DeleteDoor
+
+Delete a dynamic door.
+
+**Data:** `{ doorIndex = number }`
+
+---
+
+### Admin:ToggleDoorLock
+
+Toggle a door's lock state from the admin panel.
+
+**Data:** `{ doorId = string|number }`
+
+---
+
+### Admin:GetElevatorList
+
+Get all elevator definitions.
+
+---
+
+### Admin:CreateElevator
+
+Create a new dynamic elevator.
+
+---
+
+### Admin:UpdateElevator
+
+Update an existing dynamic elevator.
+
+---
+
+### Admin:DeleteElevator
+
+Delete a dynamic elevator.
+
+---
+
+### Admin:StartDoorHelper
+
+Start the door helper tool (places markers at door coordinates for editing).
+
+---
+
+### Admin:StartElevatorZoneHelper
+
+Start the elevator zone visualization helper.
+
+---
+
+### Admin:StartElevatorPositionHelper
+
+Start the elevator position helper tool.
+
+---
+
+## Heist Management
+
+### Admin:GetHeistStatuses
+
+Get current status of all heists/robberies.
+
+**Returns:** Array of heist statuses (active, cooldown, disabled)
+
+---
+
+### Admin:ResetHeist
+
+Reset a specific heist.
+
+**Data:** `{ heistId = string }`
+
+---
+
+### Admin:HeistAction
+
+Perform a heist management action.
+
+**Data:**
+```lua
+{
+    action = string,          -- "toggle_robberies", "reset_cooldown", "disable_lockdown"
+    heistId = string          -- Optional: specific heist
+}
+```
+
+---
+
+## Utility Callbacks
+
+### Admin:GetMapPlayers
+
+Get all players with their current positions for the admin map.
+
+**Returns:** Array of `{ source, coords, name, character }` entries
+
+---
+
+### Admin:TeleportToCoords
+
+Teleport admin to specific coordinates.
+
+**Data:**
+```lua
+{
+    x = number,
+    y = number,
+    z = number
+}
+```
+
+---
+
+### Admin:CurrentVehicleAction
+
+Perform an action on the admin's current vehicle.
+
+**Data:** `{ action = string }`
+
+<Note>
+Vehicle actions require admin level 90+.
+</Note>
+
+---
+
+### Admin:UpdatePhonePerms
+
+Update a player's phone permissions from the admin panel.
+
+**Data:**
+```lua
+{
+    targetSource = number,
+    app = string,
+    permission = string,
+    value = boolean
+}
+```
+
+---
+
+### Admin:GetCommandList
+
+Get all registered chat commands visible to the admin.
+
+**Returns:** Array of command definitions
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Admin - Commands" icon="terminal" href="/api/admin/commands">
+    Chat commands
+  </Card>
+  <Card title="Admin - Permissions" icon="shield-check" href="/api/admin/permissions">
+    Permission system
+  </Card>
+  <Card title="Doors API" icon="door-open" href="/api/doors/exports">
+    Door management
+  </Card>
+</CardGroup>

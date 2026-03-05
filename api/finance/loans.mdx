@@ -1,0 +1,346 @@
+---
+title: Finance - Loans
+description: Loan creation, payments, and credit score management
+icon: 'hand-holding-dollar'
+---
+
+The Loans component manages vehicle and property loans, payment schedules, and the credit score system.
+
+## Overview
+
+Access via `COMPONENTS.Loans` (server-side only).
+
+<CardGroup cols={2}>
+  <Card title="Vehicle Loans" icon="car">
+    Finance vehicle purchases
+  </Card>
+  <Card title="Property Loans" icon="house">
+    Finance property purchases
+  </Card>
+  <Card title="Payments" icon="money-check-dollar">
+    Scheduled loan payments
+  </Card>
+  <Card title="Credit Score" icon="chart-line">
+    Player credit management
+  </Card>
+</CardGroup>
+
+---
+
+## Loan Management
+
+### Loans:GetAllowedLoanAmount
+
+Get how much a character can borrow based on their credit score.
+
+```lua
+COMPONENTS.Loans:GetAllowedLoanAmount(stateId, type)
+```
+
+<ParamField path="stateId" type="number" required>
+  Character State ID
+</ParamField>
+
+<ParamField path="type" type="string" required>
+  Loan type: `'vehicle'` or `'property'`
+</ParamField>
+
+<ResponseField name="result" type="table">
+  `{creditScore = number, maxBorrowable = number}`
+</ResponseField>
+
+**Example:**
+
+```lua
+local loanInfo = COMPONENTS.Loans:GetAllowedLoanAmount(char:GetData('SID'), 'vehicle')
+
+print('Credit Score:', loanInfo.creditScore)
+print('Max Borrowable: $' .. loanInfo.maxBorrowable)
+```
+
+---
+
+### Loans:GetPlayerLoans
+
+Get all active loans for a character.
+
+```lua
+COMPONENTS.Loans:GetPlayerLoans(stateId, type)
+```
+
+<ParamField path="stateId" type="number" required>
+  Character State ID
+</ParamField>
+
+<ParamField path="type" type="string" optional>
+  Filter by type: `'vehicle'` or `'property'`
+</ParamField>
+
+<ResponseField name="loans" type="table">
+  Array of active loan records
+</ResponseField>
+
+---
+
+### Loans:CreateVehicleLoan
+
+Create a loan for a vehicle purchase.
+
+```lua
+COMPONENTS.Loans:CreateVehicleLoan(targetSource, VIN, totalCost, downPayment, totalWeeks)
+```
+
+<ParamField path="targetSource" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="VIN" type="string" required>
+  Vehicle identification number
+</ParamField>
+
+<ParamField path="totalCost" type="number" required>
+  Total vehicle price
+</ParamField>
+
+<ParamField path="downPayment" type="number" required>
+  Down payment amount
+</ParamField>
+
+<ParamField path="totalWeeks" type="number" required>
+  Number of weekly payments
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if loan was created
+</ResponseField>
+
+**Example:**
+
+```lua
+-- Player buying a vehicle on finance
+local success = COMPONENTS.Loans:CreateVehicleLoan(source, vehicleVIN, 85000, 20000, 12)
+
+if success then
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = 'Vehicle loan approved! 12 weekly payments.',
+        type = 'success'
+    })
+end
+```
+
+---
+
+### Loans:CreatePropertyLoan
+
+Create a loan for a property purchase.
+
+```lua
+COMPONENTS.Loans:CreatePropertyLoan(targetSource, propertyId, totalCost, downPayment, totalWeeks)
+```
+
+<ParamField path="targetSource" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="propertyId" type="string" required>
+  Property identifier
+</ParamField>
+
+<ParamField path="totalCost" type="number" required>
+  Total property price
+</ParamField>
+
+<ParamField path="downPayment" type="number" required>
+  Down payment amount
+</ParamField>
+
+<ParamField path="totalWeeks" type="number" required>
+  Number of weekly payments
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if loan was created
+</ResponseField>
+
+---
+
+### Loans:MakePayment
+
+Make a payment on an active loan.
+
+```lua
+COMPONENTS.Loans:MakePayment(source, loanId, inAdvanced, advancedPaymentCount)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="loanId" type="string" required>
+  Loan identifier
+</ParamField>
+
+<ParamField path="inAdvanced" type="boolean" optional>
+  Whether this is an advance payment
+</ParamField>
+
+<ParamField path="advancedPaymentCount" type="number" optional>
+  Number of advance payments to make
+</ParamField>
+
+<ResponseField name="result" type="table">
+  `{success = true, paidOff = boolean, paymentAmount = number, creditIncrease = number}` on success, or `{success = false, message = string}` on failure
+</ResponseField>
+
+**Example:**
+
+```lua
+local result = COMPONENTS.Loans:MakePayment(source, loanId, false)
+
+if result.success then
+    if result.paidOff then
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'Loan fully paid off! Credit +' .. result.creditIncrease,
+            type = 'success'
+        })
+    else
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'Payment of $' .. result.paymentAmount .. ' processed',
+            type = 'success'
+        })
+    end
+else
+    TriggerClientEvent('mythic-notifications:client:Send', source, {
+        message = result.message,
+        type = 'error'
+    })
+end
+```
+
+---
+
+### Loans:HasRemainingPayments
+
+Check if an asset (vehicle/property) still has an active loan.
+
+```lua
+COMPONENTS.Loans:HasRemainingPayments(assetType, assetId)
+```
+
+<ParamField path="assetType" type="string" required>
+  `'vehicle'` or `'property'`
+</ParamField>
+
+<ParamField path="assetId" type="string" required>
+  VIN or property ID
+</ParamField>
+
+<ResponseField name="hasPayments" type="boolean">
+  `true` if the asset has remaining loan payments
+</ResponseField>
+
+---
+
+### Loans:GetDefaultInterestRate
+
+Get the default interest rate for loans.
+
+```lua
+COMPONENTS.Loans:GetDefaultInterestRate()
+```
+
+<ResponseField name="rate" type="number">
+  Interest rate percentage (default: 15)
+</ResponseField>
+
+---
+
+## Credit Score
+
+### Loans.Credit:Get
+
+Get a character's credit score.
+
+```lua
+COMPONENTS.Loans.Credit:Get(stateId)
+```
+
+<ParamField path="stateId" type="number" required>
+  Character State ID
+</ParamField>
+
+<ResponseField name="score" type="number">
+  Credit score (min: 100, max: 1250, default: 180)
+</ResponseField>
+
+---
+
+### Loans.Credit:Set
+
+Set a character's credit score directly.
+
+```lua
+COMPONENTS.Loans.Credit:Set(stateId, newVal)
+```
+
+---
+
+### Loans.Credit:Increase
+
+Add to a character's credit score.
+
+```lua
+COMPONENTS.Loans.Credit:Increase(stateId, increase)
+```
+
+---
+
+### Loans.Credit:Decrease
+
+Subtract from a character's credit score.
+
+```lua
+COMPONENTS.Loans.Credit:Decrease(stateId, decrease)
+```
+
+---
+
+## Credit Score Config
+
+| Setting | Value |
+|---------|-------|
+| Default score | 180 |
+| Maximum | 1,250 |
+| Minimum | 100 |
+| Loan payment bonus | 60-140 points |
+| Loan completion bonus | 15-20 points |
+| Missed payment penalty | -15 points |
+| Loan default penalty | -35 points |
+| Job bonus (police/ems/realestate) | +250-300 points |
+
+## Loan Config
+
+| Setting | Value |
+|---------|-------|
+| Default interest rate | 15% |
+| Payment interval | 7 days (604,800 seconds) |
+| Missed payment limit | 4 |
+| Missed payment interest increase | +2.5% per miss |
+| Missed payment charge | 5% of loan |
+| Default charge | 15% of loan |
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Finance - Banking" icon="building-columns" href="/api/finance/banking">
+    Bank account operations
+  </Card>
+  <Card title="Finance - Billing" icon="file-invoice-dollar" href="/api/finance/billing">
+    Bills and fines
+  </Card>
+  <Card title="Finance - Crypto" icon="bitcoin-sign" href="/api/finance/crypto">
+    Cryptocurrency system
+  </Card>
+</CardGroup>

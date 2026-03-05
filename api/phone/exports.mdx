@@ -1,0 +1,407 @@
+---
+title: Phone - Exports
+description: Phone component API for notifications, data management, and UI control
+icon: 'mobile'
+---
+
+The Phone component provides server-side notification delivery and client-side UI control. Other resources interact with the phone primarily through notifications and data updates.
+
+## Overview
+
+Access via `COMPONENTS.Phone` on both server and client.
+
+<CardGroup cols={2}>
+  <Card title="Notifications" icon="bell">
+    Push notifications to players
+  </Card>
+  <Card title="Phone Data" icon="database">
+    Manage app data
+  </Card>
+  <Card title="UI Control" icon="display">
+    Open, close, and manage phone state
+  </Card>
+  <Card title="Permissions" icon="shield-check">
+    App-level permission checks
+  </Card>
+</CardGroup>
+
+---
+
+## Server-Side Methods
+
+<Warning>
+**Primary Server API:** The main way other resources interact with the phone server-side is through `Phone.Notification`. Direct data manipulation should be rare.
+</Warning>
+
+### Phone.Notification:Add
+
+Send a notification to a player's phone.
+
+```lua
+COMPONENTS.Phone.Notification:Add(source, title, description, time, duration, app, actions, notifData)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="title" type="string" required>
+  Notification title
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Notification body text
+</ParamField>
+
+<ParamField path="time" type="number" required>
+  Timestamp (use `os.time()`)
+</ParamField>
+
+<ParamField path="duration" type="number" required>
+  Display duration in milliseconds
+</ParamField>
+
+<ParamField path="app" type="string" required>
+  App identifier (e.g., `'messages'`, `'email'`, `'bank'`)
+</ParamField>
+
+<ParamField path="actions" type="table" optional>
+  Action buttons on the notification
+</ParamField>
+
+<ParamField path="notifData" type="table" optional>
+  Additional data payload
+</ParamField>
+
+**Example:**
+
+```lua
+-- Simple notification
+COMPONENTS.Phone.Notification:Add(source, 'New Message', 'You have a new text message', os.time(), 5000, 'messages')
+
+-- Notification with data
+COMPONENTS.Phone.Notification:Add(source, 'Bank Alert', 'Deposit of $5,000 received', os.time(), 5000, 'bank', nil, {
+    amount = 5000,
+    account = accountNumber
+})
+
+-- 911 dispatch notification to police
+local onDutyPolice = COMPONENTS.Jobs:GetOnDutyPlayers('police')
+
+for _, sid in ipairs(onDutyPolice) do
+    local player = Fetch:SID(sid)
+    if player then
+        local policeSource = player:GetData('Source')
+        COMPONENTS.Phone.Notification:Add(policeSource, '911 Call', 'Shots fired at Legion Square', os.time(), 10000, 'phone')
+    end
+end
+```
+
+---
+
+### Phone.Notification:AddWithId
+
+Send a notification with a specific ID for tracking and updating.
+
+```lua
+COMPONENTS.Phone.Notification:AddWithId(source, id, title, description, time, duration, app, actions, notifData)
+```
+
+<ParamField path="id" type="string" required>
+  Unique notification identifier for later updates/removal
+</ParamField>
+
+All other parameters are the same as `Notification:Add`.
+
+**Example:**
+
+```lua
+-- Trackable notification
+COMPONENTS.Phone.Notification:AddWithId(source, 'delivery_123', 'Delivery Update', 'Your package is on the way', os.time(), 8000, 'email')
+```
+
+---
+
+### Phone.Notification:Update
+
+Update an existing notification by ID.
+
+```lua
+COMPONENTS.Phone.Notification:Update(source, id, title, description)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Notification ID (from AddWithId)
+</ParamField>
+
+<ParamField path="title" type="string" required>
+  New title
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  New description
+</ParamField>
+
+**Example:**
+
+```lua
+-- Update delivery status
+COMPONENTS.Phone.Notification:Update(source, 'delivery_123', 'Delivery Complete', 'Your package has been delivered')
+```
+
+---
+
+### Phone.Notification:RemoveById
+
+Remove a notification by its ID.
+
+```lua
+COMPONENTS.Phone.Notification:RemoveById(source, id)
+```
+
+---
+
+### Phone:UpdateJobData
+
+Update a player's job data on their phone (permissions, apps, etc.).
+
+```lua
+COMPONENTS.Phone:UpdateJobData(source, returnValues)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="returnValues" type="boolean" optional>
+  If `true`, returns the data instead of sending to client
+</ParamField>
+
+<ResponseField name="data" type="table">
+  When `returnValues` is true: `{charJobPerms = table, jobData = table}`
+</ResponseField>
+
+---
+
+## Client-Side Methods
+
+### Phone:Open
+
+Opens the phone UI.
+
+```lua
+COMPONENTS.Phone:Open()
+```
+
+---
+
+### Phone:Close
+
+Closes the phone UI.
+
+```lua
+COMPONENTS.Phone:Close(forced, doJankyStuff)
+```
+
+<ParamField path="forced" type="boolean" optional>
+  Force close, skip route reset
+</ParamField>
+
+<ParamField path="doJankyStuff" type="boolean" optional>
+  Skip route reset behavior
+</ParamField>
+
+---
+
+### Phone:IsOpen
+
+Check if the phone UI is currently open.
+
+```lua
+COMPONENTS.Phone:IsOpen()
+```
+
+<ResponseField name="isOpen" type="boolean">
+  `true` if phone is open
+</ResponseField>
+
+**Example:**
+
+```lua
+-- Close phone before starting an action
+if COMPONENTS.Phone:IsOpen() then
+    COMPONENTS.Phone:Close()
+end
+```
+
+---
+
+### Phone:OpenLimited
+
+Opens the phone in limited mode (e.g., for payphones).
+
+```lua
+COMPONENTS.Phone:OpenLimited()
+```
+
+---
+
+### Phone:OpenPayphone
+
+Opens the phone specifically for payphone use.
+
+```lua
+COMPONENTS.Phone:OpenPayphone()
+```
+
+---
+
+### Phone:IsAppUsable
+
+Check if a specific app is installed and usable by the current player.
+
+```lua
+COMPONENTS.Phone:IsAppUsable(app)
+```
+
+<ParamField path="app" type="string|table" required>
+  App identifier or table of app identifiers
+</ParamField>
+
+<ResponseField name="usable" type="boolean">
+  `true` if the app is accessible
+</ResponseField>
+
+---
+
+## Phone Data Methods (Client)
+
+### Phone.Data:Set
+
+Set phone data by key.
+
+```lua
+COMPONENTS.Phone.Data:Set(key, data)
+```
+
+---
+
+### Phone.Data:Add
+
+Add data to the phone store.
+
+```lua
+COMPONENTS.Phone.Data:Add(type, data, key)
+```
+
+---
+
+### Phone.Data:Update
+
+Update existing phone data.
+
+```lua
+COMPONENTS.Phone.Data:Update(type, id, data)
+```
+
+---
+
+### Phone.Data:Remove
+
+Remove phone data by key and ID.
+
+```lua
+COMPONENTS.Phone.Data:Remove(key, id)
+```
+
+---
+
+### Phone.Data:Reset
+
+Clear all phone data.
+
+```lua
+COMPONENTS.Phone.Data:Reset()
+```
+
+---
+
+## Permissions (Client)
+
+### Phone.Permissions:HasPermission
+
+Check if the current player has a specific app permission.
+
+```lua
+COMPONENTS.Phone.Permissions:HasPermission(app, permission)
+```
+
+<ParamField path="app" type="string" required>
+  App identifier
+</ParamField>
+
+<ParamField path="permission" type="string" required>
+  Permission name
+</ParamField>
+
+<ResponseField name="has" type="boolean">
+  `true` if player has the permission
+</ResponseField>
+
+**Example:**
+
+```lua
+-- Check if player can create redline races
+if COMPONENTS.Phone.Permissions:HasPermission('redline', 'create') then
+    -- Allow race creation
+end
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Meaningful Notification Durations" icon="clock">
+    ```lua
+    -- ✅ Good: Important notifications stay longer
+    COMPONENTS.Phone.Notification:Add(source, '911 Call', 'Emergency at ...', os.time(), 10000, 'phone')
+
+    -- ✅ Good: Info notifications are shorter
+    COMPONENTS.Phone.Notification:Add(source, 'Bank', 'Deposit received', os.time(), 3000, 'bank')
+    ```
+  </Accordion>
+
+  <Accordion title="Track Notifications When Needed" icon="tag">
+    ```lua
+    -- Use AddWithId when you need to update or remove later
+    COMPONENTS.Phone.Notification:AddWithId(source, 'taxi_' .. requestId, 'Taxi Request', 'Picking up...', os.time(), 0, 'phone')
+
+    -- Later, update it
+    COMPONENTS.Phone.Notification:Update(source, 'taxi_' .. requestId, 'Taxi', 'Arrived at pickup')
+
+    -- Or remove it
+    COMPONENTS.Phone.Notification:RemoveById(source, 'taxi_' .. requestId)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Phone - Events" icon="bolt" href="/api/phone/events">
+    Phone events and middleware
+  </Card>
+  <Card title="Phone - Apps" icon="grid-2" href="/api/phone/apps">
+    App configuration and restrictions
+  </Card>
+  <Card title="Characters API" icon="user" href="/api/characters/exports">
+    Character data access
+  </Card>
+</CardGroup>

@@ -1,0 +1,402 @@
+---
+title: Status - Exports
+description: Server and client status system for hunger, thirst, stress, and custom statuses
+icon: 'heart-pulse'
+---
+
+The Status component manages player statuses like hunger, thirst, stress, and drunkenness. It has both server and client components — the server tracks persistence while the client handles visual display and effects.
+
+## Overview
+
+Access via `COMPONENTS.Status` on both server and client.
+
+<CardGroup cols={2}>
+  <Card title="Built-in Statuses" icon="drumstick-bite">
+    Hunger, Thirst, Stress, Drunk
+  </Card>
+  <Card title="Custom Statuses" icon="plus">
+    Register your own status types
+  </Card>
+  <Card title="Visual Effects" icon="eye">
+    HUD display, blur, shake effects
+  </Card>
+  <Card title="Persistence" icon="database">
+    Saved to character data
+  </Card>
+</CardGroup>
+
+---
+
+## Server-Side Methods
+
+<Warning>
+**Server-side** Status methods manage data persistence. The **client** handles visual display and modification logic. Use `Execute:Client` or events to trigger client-side changes from the server.
+</Warning>
+
+### Status:Register (Server)
+
+Register a status type on the server.
+
+```lua
+COMPONENTS.Status:Register(name, max, icon, tick, modify)
+```
+
+<ParamField path="name" type="string" required>
+  Status identifier (e.g., `'PLAYER_HUNGER'`)
+</ParamField>
+
+<ParamField path="max" type="number" required>
+  Maximum value
+</ParamField>
+
+<ParamField path="icon" type="string" required>
+  Icon identifier
+</ParamField>
+
+<ParamField path="tick" type="function" optional>
+  Callback for tick logic
+</ParamField>
+
+<ParamField path="modify" type="function" optional>
+  Callback for modification logic
+</ParamField>
+
+---
+
+### Status.Get:All (Server)
+
+Get all registered status definitions.
+
+```lua
+COMPONENTS.Status.Get:All()
+```
+
+<ResponseField name="statuses" type="table">
+  All registered status definitions
+</ResponseField>
+
+---
+
+### Status.Get:Single (Server)
+
+Get a single status definition.
+
+```lua
+COMPONENTS.Status.Get:Single(name)
+```
+
+<ParamField path="name" type="string" required>
+  Status name
+</ParamField>
+
+---
+
+### Status:Set (Server)
+
+Set a status value for a player and sync to client.
+
+```lua
+COMPONENTS.Status:Set(source, name, value)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Status name
+</ParamField>
+
+<ParamField path="value" type="number" required>
+  New value
+</ParamField>
+
+**Example:**
+
+```lua
+-- Reset a player's hunger to full
+COMPONENTS.Status:Set(source, 'PLAYER_HUNGER', 100)
+
+-- Set stress to zero
+COMPONENTS.Status:Set(source, 'PLAYER_STRESS', 0)
+```
+
+---
+
+### Status.Modify:Add (Server)
+
+Add to a status value via client callback.
+
+```lua
+COMPONENTS.Status.Modify:Add(source, name, value, addCd, isForced)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Status name
+</ParamField>
+
+<ParamField path="value" type="number" required>
+  Amount to add
+</ParamField>
+
+<ParamField path="addCd" type="boolean" optional>
+  Add cooldown after modification
+</ParamField>
+
+<ParamField path="isForced" type="boolean" optional>
+  Force the modification (bypass checks)
+</ParamField>
+
+**Example:**
+
+```lua
+-- Feed the player (restore hunger)
+COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
+
+-- Hydrate the player
+COMPONENTS.Status.Modify:Add(source, 'PLAYER_THIRST', 30)
+```
+
+---
+
+### Status.Modify:Remove (Server)
+
+Remove from a status value via client callback.
+
+```lua
+COMPONENTS.Status.Modify:Remove(source, name, value, addCd, isForced)
+```
+
+**Example:**
+
+```lua
+-- Add stress
+COMPONENTS.Status.Modify:Remove(source, 'PLAYER_STRESS', 15)
+
+-- Sober up
+COMPONENTS.Status.Modify:Remove(source, 'PLAYER_DRUNK', 20)
+```
+
+<Note>
+For inverted statuses like Stress and Drunk (where higher = worse), `Remove` decreases the value and `Add` increases it. Use `Remove` to reduce these statuses.
+</Note>
+
+---
+
+## Client-Side Methods
+
+### Status:Register (Client)
+
+Register a status with visual properties for the HUD.
+
+```lua
+COMPONENTS.Status:Register(name, max, icon, color, flash, modify, options)
+```
+
+<ParamField path="name" type="string" required>
+  Status identifier
+</ParamField>
+
+<ParamField path="max" type="number" required>
+  Maximum value
+</ParamField>
+
+<ParamField path="icon" type="string" required>
+  FontAwesome icon name
+</ParamField>
+
+<ParamField path="color" type="string" required>
+  Hex color code for HUD display
+</ParamField>
+
+<ParamField path="flash" type="boolean" required>
+  Enable flash animation when low
+</ParamField>
+
+<ParamField path="modify" type="function" required>
+  Callback for value changes: `function(change, force)`
+</ParamField>
+
+<ParamField path="options" type="table" required>
+  Display options (see Options below)
+</ParamField>
+
+---
+
+### Status.Get:All (Client)
+
+Get all statuses with their current values.
+
+```lua
+COMPONENTS.Status.Get:All()
+```
+
+<ResponseField name="statuses" type="table">
+  All statuses with current values from `LocalPlayer.state`
+</ResponseField>
+
+---
+
+### Status.Get:Single (Client)
+
+Get a single status with current value.
+
+```lua
+COMPONENTS.Status.Get:Single(name)
+```
+
+---
+
+### Status.Set:All (Client)
+
+Set all statuses to a specific value.
+
+```lua
+COMPONENTS.Status.Set:All(entity, value)
+```
+
+---
+
+### Status.Set:Single (Client)
+
+Set a single status to a specific value.
+
+```lua
+COMPONENTS.Status.Set:Single(name, value)
+```
+
+**Example:**
+
+```lua
+-- Client-side: Set hunger to full
+COMPONENTS.Status.Set:Single('PLAYER_HUNGER', 100)
+```
+
+---
+
+### Status.Modify:Add (Client)
+
+Add to a status value on the client.
+
+```lua
+COMPONENTS.Status.Modify:Add(status, value, addCd, force)
+```
+
+---
+
+### Status.Modify:Remove (Client)
+
+Remove from a status value on the client.
+
+```lua
+COMPONENTS.Status.Modify:Remove(status, value, force)
+```
+
+---
+
+### Status:Reset
+
+Reset all resettable statuses to their maximum value.
+
+```lua
+COMPONENTS.Status:Reset(entity, value)
+```
+
+<Note>
+Statuses with `noReset = true` (like Stress and Drunk) are not affected by Reset.
+</Note>
+
+---
+
+### Status:Toggle
+
+Toggle the status system on or off.
+
+```lua
+COMPONENTS.Status:Toggle()
+```
+
+---
+
+### Status:Check
+
+Check if the status system is currently enabled.
+
+```lua
+COMPONENTS.Status:Check()
+```
+
+<ResponseField name="enabled" type="boolean">
+  `true` if status system is active
+</ResponseField>
+
+---
+
+## Options Structure
+
+```lua
+{
+    id = 1,            -- HUD position priority (lower = further left)
+    hideHigh = false,  -- Hide the status icon when at max value
+    hideZero = false,  -- Hide the status icon when at zero
+    inverted = false,  -- Inverted display (fills right to left, higher = worse)
+    noReset = false    -- Won't reset when Status:Reset is called
+}
+```
+
+---
+
+## Status Storage
+
+- **Character Data:** `Character:SetData("Status", { PLAYER_HUNGER = 100, ... })`
+- **State Variables:** `LocalPlayer.state["status:PLAYER_HUNGER"]`
+- **HUD Display:** Registered via `Hud:RegisterStatus()`
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Server Methods for Persistence" icon="database">
+    ```lua
+    -- ✅ Good: Server sets status (persists and syncs)
+    COMPONENTS.Status:Set(source, 'PLAYER_HUNGER', 100)
+
+    -- ❌ Bad: Client-only change (won't persist on disconnect)
+    -- Only use client methods for temporary visual effects
+    ```
+  </Accordion>
+
+  <Accordion title="Understand Inverted Statuses" icon="arrows-up-down">
+    ```lua
+    -- Hunger/Thirst: 100 = full, 0 = starving (normal)
+    -- Stress/Drunk: 0 = sober, 100 = max (inverted)
+
+    -- To feed a player:
+    COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
+
+    -- To reduce stress:
+    COMPONENTS.Status.Modify:Remove(source, 'PLAYER_STRESS', 10)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Status - Defaults" icon="list" href="/api/status/defaults">
+    Built-in status types and effects
+  </Card>
+  <Card title="HUD API" icon="display" href="/api/hud/exports">
+    HUD display system
+  </Card>
+  <Card title="Characters API" icon="user" href="/api/characters/exports">
+    Character data access
+  </Card>
+</CardGroup>

@@ -1,0 +1,285 @@
+---
+title: Doors - Configuration
+description: Door definitions, restriction types, and elevator configuration
+icon: 'gear'
+---
+
+Doors and elevators are defined in configuration files within `mythic-doors/shared/config/`. This page covers the data structures and restriction types.
+
+## Door Definition
+
+Each door is a table with the following properties:
+
+```lua
+{
+    id = "mrpd_front",           -- Optional string ID for easy reference
+    model = 2089009131,          -- GTA model hash
+    coords = vector3(434.75, -982.18, 30.71),
+    locked = true,               -- Initial lock state
+    maxDist = 2.0,               -- Interaction distance
+    canLockpick = false,         -- Whether door can be lockpicked
+    holdOpen = false,            -- Door stays open when unlocked
+    autoRate = 6.0,              -- Auto-close speed
+    autoDist = nil,              -- Distance threshold for auto-close
+    autoLock = 60,               -- Re-lock after X seconds (nil = no auto-lock)
+    double = nil,                -- Index of paired door (for double doors)
+    special = nil,               -- Custom property for scripts
+    restricted = {               -- Who can lock/unlock this door
+        {
+            type = 'job',
+            job = 'police',
+            workplace = 'lspd',
+            grade = 'officer',
+            gradeLevel = 1,
+            reqDuty = true,
+            jobPermission = 'door_access'
+        }
+    }
+}
+```
+
+### Property Reference
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `id` | string | nil | Named identifier for scripting |
+| `model` | number | required | GTA object model hash |
+| `coords` | vector3 | required | Door position in world |
+| `locked` | boolean | false | Initial lock state |
+| `maxDist` | number | 2.0 | Max interaction distance |
+| `canLockpick` | boolean | false | Lockpickable |
+| `holdOpen` | boolean | false | Stay open when unlocked |
+| `autoRate` | number | 6.0 | Auto-close animation speed |
+| `autoDist` | number | nil | Auto-close distance |
+| `autoLock` | number | nil | Seconds until auto re-lock |
+| `double` | number | nil | Paired door index |
+| `special` | any | nil | Custom script data |
+| `restricted` | table | {} | Access restrictions |
+
+---
+
+## Restriction Types
+
+### Job Restriction
+
+Restrict door access to players with a specific job.
+
+```lua
+{
+    type = 'job',
+    job = 'police',              -- Required: job identifier
+    workplace = 'lspd',          -- Optional: specific workplace
+    grade = 'officer',           -- Optional: specific grade name
+    gradeLevel = 1,              -- Optional: minimum grade level
+    reqDuty = true,              -- Optional: must be on duty
+    jobPermission = 'door_access' -- Optional: requires job permission
+}
+```
+
+**Examples:**
+
+```lua
+-- Any police officer on duty
+{ type = 'job', job = 'police', reqDuty = true }
+
+-- LSPD sergeant or higher
+{ type = 'job', job = 'police', workplace = 'lspd', gradeLevel = 3 }
+
+-- EMS with specific permission
+{ type = 'job', job = 'ems', jobPermission = 'hospital_access' }
+
+-- Any mechanic (on or off duty)
+{ type = 'job', job = 'mechanic' }
+```
+
+---
+
+### Character Restriction
+
+Restrict door access to a specific character by State ID.
+
+```lua
+{
+    type = 'character',
+    SID = 123                    -- Character State ID
+}
+```
+
+**Example:**
+
+```lua
+-- Personal office door
+restricted = {
+    { type = 'character', SID = 42 },
+    { type = 'character', SID = 87 }
+}
+```
+
+---
+
+### Property Data Restriction
+
+Restrict door access based on property data values.
+
+```lua
+{
+    type = 'propertyData',
+    key = 'property_id',         -- Property data field name
+    value = 'apt_301'            -- Expected value
+}
+```
+
+**Example:**
+
+```lua
+-- Door tied to apartment ownership
+restricted = {
+    { type = 'propertyData', key = 'owner', value = 'property_123' }
+}
+```
+
+---
+
+## Multiple Restrictions
+
+A door can have multiple restrictions. A player needs to match **any one** of them to access the door.
+
+```lua
+restricted = {
+    -- Police can access
+    { type = 'job', job = 'police', reqDuty = true },
+    -- EMS can also access
+    { type = 'job', job = 'ems', reqDuty = true },
+    -- Specific character always has access
+    { type = 'character', SID = 1 }
+}
+```
+
+---
+
+## Double Doors
+
+Link two doors together so locking/unlocking one affects both.
+
+```lua
+-- Door definitions (using array indices)
+[15] = {
+    model = 2089009131,
+    coords = vector3(434.75, -982.18, 30.71),
+    locked = true,
+    double = 16,                 -- Points to the other door
+    restricted = { { type = 'job', job = 'police' } }
+},
+[16] = {
+    model = 2089009131,
+    coords = vector3(434.75, -980.18, 30.71),
+    locked = true,
+    double = 15,                 -- Points back
+    restricted = { { type = 'job', job = 'police' } }
+}
+```
+
+---
+
+## Elevator Definition
+
+Elevators are multi-floor transport points with per-floor access control.
+
+```lua
+{
+    id = "mrpd_elevator",
+    name = "MRPD Elevator",
+    canLock = {                  -- Who can lock/unlock floors
+        { type = 'job', job = 'police', gradeLevel = 3 }
+    },
+    floors = {
+        [1] = {
+            name = "Ground Floor",
+            coords = vector4(434.75, -982.18, 30.71, 180.0),
+            defaultLocked = false,
+            restricted = {},     -- Who can use this floor
+            bypassLock = {},     -- Who bypasses the lock
+            zone = {
+                center = vector3(434.75, -982.18, 30.71),
+                length = 1.5,
+                width = 1.5,
+                heading = 0,
+                minZ = 29.0,
+                maxZ = 32.0
+            }
+        },
+        [2] = {
+            name = "Offices",
+            coords = vector4(434.75, -982.18, 35.71, 180.0),
+            defaultLocked = false,
+            restricted = {
+                { type = 'job', job = 'police' }
+            },
+            bypassLock = {},
+            zone = {
+                center = vector3(434.75, -982.18, 35.71),
+                length = 1.5,
+                width = 1.5,
+                heading = 0,
+                minZ = 34.0,
+                maxZ = 37.0
+            }
+        },
+        [3] = {
+            name = "Rooftop",
+            coords = vector4(434.75, -982.18, 50.71, 180.0),
+            defaultLocked = true,
+            restricted = {
+                { type = 'job', job = 'police', gradeLevel = 3 }
+            },
+            bypassLock = {},
+            zone = {
+                center = vector3(434.75, -982.18, 50.71),
+                length = 1.5,
+                width = 1.5,
+                heading = 0,
+                minZ = 49.0,
+                maxZ = 52.0
+            }
+        }
+    }
+}
+```
+
+### Floor Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | string | Floor display name |
+| `coords` | vector4 | Teleport position (x, y, z, heading) |
+| `defaultLocked` | boolean | Initial lock state |
+| `restricted` | table | Access restrictions (same types as doors) |
+| `bypassLock` | table | Restrictions that bypass the lock entirely |
+| `zone` | table | Interaction zone definition |
+
+### Zone Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `center` | vector3 | Zone center position |
+| `length` | number | Zone length |
+| `width` | number | Zone width |
+| `heading` | number | Zone rotation |
+| `minZ` | number | Zone minimum height |
+| `maxZ` | number | Zone maximum height |
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Doors - Exports" icon="door-open" href="/api/doors/exports">
+    Door API methods
+  </Card>
+  <Card title="Jobs API" icon="briefcase" href="/api/jobs/exports">
+    Job system for restrictions
+  </Card>
+  <Card title="Admin Callbacks" icon="shield-halved" href="/api/admin/callbacks">
+    Admin door management
+  </Card>
+</CardGroup>

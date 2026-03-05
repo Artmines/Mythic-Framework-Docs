@@ -1,0 +1,280 @@
+---
+title: Admin - Permissions
+description: Admin and staff permission checking and logging patterns
+icon: 'shield-check'
+---
+
+The admin system uses a permission hierarchy to control access to admin features. All admin actions are logged for accountability.
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="Permission Levels" icon="layer-group">
+    Admin and Staff tiers
+  </Card>
+  <Card title="Permission Checks" icon="shield-check">
+    How to verify permissions
+  </Card>
+  <Card title="Logging" icon="file-lines">
+    Audit trail for admin actions
+  </Card>
+</CardGroup>
+
+---
+
+## Permission Hierarchy
+
+| Level | Method | Access |
+|-------|--------|--------|
+| Admin | `player.Permissions:IsAdmin()` | Full admin panel, all commands, all callbacks |
+| Staff | `player.Permissions:IsStaff()` | Limited panel, staff commands, read-only callbacks |
+| Player | Neither | No admin access |
+
+---
+
+## Checking Permissions
+
+### In Server Callbacks
+
+All admin callbacks follow this pattern:
+
+```lua
+COMPONENTS.Callbacks:RegisterServerCallback('Admin:MyAction', function(source, data, cb)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return cb(false)
+    end
+
+    -- Admin-only action
+    if player.Permissions:IsAdmin() then
+        -- Perform admin action
+        cb({ success = true })
+    else
+        cb(false)
+    end
+end)
+```
+
+### Tiered Access
+
+Some callbacks support both admin and staff with different capabilities:
+
+```lua
+COMPONENTS.Callbacks:RegisterServerCallback('Admin:GetPlayerInfo', function(source, data, cb)
+    local player = Fetch:Source(source)
+
+    if not player then
+        return cb(false)
+    end
+
+    if player.Permissions:IsAdmin() then
+        -- Full player data (admin)
+        local targetPlayer = Fetch:Source(data.targetSource)
+        local char = targetPlayer:GetData('Character')
+
+        cb({
+            name = GetPlayerName(data.targetSource),
+            character = char:GetData('First') .. ' ' .. char:GetData('Last'),
+            stateId = char:GetData('SID'),
+            job = COMPONENTS.Jobs:GetJob(char:GetData('SID')),
+            inventory = COMPONENTS.Inventory:Get(char:GetData('SID')),  -- Admin-only
+            bankBalance = COMPONENTS.Banking.Balance:Get(account)        -- Admin-only
+        })
+    elseif player.Permissions:IsStaff() then
+        -- Limited data (staff)
+        cb({
+            name = GetPlayerName(data.targetSource),
+            character = 'Hidden',
+            stateId = 'Hidden'
+        })
+    else
+        cb(false)
+    end
+end)
+```
+
+### In Chat Commands
+
+Use the Chat component's built-in admin/staff registration:
+
+```lua
+-- Automatically checks IsAdmin()
+COMPONENTS.Chat:RegisterAdminCommand('mycommand', function(source, args, rawCommand)
+    -- Only runs if player is admin
+end, { help = 'Description' })
+
+-- Automatically checks IsStaff()
+COMPONENTS.Chat:RegisterStaffCommand('mycommand', function(source, args, rawCommand)
+    -- Only runs if player is staff
+end, { help = 'Description' })
+```
+
+### In Event Handlers
+
+```lua
+AddEventHandler('myResource:server:AdminAction', function(data)
+    local src = source
+    local player = Fetch:Source(src)
+
+    if not player or not player.Permissions:IsAdmin() then
+        COMPONENTS.Logger:Warn('Security', 'Unauthorized admin action attempt', {
+            console = true,
+            file = true,
+            discord = true
+        }, {
+            source = src,
+            action = data.action
+        })
+        return
+    end
+
+    -- Process admin action
+end)
+```
+
+---
+
+## Middleware Initialization
+
+Admin permissions are initialized when a character spawns:
+
+```lua
+-- Registered at priority 5 on Characters:Spawning
+COMPONENTS.Middleware:Add('Characters:Spawning', function(source, character)
+    local player = Fetch:Source(source)
+
+    if player.Permissions:IsStaff() or player.Permissions:IsAdmin() then
+        -- Send permission data to client for admin panel UI
+        TriggerClientEvent('Admin:Client:Menu:RecievePermissionData', source, permissionData)
+    end
+end, 5)
+```
+
+---
+
+## Logging Patterns
+
+All significant admin actions should be logged to multiple outputs:
+
+### Standard Admin Action Log
+
+```lua
+COMPONENTS.Logger:Warn('Admin', string.format(
+    '%s (%s) performed %s on %s (%s)',
+    adminName, adminSID,
+    action,
+    targetName, targetSID
+), {
+    console = true,
+    file = true,
+    database = true,
+    discord = {
+        embed = true,
+        type = 'warning',
+        title = 'Admin Action',
+        description = string.format('**Admin:** %s\n**Action:** %s\n**Target:** %s',
+            adminName, action, targetName
+        )
+    }
+}, {
+    adminSource = source,
+    adminSID = adminSID,
+    action = action,
+    targetSource = targetSource,
+    targetSID = targetSID,
+    timestamp = os.time()
+})
+```
+
+### Ban Logging
+
+```lua
+COMPONENTS.Logger:Warn('Admin', string.format(
+    '%s banned %s for: %s (Duration: %d days)',
+    adminName, targetName, reason, duration
+), {
+    console = true,
+    file = true,
+    database = true,
+    discord = {
+        embed = true,
+        type = 'error',
+        title = 'Player Banned',
+        content = '@here Player banned',
+        description = string.format(
+            '**Admin:** %s\n**Player:** %s\n**Reason:** %s\n**Duration:** %d days',
+            adminName, targetName, reason, duration
+        )
+    }
+}, {
+    adminSID = adminSID,
+    targetSID = targetSID,
+    reason = reason,
+    duration = duration
+})
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always Verify Permissions Server-Side" icon="shield-check">
+    ```lua
+    -- ✅ Good: Server-side check
+    if not player.Permissions:IsAdmin() then
+        return cb(false)
+    end
+
+    -- ❌ Bad: Trusting client data
+    if data.isAdmin then  -- Client can spoof this!
+        -- NEVER trust client claims
+    end
+    ```
+  </Accordion>
+
+  <Accordion title="Log All Destructive Actions" icon="file-lines">
+    ```lua
+    -- Always log bans, kicks, item gives, teleports
+    COMPONENTS.Logger:Warn('Admin', actionDescription, {
+        console = true,
+        file = true,
+        database = true,
+        discord = true
+    }, actionData)
+    ```
+  </Accordion>
+
+  <Accordion title="Use Appropriate Permission Level" icon="layer-group">
+    ```lua
+    -- Admin-only: destructive actions (ban, kick, give items, modify data)
+    -- Staff-only: read-only actions (lookup, view info, spectate)
+
+    -- ✅ Good: Staff can only view
+    Chat:RegisterStaffCommand('lookup', viewOnlyHandler)
+
+    -- ✅ Good: Admin required for modification
+    Chat:RegisterAdminCommand('giveitem', modifyHandler)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Admin - Commands" icon="terminal" href="/api/admin/commands">
+    Chat commands reference
+  </Card>
+  <Card title="Admin - Callbacks" icon="server" href="/api/admin/callbacks">
+    Admin panel callbacks
+  </Card>
+  <Card title="Logger API" icon="file-lines" href="/api/core/logger">
+    Logging system
+  </Card>
+  <Card title="Chat API" icon="message" href="/api/chat/exports">
+    Command registration
+  </Card>
+</CardGroup>

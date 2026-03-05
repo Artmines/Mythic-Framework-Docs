@@ -1,0 +1,264 @@
+---
+title: Admin - Commands
+description: Admin and staff chat commands
+icon: 'terminal'
+---
+
+The admin system provides chat commands for server management, player moderation, and debugging tools.
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="Admin Commands" icon="shield-halved">
+    Full admin access required
+  </Card>
+  <Card title="Staff Commands" icon="user-shield">
+    Staff-level access
+  </Card>
+  <Card title="Debug Tools" icon="bug">
+    Noclip, markers, coordinates
+  </Card>
+</CardGroup>
+
+<Warning>
+Admin commands require `player.Permissions:IsAdmin()` to be true. Staff commands require `player.Permissions:IsStaff()`. These are checked automatically by the registration system.
+</Warning>
+
+---
+
+## Admin Commands
+
+### /admin
+
+Opens the admin panel UI.
+
+```
+/admin
+```
+
+**Requires:** Admin permission
+
+---
+
+### /noclip
+
+Toggle noclip (free camera flight) mode.
+
+```
+/noclip
+```
+
+**Requires:** Admin permission
+
+<Note>
+Noclip usage is logged to the database and Discord with the admin's position and character info.
+</Note>
+
+---
+
+### /noclip:dev
+
+Toggle developer noclip mode with additional debug info.
+
+```
+/noclip:dev
+```
+
+**Requires:** Admin permission
+
+---
+
+### /noclip:info
+
+Get current noclip camera position and heading info.
+
+```
+/noclip:info
+```
+
+**Requires:** Admin permission
+
+---
+
+### /marker
+
+Place a visual marker at specified coordinates.
+
+```
+/marker [x] [y] [z]
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| x | number | X coordinate |
+| y | number | Y coordinate |
+| z | number | Z coordinate |
+
+**Requires:** Admin permission
+
+---
+
+### /setped
+
+Change a player's ped model.
+
+```
+/setped [model]
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| model | string | GTA ped model name |
+
+**Requires:** Admin permission
+
+---
+
+### /zsetped
+
+Change a player's ped model (alternate version).
+
+```
+/zsetped [model]
+```
+
+**Requires:** Admin permission
+
+---
+
+### /staffcam
+
+Toggle staff spectator camera.
+
+```
+/staffcam
+```
+
+**Requires:** Admin permission
+
+---
+
+### /cpproperty
+
+Copy property data to clipboard.
+
+```
+/cpproperty
+```
+
+**Requires:** Admin permission
+
+---
+
+## Staff Commands
+
+### /staff
+
+Opens the staff panel (limited version of admin panel).
+
+```
+/staff
+```
+
+**Requires:** Staff permission
+
+---
+
+### /lookup
+
+Look up a player by ID or name.
+
+```
+/lookup [id or name]
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| id/name | string | Player server ID or partial name |
+
+**Requires:** Staff permission
+
+---
+
+### /cpcoords
+
+Copy current coordinates to clipboard.
+
+```
+/cpcoords [format]
+```
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| format | string | Coordinate format (optional) |
+
+**Requires:** Staff permission
+
+---
+
+## Registering Custom Admin Commands
+
+Use the Chat component to register your own admin/staff commands:
+
+```lua
+-- Admin command
+COMPONENTS.Chat:RegisterAdminCommand('spawn_vehicle', function(source, args, rawCommand)
+    local model = args[1]
+    if not model then
+        COMPONENTS.Chat.Send.System:Single(source, 'Usage: /spawn_vehicle [model]')
+        return
+    end
+
+    TriggerClientEvent('mythic-admin:client:SpawnVehicle', source, model)
+end, {
+    help = 'Spawn a vehicle',
+    params = {
+        { name = 'model', help = 'Vehicle model name' }
+    }
+}, 1)
+
+-- Staff command
+COMPONENTS.Chat:RegisterStaffCommand('check_player', function(source, args, rawCommand)
+    local targetId = tonumber(args[1])
+    if not targetId then return end
+
+    local player = Fetch:Source(targetId)
+    if not player then
+        COMPONENTS.Chat.Send.System:Single(source, 'Player not found')
+        return
+    end
+
+    local char = player:GetData('Character')
+    local stateId = char:GetData('SID')
+    COMPONENTS.Chat.Send.System:Single(source, 'Player SID: ' .. stateId)
+end, {
+    help = 'Check player info',
+    params = {
+        { name = 'id', help = 'Player server ID' }
+    }
+}, 1)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Admin - Callbacks" icon="phone" href="/api/admin/callbacks">
+    Admin panel server callbacks
+  </Card>
+  <Card title="Admin - Permissions" icon="shield-check" href="/api/admin/permissions">
+    Permission system
+  </Card>
+  <Card title="Chat API" icon="message" href="/api/chat/exports">
+    Command registration
+  </Card>
+</CardGroup>

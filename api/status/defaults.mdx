@@ -1,0 +1,273 @@
+---
+title: Status - Defaults
+description: Built-in status types, thresholds, and effects
+icon: 'list'
+---
+
+The framework includes 4 default statuses that affect gameplay through damage, movement restrictions, and visual effects.
+
+## Default Statuses
+
+<CardGroup cols={2}>
+  <Card title="Hunger" icon="drumstick-bite">
+    Starvation damage below 25%
+  </Card>
+  <Card title="Thirst" icon="droplet">
+    Sprint restriction below 25%
+  </Card>
+  <Card title="Stress" icon="brain">
+    Screen blur above 40%
+  </Card>
+  <Card title="Drunk" icon="champagne-glasses">
+    Drunk walking and effects
+  </Card>
+</CardGroup>
+
+---
+
+## PLAYER_HUNGER
+
+The hunger status depletes passively over time. Low hunger causes escalating damage.
+
+| Property | Value |
+|----------|-------|
+| Max Value | 100 |
+| Icon | `drumstick-bite` |
+| Color | `#ca5fe8` |
+| Direction | Normal (100 = full, 0 = starving) |
+| Resets | Yes |
+
+### Thresholds
+
+| Level | Effect |
+|-------|--------|
+| 25 or below | Player takes damage |
+| 10 or below | Damage escalates significantly |
+| 0 | Can kill the player |
+
+### Passive Decay
+
+Hunger decreases passively on a tick. The rate depends on activity level.
+
+**Example — Restoring hunger:**
+
+```lua
+-- Server-side: Feed the player
+COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 30)
+
+-- Consumable item handler
+AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
+    if itemName == 'sandwich' then
+        COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
+        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+
+        TriggerClientEvent('mythic-notifications:client:Send', source, {
+            message = 'You ate a sandwich',
+            type = 'success'
+        })
+    elseif itemName == 'burger' then
+        COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 40)
+        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+    end
+end)
+```
+
+---
+
+## PLAYER_THIRST
+
+The thirst status depletes passively. Low thirst restricts movement and causes visual effects.
+
+| Property | Value |
+|----------|-------|
+| Max Value | 100 |
+| Icon | `droplet` |
+| Color | `#07bdf0` |
+| Direction | Normal (100 = hydrated, 0 = dehydrated) |
+| Resets | Yes |
+
+### Thresholds
+
+| Level | Effect |
+|-------|--------|
+| 25 or below | Cannot sprint, camera shake, possible ragdoll |
+| 0 | Player takes damage |
+
+**Example — Restoring thirst:**
+
+```lua
+AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
+    if itemName == 'water' then
+        COMPONENTS.Status.Modify:Add(source, 'PLAYER_THIRST', 35)
+        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+    elseif itemName == 'cola' then
+        COMPONENTS.Status.Modify:Add(source, 'PLAYER_THIRST', 20)
+        COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 5)  -- Cola gives slight hunger
+        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+    end
+end)
+```
+
+---
+
+## PLAYER_STRESS
+
+Stress is an **inverted** status — 0 means relaxed, 100 means maximum stress. It does not reset automatically and does not decay passively.
+
+| Property | Value |
+|----------|-------|
+| Max Value | 100 |
+| Icon | `brain` |
+| Color | `#de3333` |
+| Direction | Inverted (0 = calm, 100 = stressed) |
+| Resets | No (`noReset = true`) |
+| Tick Cooldown | 10,000ms minimum |
+
+### Thresholds
+
+| Level | Effect |
+|-------|--------|
+| 40 or above | Screen blur effect begins |
+| 60 or above | Blur intensifies |
+| 80 or above | Severe blur, difficulty seeing |
+
+### Stress Sources
+
+Stress increases from various gameplay events. Common sources:
+
+```lua
+-- Getting shot at increases stress
+AddEventHandler('mythic-damage:server:PlayerDamaged', function(source, damage)
+    COMPONENTS.Status.Modify:Add(source, 'PLAYER_STRESS', 10)
+end)
+
+-- Car crash increases stress
+AddEventHandler('mythic-vehicles:server:Crash', function(source, speed)
+    local stressAmount = math.min(math.floor(speed / 10), 20)
+    COMPONENTS.Status.Modify:Add(source, 'PLAYER_STRESS', stressAmount)
+end)
+```
+
+### Reducing Stress
+
+```lua
+-- Smoking reduces stress
+AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
+    if itemName == 'cigarette' then
+        COMPONENTS.Status.Modify:Remove(source, 'PLAYER_STRESS', 15)
+        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+    end
+end)
+```
+
+---
+
+## PLAYER_DRUNK
+
+Drunk is an **inverted** status — 0 means sober, 100 means completely intoxicated. It decays passively over time.
+
+| Property | Value |
+|----------|-------|
+| Max Value | 100 |
+| Icon | `champagne-glasses` |
+| Color | `#9D4C0B` |
+| Direction | Inverted (0 = sober, 100 = wasted) |
+| Resets | No (`noReset = true`) |
+| Hidden at Zero | Yes (`hideZero = true`) |
+
+### Thresholds
+
+| Level | Effect |
+|-------|--------|
+| 10 or above | `LocalPlayer.state.isDrunk` set to `true` |
+| 25 or above | Drunk walking animation |
+| 50 or above | Severe impairment |
+
+### Passive Decay
+
+- At 25 or above: Decays by 10 per tick
+- Below 25: Decays by 6 per tick
+
+### Getting Drunk
+
+```lua
+AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
+    if itemName == 'beer' then
+        COMPONENTS.Status.Modify:Add(source, 'PLAYER_DRUNK', 15)
+        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+    elseif itemName == 'whiskey' then
+        COMPONENTS.Status.Modify:Add(source, 'PLAYER_DRUNK', 30)
+        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+    end
+end)
+```
+
+---
+
+## Registration Summary
+
+```lua
+-- How the default statuses are registered (client-side):
+
+-- Hunger
+Status:Register('PLAYER_HUNGER', 100, 'drumstick-bite', '#ca5fe8', true, hungerModify, {
+    id = 1, hideHigh = false, hideZero = false, inverted = false, noReset = false
+})
+
+-- Thirst
+Status:Register('PLAYER_THIRST', 100, 'droplet', '#07bdf0', true, thirstModify, {
+    id = 2, hideHigh = false, hideZero = false, inverted = false, noReset = false
+})
+
+-- Stress
+Status:Register('PLAYER_STRESS', 100, 'brain', '#de3333', false, stressModify, {
+    id = 3, hideHigh = false, hideZero = false, inverted = true, noReset = true
+})
+
+-- Drunk
+Status:Register('PLAYER_DRUNK', 100, 'champagne-glasses', '#9D4C0B', false, drunkModify, {
+    id = 4, hideHigh = false, hideZero = true, inverted = true, noReset = true
+})
+```
+
+---
+
+## Creating Custom Statuses
+
+You can register your own statuses following the same pattern:
+
+```lua
+-- Server-side registration
+COMPONENTS.Status:Register('PLAYER_ENERGY', 100, 'bolt', function(source, value)
+    -- Tick logic
+end, function(source, change)
+    -- Modify logic
+end)
+
+-- Client-side registration with HUD
+COMPONENTS.Status:Register('PLAYER_ENERGY', 100, 'bolt', '#FFD700', true, function(change, force)
+    -- Modify callback
+end, {
+    id = 5,
+    hideHigh = true,    -- Hide when full
+    hideZero = false,
+    inverted = false,
+    noReset = false
+})
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Status - Exports" icon="heart-pulse" href="/api/status/exports">
+    Status API methods
+  </Card>
+  <Card title="HUD API" icon="display" href="/api/hud/exports">
+    HUD display system
+  </Card>
+  <Card title="Inventory Events" icon="bolt" href="/api/inventory/events">
+    Item usage for consumables
+  </Card>
+</CardGroup>
