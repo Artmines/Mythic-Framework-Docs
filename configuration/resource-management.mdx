@@ -530,8 +530,7 @@ When adding your own resources to the framework:
     - Wait for `Core:Shared:Ready` event:
     ```lua
     AddEventHandler('Core:Shared:Ready', function()
-        -- Database now available
-        COMPONENTS.Database:findOne(...)
+        -- Database now available via Database.Game / Database.Auth
     end)
     ```
   </Accordion>
@@ -639,28 +638,20 @@ When adding your own resources to the framework:
 
 ## Development vs Production
 
-Different resource loading for different environments:
+To load different resources per environment, use separate `server.cfg` files or comment/uncomment lines:
 
 ```bash
-# resources.cfg with environment checks
-
 # Core (always loaded)
 ensure mythic-base
 ensure mythic-characters
 
-# Production resources
-if [[ "${environment}" == "prod" ]]; then
-    ensure mythic-anticheat-extra
-    ensure mythic-monitoring
-fi
-
-# Development resources
-if [[ "${environment}" == "dev" ]]; then
-    ensure mythic-dev-tools
-    ensure mythic-debug
-    ensure mythic-test-framework
-fi
+# Development resources — uncomment when in dev
+# ensure mythic-dev-tools
 ```
+
+<Tip>
+Create separate `server-dev.cfg` and `server-prod.cfg` files and use the appropriate one when starting the server. FiveM's `server.cfg` does not support conditional logic like `if/else`.
+</Tip>
 
 ## Next Steps
 
@@ -671,8 +662,8 @@ fi
   <Card title="Proxy Pattern" icon="circle-nodes" href="/concepts/proxy-pattern">
     Learn dependency injection
   </Card>
-  <Card title="Creating Resources" icon="plus" href="/development/creating-resources/overview">
-    Build your own resources
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Framework architecture overview
   </Card>
   <Card title="Troubleshooting" icon="wrench" href="/installation/troubleshooting">
     Common issues and fixes

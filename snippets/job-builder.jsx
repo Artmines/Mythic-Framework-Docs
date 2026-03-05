@@ -1,60 +1,91 @@
 export const JobBuilder = () => {
   const [jobId, setJobId] = useState('custom_job')
   const [jobName, setJobName] = useState('Custom Job')
+  const [jobType, setJobType] = useState('Company')
+  const [salary, setSalary] = useState(200)
   const [grades, setGrades] = useState([
-    { id: 0, name: 'Employee', label: 'Employee', salary: 500 },
-    { id: 1, name: 'Supervisor', label: 'Supervisor', salary: 750 },
-    { id: 2, name: 'Manager', label: 'Manager', salary: 1000 }
+    { _key: 0, id: 'employee', name: 'Employee', level: 1, perms: { JOB_STORAGE: true } },
+    { _key: 1, id: 'manager', name: 'Manager', level: 4, perms: { JOB_STORAGE: true, JOB_CRAFTING: true, JOB_HIRE: true } },
+    { _key: 2, id: 'owner', name: 'Owner', level: 99, perms: { JOB_MANAGEMENT: true, JOB_MANAGE_EMPLOYEES: true, JOB_HIRE: true, JOB_FIRE: true, JOB_STORAGE: true, JOB_CRAFTING: true } }
   ])
-  const [workplaceX, setWorkplaceX] = useState(0)
-  const [workplaceY, setWorkplaceY] = useState(0)
-  const [workplaceZ, setWorkplaceZ] = useState(0)
   const [copied, setCopied] = useState(false)
+  const [nextKey, setNextKey] = useState(3)
+
+  const availablePerms = [
+    { key: 'JOB_STORAGE', label: 'Storage' },
+    { key: 'JOB_CRAFTING', label: 'Crafting' },
+    { key: 'JOB_HIRE', label: 'Hire' },
+    { key: 'JOB_FIRE', label: 'Fire' },
+    { key: 'JOB_MANAGE_EMPLOYEES', label: 'Manage Employees' },
+    { key: 'JOB_MANAGEMENT', label: 'Management' },
+  ]
 
   const addGrade = () => {
-    const newId = Math.max(...grades.map(g => g.id), -1) + 1
     setGrades([...grades, {
-      id: newId,
-      name: `Grade${newId}`,
-      label: `Grade ${newId}`,
-      salary: 500
+      _key: nextKey,
+      id: `grade_${nextKey}`,
+      name: `Grade ${nextKey}`,
+      level: 1,
+      perms: { JOB_STORAGE: true }
     }])
+    setNextKey(nextKey + 1)
   }
 
-  const removeGrade = (id) => {
+  const removeGrade = (_key) => {
     if (grades.length > 1) {
-      setGrades(grades.filter(g => g.id !== id))
+      setGrades(grades.filter(g => g._key !== _key))
     }
   }
 
-  const updateGrade = (id, field, value) => {
-    setGrades(grades.map(g => g.id === id ? { ...g, [field]: value } : g))
+  const updateGrade = (_key, field, value) => {
+    setGrades(grades.map(g => g._key === _key ? { ...g, [field]: value } : g))
+  }
+
+  const togglePerm = (_key, permKey) => {
+    setGrades(grades.map(g => {
+      if (g._key !== _key) return g
+      const newPerms = { ...g.perms }
+      if (newPerms[permKey]) {
+        delete newPerms[permKey]
+      } else {
+        newPerms[permKey] = true
+      }
+      return { ...g, perms: newPerms }
+    }))
   }
 
   const generateLuaCode = () => {
-    let code = `['${jobId}'] = {\n`
-    code += `\tName = '${jobName}',\n`
-    code += `\tID = '${jobId}',\n`
-    code += `\tWorkplaces = {\n`
-    code += `\t\t{\n`
-    code += `\t\t\tcoords = vector3(${workplaceX}, ${workplaceY}, ${workplaceZ}),\n`
-    code += `\t\t\tradius = 5.0,\n`
-    code += `\t\t\tbanner = 'https://example.com/banner.png',\n`
-    code += `\t\t},\n`
-    code += `\t},\n`
-    code += `\tGrades = {\n`
+    const timestamp = Math.floor(Date.now() / 1000)
+    let code = `table.insert(_defaultJobData, {\n`
+    code += `    Type = '${jobType}',\n`
+    code += `    LastUpdated = ${timestamp},\n`
+    code += `    Id = '${jobId}',\n`
+    code += `    Name = '${jobName}',\n`
+    code += `    Salary = ${salary},\n`
+    code += `    SalaryTier = 1,\n`
+    code += `    Grades = {\n`
 
-    grades.sort((a, b) => a.id - b.id).forEach(grade => {
-      code += `\t\t[${grade.id}] = {\n`
-      code += `\t\t\tName = '${grade.name}',\n`
-      code += `\t\t\tLabel = '${grade.label}',\n`
-      code += `\t\t\tSalary = ${grade.salary},\n`
-      code += `\t\t\tPermissions = {},\n`
-      code += `\t\t},\n`
+    const sorted = [...grades].sort((a, b) => a.level - b.level)
+    sorted.forEach(grade => {
+      const permEntries = Object.keys(grade.perms).filter(k => grade.perms[k])
+      code += `        {\n`
+      code += `            Id = '${grade.id}',\n`
+      code += `            Name = '${grade.name}',\n`
+      code += `            Level = ${grade.level},\n`
+      if (permEntries.length > 0) {
+        code += `            Permissions = {\n`
+        permEntries.forEach(p => {
+          code += `                ${p} = true,\n`
+        })
+        code += `            },\n`
+      } else {
+        code += `            Permissions = {},\n`
+      }
+      code += `        },\n`
     })
 
-    code += `\t},\n`
-    code += `},`
+    code += `    }\n`
+    code += `})`
     return code
   }
 
@@ -66,16 +97,21 @@ export const JobBuilder = () => {
 
   return (
     <div className="p-6 border dark:border-zinc-950/80 rounded-xl not-prose space-y-4">
+      <h3 className="text-lg font-bold text-blue-500 mb-4">
+        Job Configuration Builder
+      </h3>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-zinc-950/70 dark:text-white/70 mb-1">
-            Job ID
+            Job ID (lowercase, no spaces)
           </label>
           <input
             type="text"
             value={jobId}
-            onChange={(e) => setJobId(e.target.value)}
+            onChange={(e) => setJobId(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
             className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-sm"
+            placeholder="custom_job"
           />
         </div>
 
@@ -88,50 +124,47 @@ export const JobBuilder = () => {
             value={jobName}
             onChange={(e) => setJobName(e.target.value)}
             className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-sm"
+            placeholder="Custom Job"
           />
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm text-zinc-950/70 dark:text-white/70 mb-2">
-          Workplace Coordinates
-        </label>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs text-zinc-950/50 dark:text-white/50 mb-1">X</label>
-            <input
-              type="number"
-              value={workplaceX}
-              onChange={(e) => setWorkplaceX(parseFloat(e.target.value) || 0)}
-              className="w-full px-2 py-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-950/50 dark:text-white/50 mb-1">Y</label>
-            <input
-              type="number"
-              value={workplaceY}
-              onChange={(e) => setWorkplaceY(parseFloat(e.target.value) || 0)}
-              className="w-full px-2 py-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-950/50 dark:text-white/50 mb-1">Z</label>
-            <input
-              type="number"
-              value={workplaceZ}
-              onChange={(e) => setWorkplaceZ(parseFloat(e.target.value) || 0)}
-              className="w-full px-2 py-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-sm"
-            />
-          </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm text-zinc-950/70 dark:text-white/70 mb-1">
+            Type
+          </label>
+          <select
+            value={jobType}
+            onChange={(e) => setJobType(e.target.value)}
+            className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded text-sm"
+          >
+            <option value="Company">Company</option>
+            <option value="Government">Government</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm text-zinc-950/70 dark:text-white/70 mb-1">
+            Salary: ${salary}
+          </label>
+          <input
+            type="range"
+            min="50"
+            max="1000"
+            step="5"
+            value={salary}
+            onChange={(e) => setSalary(parseInt(e.target.value))}
+            className="w-full h-2 bg-zinc-950/20 rounded-lg appearance-none cursor-pointer dark:bg-white/20"
+          />
         </div>
       </div>
 
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <label className="text-sm text-zinc-950/70 dark:text-white/70">
-            Job Grades
-          </label>
+      <div className="border-t border-zinc-300 dark:border-zinc-700 pt-4">
+        <div className="flex justify-between items-center mb-3">
+          <h4 className="text-sm font-semibold text-zinc-950/70 dark:text-white/70">
+            Grades
+          </h4>
           <button
             onClick={addGrade}
             className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium transition-colors"
@@ -142,19 +175,20 @@ export const JobBuilder = () => {
 
         {grades.map((grade) => (
           <div
-            key={grade.id}
-            className="bg-zinc-100 dark:bg-zinc-900 p-3 rounded mb-2 border border-zinc-300 dark:border-zinc-700"
+            key={grade._key}
+            className="bg-zinc-100 dark:bg-zinc-900 p-3 rounded mb-3 border border-zinc-300 dark:border-zinc-700"
           >
-            <div className="grid grid-cols-5 gap-2 items-end">
+            <div className="grid grid-cols-4 gap-2 items-end mb-2">
               <div>
                 <label className="block text-xs text-zinc-950/50 dark:text-white/50 mb-1">
-                  ID
+                  Grade ID
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   value={grade.id}
-                  onChange={(e) => updateGrade(grade.id, 'id', parseInt(e.target.value) || 0)}
+                  onChange={(e) => updateGrade(grade._key, 'id', e.target.value.toLowerCase().replace(/\s+/g, '_'))}
                   className="w-full px-2 py-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm"
+                  placeholder="employee"
                 />
               </div>
               <div>
@@ -164,39 +198,48 @@ export const JobBuilder = () => {
                 <input
                   type="text"
                   value={grade.name}
-                  onChange={(e) => updateGrade(grade.id, 'name', e.target.value)}
+                  onChange={(e) => updateGrade(grade._key, 'name', e.target.value)}
                   className="w-full px-2 py-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm"
+                  placeholder="Employee"
                 />
               </div>
               <div>
                 <label className="block text-xs text-zinc-950/50 dark:text-white/50 mb-1">
-                  Label
-                </label>
-                <input
-                  type="text"
-                  value={grade.label}
-                  onChange={(e) => updateGrade(grade.id, 'label', e.target.value)}
-                  className="w-full px-2 py-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-950/50 dark:text-white/50 mb-1">
-                  Salary
+                  Level
                 </label>
                 <input
                   type="number"
-                  value={grade.salary}
-                  onChange={(e) => updateGrade(grade.id, 'salary', parseInt(e.target.value) || 0)}
+                  min="1"
+                  max="99"
+                  value={grade.level}
+                  onChange={(e) => updateGrade(grade._key, 'level', parseInt(e.target.value) || 1)}
                   className="w-full px-2 py-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm"
                 />
               </div>
               <button
-                onClick={() => removeGrade(grade.id)}
+                onClick={() => removeGrade(grade._key)}
                 disabled={grades.length === 1}
                 className="px-2 py-1 bg-red-500 hover:bg-red-600 disabled:bg-zinc-400 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
               >
-                ×
+                Remove
               </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {availablePerms.map((perm) => (
+                <label
+                  key={perm.key}
+                  className="flex items-center space-x-1 text-xs text-zinc-950/60 dark:text-white/60 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!grade.perms[perm.key]}
+                    onChange={() => togglePerm(grade._key, perm.key)}
+                    className="rounded"
+                  />
+                  <span>{perm.label}</span>
+                </label>
+              ))}
             </div>
           </div>
         ))}
@@ -213,10 +256,19 @@ export const JobBuilder = () => {
 
       <button
         onClick={copyToClipboard}
-        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-medium transition-colors"
+        className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-medium transition-colors"
       >
-        {copied ? '✓ Copied!' : 'Copy to Clipboard'}
+        {copied ? '✓ Copied to Clipboard!' : 'Copy to Clipboard'}
       </button>
+
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-3">
+        <p className="text-xs text-amber-900 dark:text-amber-300">
+          <strong>Note:</strong> Place this in a new file under{' '}
+          <code>mythic-jobs/config/defaultJobs/</code>. The file needs access to the{' '}
+          <code>_defaultJobData</code> global table. Level determines grade hierarchy — higher levels
+          have more authority. Owner should always be Level 99.
+        </p>
+      </div>
     </div>
   )
 }

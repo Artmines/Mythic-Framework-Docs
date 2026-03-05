@@ -68,12 +68,9 @@ export const ItemGenerator = () => {
     code += `\tmetalic = ${metalic ? 'true' : 'false'},\n`
 
     if (hasDurability) {
-      const durabilitySeconds = durabilityDays * 24 * 60 * 60
       code += `\n`
       code += `\t-- Durability: ${durabilityDays} day${durabilityDays !== 1 ? 's' : ''}\n`
       code += `\tdurability = (60 * 60 * 24 * ${durabilityDays}),\n`
-    } else {
-      code += `\tdurability = 0,\n`
     }
 
     code += `}`

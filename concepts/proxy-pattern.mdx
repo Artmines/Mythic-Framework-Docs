@@ -358,39 +358,21 @@ end)
 
 Understanding when components are registered and available:
 
-```
-Server Start
-     ↓
-1. mythic-base starts
-     ↓
-2. Proxy system initializes (COMPONENTS.Proxy created)
-     ↓
-3. mythic-base registers core components
-   • Logger
-   • Database
-   • Middleware
-     ↓
-4. 'Proxy:Shared:RegisterReady' event fires
-     ↓
-5. Other resources start and register their components
-   • mythic-characters registers Characters component
-   • mythic-inventory registers Inventory component
-   • etc.
-     ↓
-6. 'Proxy:Shared:ExtendReady' fires for each component
-     ↓
-7. All components registered
-     ↓
-8. 'Core:Shared:Ready' event fires
-     ↓
-9. Resources can safely use all components
+```mermaid
+flowchart LR
+    A["mythic-base starts"] --> B["Proxy system initializes"]
+    B --> C["Proxy:Shared:RegisterReady"]
+    C --> D["Resources register components"]
+    D --> E["Core:Shared:Ready"]
+    E --> F["RequestDependencies resolve"]
+    F --> G["Resources fully initialized"]
 ```
 
-**Events:**
-
-- `Proxy:Shared:RegisterReady` - Proxy system is ready
-- `Proxy:Shared:ExtendReady` - A component was registered/extended
-- `Core:Shared:Ready` - All core components loaded
+| Event | When | Use |
+|-------|------|-----|
+| `Proxy:Shared:RegisterReady` | Proxy system ready | Register your components |
+| `Proxy:Shared:ExtendReady` | A component registered/extended | React to component changes |
+| `Core:Shared:Ready` | All core components loaded | Fetch dependencies, start logic |
 
 ## Real-World Examples
 
@@ -634,12 +616,12 @@ end)
     Use PascalCase for component names:
 
     ```lua
-    // ✅ GOOD
+    -- Good
     COMPONENTS.Inventory
     COMPONENTS.Characters
     COMPONENTS.VehicleShop
 
-    // ❌ BAD
+    -- Bad
     COMPONENTS.inventory
     COMPONENTS.vehicle_shop
     ```
@@ -689,30 +671,6 @@ exports['mythic-base']:RegisterComponent('VehicleFactory', {
 local car = COMPONENTS.VehicleFactory:Create('car')
 ```
 
-### Observer Pattern
-
-```lua
--- Component with event subscription
-exports['mythic-base']:RegisterComponent('EventBus', {
-    listeners = {},
-
-    On = function(self, event, callback)
-        if not self.listeners[event] then
-            self.listeners[event] = {}
-        end
-        table.insert(self.listeners[event], callback)
-    end,
-
-    Emit = function(self, event, ...)
-        if self.listeners[event] then
-            for _, callback in ipairs(self.listeners[event]) do
-                callback(...)
-            end
-        end
-    end
-})
-```
-
 ## Next Steps
 
 <CardGroup cols={2}>
@@ -725,8 +683,8 @@ exports['mythic-base']:RegisterComponent('EventBus', {
   <Card title="Event System" icon="bolt" href="/concepts/event-system">
     Complement components with events
   </Card>
-  <Card title="API Reference" icon="code" href="/api/core/proxy">
-    Complete API documentation for proxy exports
+  <Card title="API Reference" icon="code" href="/api/core/base">
+    Complete API documentation
   </Card>
 </CardGroup>
 

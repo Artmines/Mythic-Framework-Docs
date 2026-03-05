@@ -82,9 +82,11 @@ MongoDB operations are handled through the Node.js wrapper in mythic-base using 
 **Location:** `mythic-base/core/sv_database.js`
 
 <Note>
-**Database Architecture:** Mythic uses two separate MongoDB databases:
-- `Database.Game` - Game data (characters, inventory, vehicles, etc.)
-- `Database.Auth` - Authentication data (users, roles, bans)
+**Database Architecture:** Mythic uses two separate MongoDB databases accessed via the `Database` component:
+- `Database.Game` — Game data (characters, inventory, vehicles, etc.)
+- `Database.Auth` — Authentication data (users, roles, bans)
+
+After `RetrieveComponents()`, use `Database.Game:method()` directly. The full path is `COMPONENTS.Database.Game` but the local shorthand is standard.
 </Note>
 
 ```lua
@@ -641,14 +643,14 @@ CREATE TABLE vehicles (
     Store dynamic, frequently-changing data in MongoDB:
 
     ```lua
-    // ✅ GOOD - MongoDB
-    - Character stats
-    - Inventory items
-    - Player positions
-    - Logs and events
+    -- Good fit for MongoDB
+    -- Character stats
+    -- Inventory items
+    -- Player positions
+    -- Logs and events
 
-    // ❌ BAD - MySQL for this
-    - Constantly updating data requires many UPDATE queries
+    -- Bad fit for MySQL
+    -- Constantly updating data requires many UPDATE queries
     ```
   </Accordion>
 
@@ -656,12 +658,12 @@ CREATE TABLE vehicles (
     Use MySQL when you need complex relationships:
 
     ```lua
-    // ✅ GOOD - MySQL
-    - Vehicle ownership with joins to characters
-    - Transaction history requiring aggregation
-    - Property relationships
+    -- Good fit for MySQL
+    -- Vehicle ownership with joins to characters
+    -- Transaction history requiring aggregation
+    -- Property relationships
 
-    // Use JOIN queries
+    -- Use JOIN queries
     SELECT v.*, c.first_name, c.last_name
     FROM vehicles v
     JOIN characters c ON v.owner = c.id
@@ -909,14 +911,14 @@ end
   <Card title="Database Setup" icon="database" href="/installation/database-setup">
     Initial database configuration
   </Card>
-  <Card title="Data Models" icon="table" href="/development/database/data-models">
-    Complete data model reference
+  <Card title="Database API" icon="code" href="/api/core/database">
+    Database API reference
   </Card>
-  <Card title="MongoDB Guide" icon="leaf" href="/development/database/mongodb-guide">
-    MongoDB development guide
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Framework architecture overview
   </Card>
-  <Card title="MySQL Guide" icon="table" href="/development/database/mysql-guide">
-    MySQL development guide
+  <Card title="Configuration" icon="gear" href="/configuration/database-connections">
+    Database connection settings
   </Card>
 </CardGroup>
 

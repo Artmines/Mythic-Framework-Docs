@@ -173,7 +173,22 @@ Stack Trace:
 Timestamp: 2025-01-15 15:30:00
 ```
 
-### 5. Anti-Cheat Logs Webhook
+### 5. General Logs Webhook
+
+**Purpose:** General-purpose logging
+
+**Variable:** `discord_log_webhook`
+
+```bash
+set discord_log_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+```
+
+**Logs:**
+- General server events
+- Resource activity
+- Miscellaneous framework logging
+
+### 6. Anti-Cheat Logs Webhook
 
 **Purpose:** Security and anti-cheat detections
 
@@ -207,6 +222,7 @@ Timestamp: 2025-01-15 16:00:00
 📋 SERVER LOGS (Category)
 ├── 🛡️ admin-logs       (discord_admin_webhook)
 ├── 📊 connections       (discord_connection_webhook)
+├── 📝 general-logs      (discord_log_webhook)
 ├── ⚔️ kill-logs         (discord_kill_webhook)
 ├── ❌ errors            (discord_error_webhook)
 └── 🚨 anti-cheat        (discord_pwnzor_webhook)
@@ -232,6 +248,9 @@ set discord_admin_webhook "https://discord.com/api/webhooks/123456789012345678/A
 
 # Player connections and disconnections
 set discord_connection_webhook "https://discord.com/api/webhooks/234567890123456789/XyZaBcDe_ConnectionWebhook_0987654321ZyXwVuTsRqPoNmLkJiHgFeDcBa"
+
+# General logging
+set discord_log_webhook "https://discord.com/api/webhooks/678901234567890123/GhIjKlMn_LogWebhook_AbCdEfGhIjKlMnOpQrStUvWxYz1234567890"
 
 # Player kills and deaths
 set discord_kill_webhook "https://discord.com/api/webhooks/345678901234567890/MnOpQrSt_KillWebhook_AbCdEfGhIjKlMnOpQrStUvWxYz1234567890"
@@ -260,53 +279,20 @@ Mythic Framework uses color-coded embeds:
 | Errors | Dark Red | `#DC2626` |
 | Anti-Cheat | Orange | `#F97316` |
 
-### Filtering Logs
+### Disabling Specific Webhooks
 
-You can configure which events get logged:
+Leave a webhook convar empty to disable that log type:
 
-```lua
--- mythic-base/config/webhooks.lua (if exists)
-Config.Webhooks = {
-    AdminLogs = {
-        enabled = true,
-        logCommands = true,
-        logTeleports = true,
-        logNoclip = true,
-        logGodMode = true,
-        minimumRank = 'admin'  -- Only log admin+ actions
-    },
+```bash
+# Only enable admin and error logging
+set discord_admin_webhook "https://discord.com/api/webhooks/..."
+set discord_error_webhook "https://discord.com/api/webhooks/..."
 
-    ConnectionLogs = {
-        enabled = true,
-        logJoins = true,
-        logLeaves = true,
-        logQueue = false,  -- Don't log queue updates
-        includeIP = true   -- Include IP in logs
-    },
-
-    KillLogs = {
-        enabled = true,
-        logPVP = true,
-        logPVE = false,  -- Don't log NPC kills
-        logSuicide = true,
-        minimumDistance = 0  -- Log all kills
-    },
-
-    ErrorLogs = {
-        enabled = true,
-        logWarnings = false,  -- Only errors, not warnings
-        logResourceErrors = true,
-        logDatabaseErrors = true,
-        logClientErrors = false
-    },
-
-    AntiCheatLogs = {
-        enabled = true,
-        logDetections = true,
-        logBans = true,
-        logWarnings = true
-    }
-}
+# Disable others by leaving them empty
+set discord_connection_webhook ""
+set discord_log_webhook ""
+set discord_kill_webhook ""
+set discord_pwnzor_webhook ""
 ```
 
 ## Testing Webhooks
@@ -403,9 +389,9 @@ After configuration, test each webhook:
     **Solutions:**
     - Check resource configuration for filtering settings
     - Verify resource has access to required data
-    - Enable debug mode to see what's being sent:
+    - Increase log level to see what's being sent:
        ```bash
-       set debug_mode "true"
+       setr log_level 2
        ```
     - Check console for webhook payload logs
   </Accordion>
@@ -475,33 +461,16 @@ After configuration, test each webhook:
 
 ### Environment-Specific Webhooks
 
-```bash
-# Use different webhooks based on environment
-
-# Development
-if [[ "${environment}" == "dev" ]]; then
-    set discord_admin_webhook "https://discord.com/api/webhooks/DEV_WEBHOOK"
-else
-    # Production
-    set discord_admin_webhook "https://discord.com/api/webhooks/PROD_WEBHOOK"
-fi
-```
-
-### Conditional Webhook Loading
+Use separate `server.cfg` files for development and production to point webhooks at different Discord channels:
 
 ```bash
-# Only enable certain webhooks
+# Development server.cfg — use dev Discord channels
+set discord_admin_webhook "https://discord.com/api/webhooks/DEV_ADMIN_WEBHOOK"
+set discord_error_webhook "https://discord.com/api/webhooks/DEV_ERROR_WEBHOOK"
 
-# Always enabled
-set discord_admin_webhook "https://..."
-set discord_error_webhook "https://..."
-
-# Only in production
-if [[ "${environment}" == "prod" ]]; then
-    set discord_connection_webhook "https://..."
-    set discord_kill_webhook "https://..."
-    set discord_pwnzor_webhook "https://..."
-fi
+# Production server.cfg — use production Discord channels
+set discord_admin_webhook "https://discord.com/api/webhooks/PROD_ADMIN_WEBHOOK"
+set discord_error_webhook "https://discord.com/api/webhooks/PROD_ERROR_WEBHOOK"
 ```
 
 ### Custom Webhook Implementation
@@ -599,13 +568,13 @@ local COLORS = {
   <Card title="Server Configuration" icon="server" href="/configuration/server-cfg">
     Complete server.cfg settings
   </Card>
-  <Card title="Admin Tools" icon="screwdriver-wrench" href="/features/admin">
-    Learn about admin commands
+  <Card title="Environment Variables" icon="flask" href="/configuration/environment-variables">
+    Configure logging and environment
   </Card>
-  <Card title="Logger Component" icon="file-lines" href="/api/core/logger">
-    API for custom logging
+  <Card title="Permissions" icon="shield-check" href="/configuration/permissions">
+    Configure admin permissions
   </Card>
-  <Card title="Security Best Practices" icon="shield" href="/guides/server-owners/security">
-    Secure your server
+  <Card title="Resource Management" icon="boxes-stacked" href="/configuration/resource-management">
+    Manage resource load order
   </Card>
 </CardGroup>

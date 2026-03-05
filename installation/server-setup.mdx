@@ -4,87 +4,34 @@ description: Deploy Mythic Framework using the txAdmin Recipe Deployer
 icon: 'server'
 ---
 
-This guide covers deploying Mythic Framework to your FiveM server using the **txAdmin Recipe Deployer** - the easiest and recommended method for all users.
-
-## txAdmin Recipe Deployer
-
-The **txAdmin Recipe Deployer** automatically installs Mythic Framework with all dependencies, database configuration, and proper resource loading order.
+This guide covers deploying Mythic Framework to your FiveM server using the **txAdmin Recipe Deployer** — the recommended method for all users.
 
 <Note>
 **What is txAdmin?** txAdmin is the official FiveM server management panel. It comes pre-installed with FiveM server builds and provides web-based server management, recipe deployment, and more.
 </Note>
 
-### Prerequisites
+## Prerequisites
 
-Before using the recipe deployer, ensure you have:
+Before using the recipe deployer, make sure you have:
 
-<Steps>
-  <Step title="FiveM Server">
-    Download and install a FiveM server build (txAdmin is included)
+- **FiveM Server** — [Windows](https://runtime.fivem.net/artifacts/fivem/build_server_windows/master/) or [Linux](https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/) (txAdmin included)
+- **MongoDB** 4.4+ — See [Database Setup](/installation/database-setup)
+- **MariaDB/MySQL** 10.5+ or MySQL 8.0+ — See [Database Setup](/installation/database-setup)
+- **Node.js** 18.x+ — [nodejs.org](https://nodejs.org/)
 
-    **Windows:** [Download from FiveM Artifacts](https://runtime.fivem.net/artifacts/fivem/build_server_windows/master/)
-
-    **Linux:** [Download from FiveM Artifacts](https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/)
-  </Step>
-  <Step title="Database Requirements">
-    Install required databases on your server:
-    - **MongoDB** (version 4.4 or higher) - For document storage
-    - **MariaDB/MySQL** (version 10.5+ or MySQL 8.0+) - For relational data
-
-    See [Database Setup](/installation/database-setup) for installation instructions
-  </Step>
-  <Step title="Node.js & pnpm">
-    Install dependencies for UI resources:
-    - **Node.js** (version 18.x or higher)
-    - **pnpm** (package manager)
-
-    ```bash
-    # Install Node.js from https://nodejs.org/
-
-    # Install pnpm globally
-    npm install -g pnpm
-    ```
-  </Step>
-</Steps>
-
-### Recipe Deployment Steps
+## Deployment
 
 <Steps>
   <Step title="Start txAdmin">
-    Launch your FiveM server with txAdmin for the first time:
-
-    **Windows:**
-    ```bash
-    # Navigate to your FiveM server directory
-    cd C:\FiveMServer
-
-    # Start txAdmin
-    FXServer.exe
-    ```
-
-    **Linux:**
-    ```bash
-    # Navigate to your FiveM server directory
-    cd ~/fivem-server
-
-    # Start txAdmin
-    ./run.sh
-    ```
-
-    txAdmin will provide a setup URL (usually `http://localhost:40120`)
+    Launch `FXServer.exe` (Windows) or `./run.sh` (Linux) for the first time. txAdmin will provide a setup URL, usually `http://localhost:40120`.
   </Step>
 
-  <Step title="Access txAdmin Panel">
-    Open your web browser and navigate to the txAdmin URL shown in the console
-
-    **First-time Setup:**
-    1. Create an admin account
-    2. Link your FiveM license key (get one at [Cfx.re Portal](https://portal.cfx.re/servers/registration-keys))
-    3. You'll be presented with deployment options
+  <Step title="Create Admin & Link License">
+    Open the txAdmin URL in your browser, create an admin account, and link your FiveM license key from [Cfx.re Portal](https://portal.cfx.re/servers/registration-keys).
   </Step>
 
-  <Step title="Deploy Mythic Framework Recipe">
-    In the txAdmin deployment screen:
+  <Step title="Deploy Recipe">
+    In the deployment screen:
 
     1. Select **"Custom Recipe"** or **"Remote URL Template"**
     2. Enter the Mythic Framework recipe URL:
@@ -94,157 +41,117 @@ Before using the recipe deployer, ensure you have:
     3. Click **"Next"** or **"Deploy"**
   </Step>
 
-  <Step title="Configure Deployment">
-    The recipe deployer will prompt you for configuration:
+  <Step title="Enter Credentials">
+    The recipe will prompt you for:
 
-    **Database Credentials:**
-    - MongoDB connection string
-    - MariaDB/MySQL host, port, username, password, database name
-
-    **Server Settings:**
-    - Server name
-    - Max players
-    - Server license key
-    - Steam Web API key (optional)
+    - **MongoDB** connection string, auth DB name, game DB name
+    - **MariaDB/MySQL** host, port, username, password, database name
+    - **Server** name, max players, license key, Steam Web API key
 
     <Warning>
-    **Important:** Have your database credentials ready before starting deployment. The recipe will test connections during setup.
+    Have your database credentials ready before starting. The recipe tests connections during setup.
     </Warning>
   </Step>
 
   <Step title="Wait for Deployment">
-    The recipe deployer will:
-    - Download Mythic Framework resources
-    - Install npm dependencies for UI resources
-    - Configure server.cfg and database connections
-    - Set up resource loading order
-    - Initialize database schemas
-
-    **This may take 10-15 minutes** depending on your internet connection and server specs.
-
-    <Tip>
-    Watch the deployment log for any errors. Most issues are related to database connectivity or missing dependencies.
-    </Tip>
+    The recipe will download resources, install npm dependencies, configure `server.cfg`, and set up the database. **This takes 10-15 minutes** depending on your connection.
   </Step>
 
-  <Step title="Verify Installation">
-    After deployment completes:
-
-    1. Check the txAdmin dashboard shows "Server Online"
-    2. Verify resources loaded successfully in the console
-    3. Connect to your server via FiveM client
-    4. You should see the Mythic Framework loading screen
+  <Step title="Verify">
+    Once done, check the txAdmin dashboard shows "Server Online", verify resources loaded in the console, and connect via FiveM.
   </Step>
 </Steps>
 
-### Post-Deployment Configuration
-
-After successful deployment, you may want to customize:
+## Post-Deployment
 
 <Accordion title="Server Settings" icon="gear">
-  Edit `server.cfg` in txAdmin's file editor or directly:
+  Edit `server.cfg` in txAdmin or directly:
 
   ```bash
-  # Server identity
   sv_hostname "My Mythic Server"
   sv_maxclients 32
 
-  # Server listing
   sets tags "mythic, roleplay, economy"
   sets banner_detail "https://url-to-your-banner.png"
   sets banner_connecting "https://url-to-your-banner.png"
 
-  # OneSync (required for Mythic)
+  # OneSync (required)
   set onesync on
   ```
 </Accordion>
 
 <Accordion title="Database Connections" icon="database">
-  Database connections are auto-configured in:
-  - `resources/[mythic]/mythic-base/config.lua` (MongoDB)
-  - `resources/oxmysql/config.json` (MariaDB/MySQL)
+  Database connections are auto-configured by the recipe. If your credentials change later, update them in `server.cfg`:
 
-  You can update these if your database credentials change.
+  ```bash
+  set mongodb_auth_url "mongodb://localhost:27017/..."
+  set mongodb_auth_database "auth"
+  set mongodb_game_url "mongodb://localhost:27017/..."
+  set mongodb_game_database "fivem"
+  set mysql_connection_string "mysql://user:pass@localhost/dbname"
+  ```
 </Accordion>
 
-<Accordion title="Resource Order" icon="list-ol">
-  Resource loading order is automatically set in `resources.cfg`.
+<Accordion title="Resource Load Order" icon="list-ol">
+  Resource loading order is set in `resources.cfg`.
 
-  **Do not change the order** of core Mythic resources - they must load in a specific sequence.
+  <Warning>
+  **Do NOT change the load order of core Mythic resources.** They depend on each other and must start in a specific sequence. `mythic-base` must always load first, followed by its dependencies. Changing this order will cause cascading failures across the framework.
+  </Warning>
+
+  If adding custom resources, place them **after** all Mythic resources in the load order.
 </Accordion>
 
-### Troubleshooting Recipe Deployment
+<Accordion title="Admin Permissions" icon="shield">
+  Add yourself as admin in `server.cfg`:
+
+  ```bash
+  add_principal identifier.fivem:YOUR_FIVEM_ID group.admin
+  add_principal identifier.discord:YOUR_DISCORD_ID group.admin
+  ```
+
+  Find your identifiers by joining the server and typing `status` in the F8 console.
+</Accordion>
+
+## Troubleshooting
 
 <AccordionGroup>
   <Accordion title="Recipe URL not found" icon="link-slash">
-    **Error:** "Could not fetch recipe from URL"
-
-    **Solutions:**
-    - Verify the URL is correct: `https://raw.githubusercontent.com/Mythic-Framework/txAdminRecipe/main/mythic-stable.yaml`
+    - Verify the URL: `https://raw.githubusercontent.com/Mythic-Framework/txAdminRecipe/main/mythic-stable.yaml`
     - Check your server has internet access
-    - Try accessing the URL in a web browser to verify it's accessible
+    - Try opening the URL in a browser
   </Accordion>
 
   <Accordion title="Database connection failed" icon="database">
-    **Error:** "Failed to connect to database"
-
-    **Solutions:**
-    - Verify database servers are running:
-      ```bash
-      # Check MongoDB
-      mongosh --eval "db.version()"
-
-      # Check MariaDB/MySQL
-      mysql -u root -p -e "SELECT VERSION();"
-      ```
-    - Verify credentials are correct
-    - Check firewall isn't blocking database ports (27017 for MongoDB, 3306 for MySQL)
-    - Ensure databases exist and user has proper permissions
+    - Verify database servers are running
+    - Check credentials are correct
+    - Check firewall isn't blocking ports (27017 for MongoDB, 3306 for MySQL)
+    - Make sure databases exist and user has permissions
   </Accordion>
 
   <Accordion title="npm/pnpm errors during deployment" icon="npm">
-    **Error:** "pnpm install failed" or "npm ERR!"
-
-    **Solutions:**
-    - Verify Node.js is installed: `node --version` (should be 18.x or higher)
-    - Install pnpm globally: `npm install -g pnpm`
-    - Check internet connection for package downloads
-    - Manually run pnpm install in UI resource directories:
-      ```bash
-      cd resources/[mythic]/mythic-phone/ui
-      pnpm install
-      ```
+    - Verify Node.js: `node --version` (18.x+)
+    - Check internet connection
+    - Try manually running `npm install` in UI resource directories
   </Accordion>
 
   <Accordion title="Resources not loading" icon="box">
-    **Error:** Resources show as "failed to load"
-
-    **Solutions:**
     - Check resource directories exist in `resources/[mythic]/`
-    - Verify `resources.cfg` was created properly
-    - Check server console for specific error messages
-    - Restart txAdmin completely
+    - Verify `resources.cfg` was created
+    - Check console for specific errors
+    - Restart txAdmin
   </Accordion>
 </AccordionGroup>
 
----
+For more help, see the [Troubleshooting Guide](/installation/troubleshooting).
 
 ## Next Steps
 
-Your server is now deployed via txAdmin! Next steps:
-
 <CardGroup cols={2}>
-  <Card title="Server Configuration" icon="gear" href="/installation/configuration">
-    Configure server.cfg settings and admin permissions
-  </Card>
   <Card title="First Start" icon="rocket" href="/installation/first-start">
-    Start your server and create your first character
+    Connect to your server and create your first character
   </Card>
-  <Card title="Troubleshooting" icon="wrench" href="/installation/troubleshooting">
-    Common issues and solutions
+  <Card title="Configuration" icon="gear" href="/installation/configuration">
+    Customize server settings and features
   </Card>
 </CardGroup>
-
-<Note>
-**Database Configuration:** The txAdmin recipe automatically configures all database connections. You can proceed directly to server configuration!
-</Note>

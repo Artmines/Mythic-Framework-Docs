@@ -1,776 +1,255 @@
 ---
 title: Environment Variables
-description: Configure environment-specific settings for development, production, and testing
+description: Configure environment-specific settings for development and production
 icon: 'flask'
 ---
 
-Environment variables allow you to configure different settings for development, production, and testing environments without modifying code or duplicating configuration files.
-
-## What are Environment Variables?
-
-Environment variables are configuration values that change based on where your server is running:
-
-<CardGroup cols={3}>
-  <Card title="Development" icon="code">
-    **dev** - Local testing with verbose logging and hot reload
-  </Card>
-  <Card title="Production" icon="rocket">
-    **prod** - Live server with optimized performance and minimal logging
-  </Card>
-  <Card title="Testing" icon="vial">
-    **test** - Automated testing environment with mock data
-  </Card>
-</CardGroup>
+Mythic Framework uses FiveM convars to control server behavior. The two key convars that affect environment behavior are `sv_environment` and `log_level`.
 
 ## Setting the Environment
 
-The primary environment variable is `environment`:
-
 ```bash
 # server.cfg
-set environment "prod"
+set sv_environment "prod"
 ```
 
 **Valid Values:**
-- `dev` - Development
-- `prod` - Production
-- `test` - Testing
+- `dev` — Development mode (verbose logging, relaxed security)
+- `prod` — Production mode (optimized performance, minimal logging)
 
 <Warning>
-**Important:** Change this to `"prod"` before launching your live server! Development mode has performance impacts and verbose logging.
+**Important:** Always set this to `"prod"` before launching your live server. Development mode has performance impacts and verbose logging.
 </Warning>
 
-## Environment-Specific Behavior
-
-Mythic Framework changes behavior based on the environment:
-
-### Development Environment
-
-```bash
-set environment "dev"
-```
-
-**Characteristics:**
-- ✅ Verbose console logging
-- ✅ Database query logging
-- ✅ Event monitoring/debugging
-- ✅ Performance profiling enabled
-- ✅ Hot reload for Lua changes
-- ✅ React DevTools enabled in UIs
-- ✅ Detailed error stack traces
-- ✅ Relaxed security (for testing)
-- ❌ Lower performance
-- ❌ Larger log files
-
-**Use Cases:**
-- Local development
-- Feature testing
-- Debugging issues
-- Learning the framework
-
-**Development-Only Features:**
-```lua
--- mythic-base checks environment
-if GetConvar('environment', 'prod') == 'dev' then
-    -- Enable debug logging
-    COMPONENTS.Logger:SetLevel('debug')
-
-    -- Log all database queries
-    COMPONENTS.Database:EnableQueryLogging(true)
-
-    -- Log all events
-    COMPONENTS.Events:EnableMonitoring(true)
-end
-```
-
-### Production Environment
-
-```bash
-set environment "prod"
-```
-
-**Characteristics:**
-- ✅ Optimized performance
-- ✅ Minimal logging (errors only)
-- ✅ Security features enabled
-- ✅ Anti-cheat active
-- ✅ Compressed assets
-- ✅ Database connection pooling
-- ❌ No verbose debugging
-- ❌ No development tools
-
-**Use Cases:**
-- Live public server
-- Final testing before launch
-- Maximum performance needed
-
-**Production Optimizations:**
-```lua
-if GetConvar('environment', 'prod') == 'prod' then
-    -- Minimal logging
-    COMPONENTS.Logger:SetLevel('error')
-
-    -- Disable query logging
-    COMPONENTS.Database:EnableQueryLogging(false)
-
-    -- Enable all security features
-    COMPONENTS.AntiCheat:Enable(true)
-
-    -- Use compressed UI assets
-    COMPONENTS.UI:UseMinified(true)
-end
-```
-
-### Testing Environment
-
-```bash
-set environment "test"
-```
-
-**Characteristics:**
-- ✅ Mock data enabled
-- ✅ Automated testing support
-- ✅ Fast reset/cleanup
-- ✅ Isolated test database
-- ✅ Deterministic behavior
-- ✅ Performance profiling
-
-**Use Cases:**
-- Automated tests
-- Integration testing
-- Performance benchmarking
-- Feature testing with mock data
-
-## Common Environment Variables
-
-### Debug Mode
-
-```bash
-# Enable/disable debug output
-set debug_mode "false"
-```
-
-**Values:** `"true"` or `"false"`
-
-**Effect:**
-- Logs all function calls
-- Prints component registrations
-- Shows event triggers
-- Database query logging
-- Network event monitoring
-
-**When to Use:**
-- Troubleshooting issues
-- Understanding code flow
-- Debugging new features
-
-<Note>
-**Performance Impact:** Debug mode significantly increases log output and CPU usage. **Never enable in production!**
-</Note>
-
-### Database Debugging
-
-```bash
-# Log all database queries
-set database_debug "false"
-```
-
-**Values:** `"true"` or `"false"`
-
-**Example Output:**
-```
-[Database] Query: SELECT * FROM characters WHERE SID = ?
-[Database] Params: [1]
-[Database] Time: 2.3ms
-[Database] Result: 1 rows
-```
-
-### Verbose Logging
-
-```bash
-# Set logging level
-set log_level "info"
-```
-
-**Values:**
-- `"debug"` - Everything (very verbose)
-- `"info"` - Informational messages
-- `"warn"` - Warnings only
-- `"error"` - Errors only
-- `"none"` - No logging
-
-**Recommendation:**
-- Development: `"debug"` or `"info"`
-- Production: `"error"` or `"warn"`
-
-### UI Development Mode
-
-```bash
-# Enable React DevTools and hot reload
-set ui_dev_mode "false"
-```
-
-**Values:** `"true"` or `"false"`
-
-**Effect:**
-- Enables React DevTools in browser
-- Hot reload for UI changes
-- Unminified JavaScript
-- Source maps enabled
-- Detailed error messages
-
-### Database Configuration
-
-```bash
-# Separate databases per environment
-set mongodb_database "mythic_${environment}"
-```
-
-**Result:**
-- Development: `mythic_dev`
-- Production: `mythic_prod`
-- Testing: `mythic_test`
-
-**Benefits:**
-- Isolated data per environment
-- Safe development testing
-- No risk of corrupting production data
-
-## Environment-Based Configuration
-
-### Conditional Loading in server.cfg
-
-```bash
-# Load different configs based on environment
-
-# Development
-if [[ "${environment}" == "dev" ]]; then
-    set debug_mode "true"
-    set log_level "debug"
-    set ui_dev_mode "true"
-    set database_debug "true"
-
-    # Use dev database
-    set mongodb_database "mythic_dev"
-    set mysql_connection_string "mysql://root:password@localhost/mythic_dev"
-
-    # Load development resources
-    ensure mythic-dev-tools
-    ensure mythic-debug
-fi
-
-# Production
-if [[ "${environment}" == "prod" ]]; then
-    set debug_mode "false"
-    set log_level "error"
-    set ui_dev_mode "false"
-    set database_debug "false"
-
-    # Use production database
-    set mongodb_database "mythic"
-    set mysql_connection_string "mysql://mythic_user:secure_pass@localhost/mythic"
-
-    # Don't load dev resources
-fi
-
-# Testing
-if [[ "${environment}" == "test" ]]; then
-    set debug_mode "true"
-    set log_level "info"
-
-    # Use test database
-    set mongodb_database "mythic_test"
-    set mysql_connection_string "mysql://root:password@localhost/mythic_test"
-
-    # Load testing framework
-    ensure mythic-test-framework
-fi
-```
-
-### Reading Environment in Code
-
-<Tabs>
-  <Tab title="Lua (Server/Client)">
-    ```lua
-    -- Get environment
-    local env = GetConvar('environment', 'prod')
-
-    if env == 'dev' then
-        -- Development-specific code
-        print('[DEV] Debug mode enabled')
-    elseif env == 'prod' then
-        -- Production-specific code
-        print('[PROD] Production mode')
-    elseif env == 'test' then
-        -- Testing-specific code
-        print('[TEST] Test mode')
-    end
-
-    -- Check debug mode
-    local debugMode = GetConvar('debug_mode', 'false') == 'true'
-
-    if debugMode then
-        print('[DEBUG] This is a debug message')
-    end
-
-    -- Get log level
-    local logLevel = GetConvar('log_level', 'info')
-
-    -- Use in logging
-    if logLevel == 'debug' then
-        print('[DEBUG] Detailed information')
-    end
-    ```
-  </Tab>
-
-  <Tab title="JavaScript (Node.js)">
-    ```javascript
-    // mythic-base/core/sv_database.js
-
-    // Get environment from FiveM
-    const environment = GetConvar('environment', 'prod');
-
-    const isDev = environment === 'dev';
-    const isProd = environment === 'prod';
-    const isTest = environment === 'test';
-
-    // Conditional logging
-    if (isDev) {
-        console.log('[DEV] Development mode enabled');
-    }
-
-    // Database query logging
-    const dbDebug = GetConvar('database_debug', 'false') === 'true';
-
-    if (dbDebug) {
-        // Log all queries
-        mongoose.set('debug', true);
-    }
-    ```
-  </Tab>
-
-  <Tab title="React (UI)">
-    ```jsx
-    // ui/src/App.jsx
-
-    // Environment passed from Lua via SendNUIMessage
-    const isDevelopment = process.env.NODE_ENV === 'development';
-
-    function App() {
-        useEffect(() => {
-            if (isDevelopment) {
-                console.log('[DEV] React app running in development mode');
-            }
-        }, []);
-
-        return (
-            <div>
-                {isDevelopment && (
-                    <div style={{background: 'yellow', padding: '5px'}}>
-                        DEVELOPMENT MODE
-                    </div>
-                )}
-                {/* Rest of app */}
-            </div>
-        );
-    }
-    ```
-  </Tab>
-</Tabs>
-
-## Custom Environment Variables
-
-Create your own environment variables for resource-specific configuration:
+## Environment Behavior
+
+<CardGroup cols={2}>
+  <Card title="Development (dev)" icon="code">
+    - Verbose console logging
+    - Detailed error messages
+    - Relaxed security checks
+    - Useful for debugging
+  </Card>
+  <Card title="Production (prod)" icon="rocket">
+    - Minimal logging (errors only)
+    - Optimized performance
+    - Full security features active
+    - Anti-cheat enabled
+  </Card>
+</CardGroup>
+
+## Log Level
+
+The `log_level` convar controls logging verbosity. It uses a **numeric** value:
 
 ```bash
 # server.cfg
-
-# Custom feature flags
-set feature_new_inventory "false"
-set feature_experimental_racing "false"
-
-# Resource-specific settings
-set inventory_max_slots "50"
-set vehicle_fuel_consumption "1.0"
-
-# API keys (use env vars for security)
-set external_api_key "your_api_key_here"
-
-# Discord configuration
-set discord_server_id "123456789"
-set discord_bot_token "your_bot_token"
+setr log_level 0
 ```
 
-**Reading Custom Variables:**
+| Value | Description | Use Case |
+|-------|-------------|----------|
+| `0` | Minimal logging | Production |
+| `1` | Basic logging | Light debugging |
+| `2` | Verbose logging | Active debugging |
+| `3+` | Very verbose | Deep debugging |
+
+<Note>
+Higher values produce more verbose output. Use `0` in production, increase when troubleshooting issues.
+</Note>
+
+## All Framework Convars
+
+Here is a complete reference of convars used by Mythic Framework:
+
+### Core Settings
+
+| Convar | Type | Default | Description |
+|--------|------|---------|-------------|
+| `sv_environment` | `set` | `"prod"` | Environment mode (`dev` or `prod`) |
+| `log_level` | `setr` | `0` | Logging verbosity (numeric, 0 = minimal) |
+| `sv_access_role` | `set` | `0` | Access role level |
+| `mfw_version` | `setr` | `"1.0.0"` | Framework version identifier |
+| `discord_app` | `setr` | — | Discord application ID (rich presence) |
+
+### Database Convars
+
+| Convar | Type | Description |
+|--------|------|-------------|
+| `mongodb_auth_url` | `set` | MongoDB Auth DB connection string |
+| `mongodb_auth_database` | `set` | MongoDB Auth DB name (typically `auth`) |
+| `mongodb_game_url` | `set` | MongoDB Game DB connection string |
+| `mongodb_game_database` | `set` | MongoDB Game DB name (typically `fivem`) |
+| `mysql_connection_string` | `set` | MySQL connection string for oxmysql |
+| `mysql_slow_query_warning` | `set` | Slow query warning threshold in ms |
+
+### Discord Webhook Convars
+
+| Convar | Description |
+|--------|-------------|
+| `discord_admin_webhook` | Admin action logging |
+| `discord_connection_webhook` | Player connection/disconnection logging |
+| `discord_log_webhook` | General logging |
+| `discord_kill_webhook` | Kill/death logging |
+| `discord_error_webhook` | Error and crash logging |
+| `discord_pwnzor_webhook` | Anti-cheat detection logging |
+
+### External Service Convars
+
+| Convar | Description |
+|--------|-------------|
+| `FIVEMANAGE_MEDIA_API_KEY` | FiveManage API key for image uploads (gallery, photos) |
+
+### Network / FiveM Convars
+
+| Convar | Description |
+|--------|-------------|
+| `sv_hostname` | Server name in browser |
+| `sv_maxclients` | Maximum player count |
+| `sv_enforceGameBuild` | Required game build version |
+| `sv_licenseKey` | FiveM license key |
+| `steam_webApiKey` | Steam Web API key |
+| `onesync` | OneSync mode (must be `on`) |
+
+## Reading Convars in Code
+
+### Lua (Server or Client)
 
 ```lua
--- Get custom variables
-local maxSlots = tonumber(GetConvar('inventory_max_slots', '50'))
-local fuelRate = tonumber(GetConvar('vehicle_fuel_consumption', '1.0'))
+-- Get the environment
+local env = GetConvar('sv_environment', 'prod')
 
--- Feature flags
-local newInventoryEnabled = GetConvar('feature_new_inventory', 'false') == 'true'
-
-if newInventoryEnabled then
-    print('[INFO] New inventory system enabled')
-    -- Load new system
-else
-    -- Load old system
+if env == 'dev' then
+    print('[DEV] Development mode active')
 end
+
+-- Get log level (numeric)
+local logLevel = tonumber(GetConvar('log_level', '0')) or 0
+
+-- Get a string convar
+local fivemanageKey = GetConvar('FIVEMANAGE_MEDIA_API_KEY', '')
 ```
 
-## Best Practices
+### Important: Convar Type Handling
 
-<AccordionGroup>
-  <Accordion title="Use .env Files (Optional)" icon="file">
-    For better organization, use environment files:
+Convars always return **strings**. Convert as needed:
 
-    **Create .env file:**
-    ```bash
-    # .env
-    ENVIRONMENT=dev
-    DEBUG_MODE=true
-    LOG_LEVEL=debug
-    MONGODB_URL=mongodb://localhost:27017/mythic_dev
-    MYSQL_URL=mysql://root:password@localhost/mythic_dev
-    ```
+```lua
+-- Boolean-like convars: compare strings
+local isDev = GetConvar('sv_environment', 'prod') == 'dev'
 
-    **Load in server.cfg:**
-    ```bash
-    # Load variables from .env
-    exec .env
+-- Numeric convars: use tonumber
+local logLevel = tonumber(GetConvar('log_level', '0')) or 0
 
-    # Use variables
-    set environment "${ENVIRONMENT}"
-    set debug_mode "${DEBUG_MODE}"
-    set log_level "${LOG_LEVEL}"
-    ```
-
-    **Add to .gitignore:**
-    ```
-    .env
-    .env.local
-    *.env
-    ```
-  </Accordion>
-
-  <Accordion title="Never Hardcode Secrets" icon="key">
-    **❌ Bad:**
-    ```lua
-    local apiKey = "sk_live_123456789abcdef"  -- Hardcoded!
-    ```
-
-    **✅ Good:**
-    ```lua
-    local apiKey = GetConvar('external_api_key', '')
-    if apiKey == '' then
-        error('API key not configured!')
-    end
-    ```
-
-    **Benefits:**
-    - Secrets not in code
-    - Can't accidentally commit to git
-    - Different keys per environment
-  </Accordion>
-
-  <Accordion title="Document All Variables" icon="book">
-    **Create docs/environment-variables.md:**
-
-    ```markdown
-    # Environment Variables
-
-    ## Required Variables
-
-    | Variable | Type | Default | Description |
-    |----------|------|---------|-------------|
-    | environment | string | prod | Server environment (dev/prod/test) |
-    | debug_mode | boolean | false | Enable debug logging |
-    | mongodb_url | string | - | MongoDB connection string |
-    | mysql_connection_string | string | - | MySQL connection string |
-
-    ## Optional Variables
-
-    | Variable | Type | Default | Description |
-    |----------|------|---------|-------------|
-    | log_level | string | info | Logging level (debug/info/warn/error) |
-    | ui_dev_mode | boolean | false | Enable React DevTools |
-    | feature_new_inventory | boolean | false | Enable new inventory system |
-    ```
-  </Accordion>
-
-  <Accordion title="Validate Variables" icon="check">
-    Validate environment variables on server start:
-
-    ```lua
-    -- mythic-base/server/validation.lua
-
-    local function ValidateEnvironment()
-        local env = GetConvar('environment', '')
-
-        -- Validate environment is set
-        if env == '' then
-            error('[ERROR] Environment not set! Add "set environment" to server.cfg')
-        end
-
-        -- Validate environment is valid
-        local validEnvs = { dev = true, prod = true, test = true }
-        if not validEnvs[env] then
-            error('[ERROR] Invalid environment: ' .. env)
-        end
-
-        -- Validate database URLs in production
-        if env == 'prod' then
-            local mongoUrl = GetConvar('mongodb_url', '')
-            if mongoUrl == '' then
-                error('[ERROR] MongoDB URL not configured!')
-            end
-
-            -- Warn if using default passwords
-            if string.find(mongoUrl, 'password') then
-                print('[WARNING] Using default database password in production!')
-            end
-        end
-
-        print('[✓] Environment validated: ' .. env)
-    end
-
-    AddEventHandler('onServerResourceStart', function(resourceName)
-        if resourceName == 'mythic-base' then
-            ValidateEnvironment()
-        end
-    end)
-    ```
-  </Accordion>
-
-  <Accordion title="Environment-Specific Defaults" icon="sliders">
-    Set sensible defaults per environment:
-
-    ```lua
-    local env = GetConvar('environment', 'prod')
-
-    -- Environment-specific defaults
-    local defaults = {
-        dev = {
-            logLevel = 'debug',
-            debugMode = true,
-            maxPlayers = 8,
-            saveInterval = 60000  -- 1 minute
-        },
-        prod = {
-            logLevel = 'error',
-            debugMode = false,
-            maxPlayers = 128,
-            saveInterval = 300000  -- 5 minutes
-        },
-        test = {
-            logLevel = 'info',
-            debugMode = true,
-            maxPlayers = 4,
-            saveInterval = 10000  -- 10 seconds
-        }
-    }
-
-    -- Get config with fallback to defaults
-    local config = defaults[env] or defaults.prod
-
-    -- Use config
-    COMPONENTS.Logger:SetLevel(GetConvar('log_level', config.logLevel))
-    local debugMode = GetConvar('debug_mode', tostring(config.debugMode)) == 'true'
-    ```
-  </Accordion>
-</AccordionGroup>
-
-## Multiple Environment Setup
-
-Manage multiple environments (local dev, staging, production):
-
-### Directory Structure
-
-```
-MythicFramework/
-├── server.cfg                  # Base configuration
-├── configs/
-│   ├── dev.cfg                # Development overrides
-│   ├── staging.cfg            # Staging overrides
-│   └── prod.cfg               # Production overrides
-└── resources/
+-- With validation
+local maxSlots = tonumber(GetConvar('inventory_max_slots', '50')) or 50
 ```
 
-### Base server.cfg
+## Custom Convars
+
+You can define your own convars in `server.cfg` for resource-specific configuration:
 
 ```bash
-# server.cfg (shared settings)
-
-sv_hostname "Mythic Roleplay"
-sv_maxclients 128
-sv_enforceGameBuild 2802
-
-# Load environment-specific config
-exec configs/${SERVER_ENV}.cfg
-
-# Load resources
-exec configs/resources.cfg
+# server.cfg — custom settings
+set my_feature_enabled "true"
+set my_api_key "your_key_here"
+set my_custom_rate "1.5"
 ```
 
-### Environment Configs
-
-<CodeGroup>
-```bash dev.cfg
-# configs/dev.cfg
-set environment "dev"
-set debug_mode "true"
-set log_level "debug"
-set ui_dev_mode "true"
-
-# Development database
-set mongodb_url "mongodb://localhost:27017/mythic_dev"
-set mysql_connection_string "mysql://root:dev_password@localhost/mythic_dev"
-
-# Development webhooks (different Discord channel)
-set discord_admin_webhook "https://discord.com/api/webhooks/DEV_WEBHOOK"
-
-# Load dev resources
-ensure mythic-dev-tools
+```lua
+-- Read in your resource
+local featureEnabled = GetConvar('my_feature_enabled', 'false') == 'true'
+local apiKey = GetConvar('my_api_key', '')
+local rate = tonumber(GetConvar('my_custom_rate', '1.0')) or 1.0
 ```
 
-```bash staging.cfg
-# configs/staging.cfg
-set environment "prod"
-set debug_mode "false"
-set log_level "info"
+<Note>
+Use `set` for convars that should only be readable server-side. Use `setr` for convars that should also be readable on the client via `GetConvar`.
+</Note>
 
-# Staging database
-set mongodb_url "mongodb://mythic_user:staging_pass@staging-db:27017/mythic_staging"
-set mysql_connection_string "mysql://mythic_user:staging_pass@staging-db/mythic_staging"
+## Complete server.cfg Reference
 
-# Staging webhooks
-set discord_admin_webhook "https://discord.com/api/webhooks/STAGING_WEBHOOK"
+```bash
+# === ENVIRONMENT ===
+set sv_environment "prod"
+set sv_access_role 0
+setr log_level 0
+setr mfw_version "1.0.0"
+setr discord_app "your_discord_app_id"
+
+# === DATABASE ===
+set mongodb_auth_url "mongodb://localhost:27017/?readPreference=primary&ssl=false"
+set mongodb_auth_database "auth"
+set mongodb_game_url "mongodb://localhost:27017/?readPreference=primary&ssl=false"
+set mongodb_game_database "fivem"
+set mysql_connection_string "mysql://root@localhost/MythicFramework?charset=utf8mb4"
+set mysql_slow_query_warning 300
+
+# === DISCORD WEBHOOKS ===
+set discord_admin_webhook ""
+set discord_connection_webhook ""
+set discord_log_webhook ""
+set discord_kill_webhook ""
+set discord_error_webhook ""
+set discord_pwnzor_webhook ""
+
+# === EXTERNAL SERVICES ===
+set FIVEMANAGE_MEDIA_API_KEY "your_fivemanage_key"
+
+# === ONESYNC ===
+set onesync on
+set onesync_enabled true
+set onesync_population true
 ```
-
-```bash prod.cfg
-# configs/prod.cfg
-set environment "prod"
-set debug_mode "false"
-set log_level "error"
-set ui_dev_mode "false"
-
-# Production database
-set mongodb_url "mongodb://mythic_user:SECURE_PASS@prod-db:27017/mythic"
-set mysql_connection_string "mysql://mythic_user:SECURE_PASS@prod-db/mythic"
-
-# Production webhooks
-set discord_admin_webhook "https://discord.com/api/webhooks/PROD_WEBHOOK"
-```
-</CodeGroup>
-
-### Launch Scripts
-
-<CodeGroup>
-```bash Linux - start-dev.sh
-#!/bin/bash
-export SERVER_ENV=dev
-./FXServer +exec server.cfg
-```
-
-```bash Linux - start-prod.sh
-#!/bin/bash
-export SERVER_ENV=prod
-./FXServer +exec server.cfg
-```
-
-```powershell Windows - start-dev.bat
-@echo off
-set SERVER_ENV=dev
-FXServer.exe +exec server.cfg
-```
-
-```powershell Windows - start-prod.bat
-@echo off
-set SERVER_ENV=prod
-FXServer.exe +exec server.cfg
-```
-</CodeGroup>
 
 ## Troubleshooting
 
 <AccordionGroup>
-  <Accordion title="Environment Variable Not Found" icon="magnifying-glass">
-    **Problem:** `GetConvar` returns empty string
+  <Accordion title="Convar Returns Empty String" icon="magnifying-glass">
+    **Problem:** `GetConvar` returns empty or default value
 
     **Solutions:**
-    1. Check variable is set in server.cfg:
+    1. Verify the convar is set in server.cfg with `set` keyword:
        ```bash
        set my_variable "value"
        ```
-
-    2. Verify syntax (needs `set`):
-       ```bash
-       # ❌ Wrong
-       my_variable "value"
-
-       # ✅ Correct
-       set my_variable "value"
-       ```
-
-    3. Check for typos in variable name
-
-    4. Ensure server.cfg was loaded
-
-    5. Use default fallback:
+    2. Check for typos in the convar name
+    3. Ensure server was restarted after changing server.cfg
+    4. Always provide a default fallback:
        ```lua
        local value = GetConvar('my_variable', 'default_value')
        ```
   </Accordion>
 
-  <Accordion title="Boolean Variables" icon="toggle-on">
-    **Problem:** Boolean variables don't work as expected
+  <Accordion title="Boolean Convars Always True" icon="toggle-on">
+    **Problem:** Boolean check always evaluates to true
 
-    **Cause:** GetConvar returns strings, not booleans
+    **Cause:** `GetConvar` returns strings, and any non-empty string is truthy in Lua
 
     **Solution:**
     ```lua
-    -- ❌ Wrong - always true!
-    local debug = GetConvar('debug_mode', 'false')
-    if debug then  -- This is always true (non-empty string)
-        print('Debug mode')
-    end
+    -- Wrong: always true (non-empty string)
+    local debug = GetConvar('sv_environment', 'prod')
+    if debug then end  -- always enters
 
-    -- ✅ Correct - compare string
-    local debug = GetConvar('debug_mode', 'false') == 'true'
-    if debug then
-        print('Debug mode')
-    end
-
-    -- ✅ Alternative - helper function
-    local function getBoolConvar(name, default)
-        return GetConvar(name, tostring(default)) == 'true'
-    end
-
-    local debug = getBoolConvar('debug_mode', false)
+    -- Correct: compare the string value
+    local isDev = GetConvar('sv_environment', 'prod') == 'dev'
+    if isDev then end  -- only enters when actually "dev"
     ```
   </Accordion>
 
-  <Accordion title="Number Variables" icon="hashtag">
-    **Problem:** Math operations fail on convars
-
-    **Cause:** GetConvar returns strings
+  <Accordion title="Numeric Convars" icon="hashtag">
+    **Problem:** Math operations fail on convar values
 
     **Solution:**
     ```lua
-    -- ❌ Wrong - string concatenation!
-    local maxSlots = GetConvar('max_slots', '50')
-    local doubleSlots = maxSlots * 2  -- NaN or unexpected
+    -- Wrong: string, not number
+    local level = GetConvar('log_level', '0')
+    local doubled = level * 2  -- error
 
-    -- ✅ Correct - convert to number
-    local maxSlots = tonumber(GetConvar('max_slots', '50'))
-    local doubleSlots = maxSlots * 2
-
-    -- ✅ With validation
-    local maxSlots = tonumber(GetConvar('max_slots', '50')) or 50
-    if maxSlots < 1 or maxSlots > 100 then
-        maxSlots = 50
-    end
+    -- Correct: convert to number
+    local level = tonumber(GetConvar('log_level', '0')) or 0
+    local doubled = level * 2  -- works
     ```
   </Accordion>
 </AccordionGroup>
@@ -785,13 +264,9 @@ FXServer.exe +exec server.cfg
     Configure database connection strings
   </Card>
   <Card title="Discord Webhooks" icon="discord" href="/configuration/discord-webhooks">
-    Environment-specific webhooks
+    Set up webhook logging
   </Card>
-  <Card title="Development Guide" icon="code" href="/development/getting-started">
-    Set up development environment
+  <Card title="Resource Management" icon="boxes-stacked" href="/configuration/resource-management">
+    Resource load order and dependencies
   </Card>
 </CardGroup>
-
-<Tip>
-**Pro Tip:** Create separate server.cfg files for each environment (server-dev.cfg, server-prod.cfg) and use startup scripts to select which one to load. This prevents accidentally starting production with development settings.
-</Tip>

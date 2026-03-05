@@ -326,16 +326,16 @@ end)
 -- server/callbacks.lua
 
 -- Register callback for client requests
-COMPONENTS.Callback:RegisterCallback('mythic-inventory:GetInventory', function(source, data, cb)
-    local char = COMPONENTS.Characters:GetCharacter(source)
-    local inventory = COMPONENTS.Inventory:Get(char.SID)
+Callbacks:RegisterServerCallback('mythic-inventory:GetInventory', function(source, data, cb)
+    local char = Fetch:Source(source):GetData('Character')
+    local inventory = Inventory:Get(char:GetData('SID'))
 
     cb(inventory)
 end)
 
-COMPONENTS.Callback:RegisterCallback('mythic-inventory:UseItem', function(source, data, cb)
-    local char = COMPONENTS.Characters:GetCharacter(source)
-    local success = COMPONENTS.Inventory:UseItem(char.SID, data.slot)
+Callbacks:RegisterServerCallback('mythic-inventory:UseItem', function(source, data, cb)
+    local char = Fetch:Source(source):GetData('Character')
+    local success = Inventory:UseItem(char:GetData('SID'), data.slot)
 
     cb({ success = success })
 end)
@@ -546,44 +546,6 @@ export default App;
   </Accordion>
 </AccordionGroup>
 
-## Resource Load Order
-
-Order matters! Resources must load in the correct sequence.
-
-**Example from `configs/resources.cfg`:**
-
-```bash
-# 1. Database (required by everything)
-ensure oxmysql
-
-# 2. Core framework (MUST load first)
-ensure mythic-base
-
-# 3. Anti-cheat (early for protection)
-ensure mythic-pwnzor
-
-# 4. Core systems
-ensure mythic-queue
-ensure mythic-loadscreen
-
-# 5. Character system (required by most features)
-ensure mythic-characters
-
-# 6. Feature resources (order matters for dependencies)
-ensure mythic-inventory      # Required by shops
-ensure mythic-jobs           # Required by job-specific resources
-ensure mythic-economy        # Required by shops, properties
-
-# 7. Dependent features
-ensure mythic-shops          # Depends on inventory, economy
-ensure mythic-properties     # Depends on economy, characters
-
-# 8. UI resources (depend on features)
-ensure mythic-hud
-ensure mythic-phone
-ensure mythic-menu
-```
-
 ## Best Practices
 
 <CardGroup cols={2}>
@@ -698,14 +660,14 @@ end)
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Creating Resources" icon="plus" href="/development/creating-resources/overview">
-    Learn to create your first Mythic resource
-  </Card>
   <Card title="Component System" icon="cubes" href="/concepts/component-system">
     Understand components for resource development
   </Card>
-  <Card title="UI Development" icon="browser" href="/concepts/ui-framework">
+  <Card title="UI Framework" icon="browser" href="/concepts/ui-framework">
     Learn React UI development for Mythic
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Framework architecture and load order
   </Card>
   <Card title="API Reference" icon="code" href="/api/core/base">
     Complete API documentation
