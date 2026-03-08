@@ -8,7 +8,7 @@ The Status system manages player needs like hunger, thirst, and stress. It provi
 
 ## Overview
 
-Access via `COMPONENTS.Status` (client and server-side).
+Access via `Status` (client and server-side).
 
 <CardGroup cols={2}>
   <Card title="Built-in Statuses" icon="utensils">
@@ -53,7 +53,7 @@ Hunger status that decreases over time. Low hunger causes health damage.
 **Example:**
 ```lua
 -- Client side - Check hunger
-local hunger = COMPONENTS.Status.Get:Single('PLAYER_HUNGER')
+local hunger = Status.Get:Single('PLAYER_HUNGER')
 print('Current hunger:', hunger.value)
 
 if hunger.value <= 25 then
@@ -83,7 +83,7 @@ Thirst status that decreases over time. Low thirst disables sprint and causes ra
 **Example:**
 ```lua
 -- Client side - Check thirst
-local thirst = COMPONENTS.Status.Get:Single('PLAYER_THIRST')
+local thirst = Status.Get:Single('PLAYER_THIRST')
 
 if thirst.value <= 25 then
     -- Sprint is automatically disabled by framework
@@ -114,7 +114,7 @@ Stress status that increases from activities. High stress causes screen blur.
 **Example:**
 ```lua
 -- Client side - Check stress
-local stress = COMPONENTS.Status.Get:Single('PLAYER_STRESS')
+local stress = Status.Get:Single('PLAYER_STRESS')
 
 if stress.value >= 75 then
     print('Player is very stressed')
@@ -153,7 +153,7 @@ Intoxication status from alcohol consumption.
 **Example:**
 ```lua
 -- Server side - Make player drunk
-COMPONENTS.Status.Modify:Add(source, 'PLAYER_DRUNK', 50)
+Status.Modify:Add(source, 'PLAYER_DRUNK', 50)
 
 -- Decays over time automatically
 ```
@@ -180,7 +180,7 @@ Register a custom status type.
 **Example:**
 ```lua
 -- Client side - Register custom energy status
-COMPONENTS.Status:Register(
+Status:Register(
     'PLAYER_ENERGY',
     100,
     'bolt',
@@ -192,10 +192,10 @@ COMPONENTS.Status:Register(
             amount = -0.5 -- Lose 0.5 energy per tick
         end
 
-        local current = COMPONENTS.Status.Get:Single('PLAYER_ENERGY').value
+        local current = Status.Get:Single('PLAYER_ENERGY').value
         local newValue = math.max(0, math.min(100, current + amount))
 
-        COMPONENTS.Status.Set:Single('PLAYER_ENERGY', newValue)
+        Status.Set:Single('PLAYER_ENERGY', newValue)
     end,
     {
         noReset = false, -- Reset on logout
@@ -219,7 +219,7 @@ Get all registered statuses.
 **Example:**
 ```lua
 -- Client side
-local statuses = COMPONENTS.Status:GetRegistered()
+local statuses = Status:GetRegistered()
 
 for name, data in pairs(statuses) do
     print(name, data.max, data.icon)
@@ -240,7 +240,7 @@ Get all status values.
 **Example:**
 ```lua
 -- Client side
-local allStatuses = COMPONENTS.Status.Get:All()
+local allStatuses = Status.Get:All()
 
 for name, status in pairs(allStatuses) do
     print(string.format('%s: %d/%d', name, status.value, status.max))
@@ -266,7 +266,7 @@ Get a specific status value.
 **Example:**
 ```lua
 -- Client side
-local hunger = COMPONENTS.Status.Get:Single('PLAYER_HUNGER')
+local hunger = Status.Get:Single('PLAYER_HUNGER')
 
 print('Hunger:', hunger.value, '/', hunger.max)
 print('Icon:', hunger.icon)
@@ -289,10 +289,10 @@ Set a specific status value.
 ```lua
 -- Client side
 -- Set hunger to full
-COMPONENTS.Status.Set:Single('PLAYER_HUNGER', 100)
+Status.Set:Single('PLAYER_HUNGER', 100)
 
 -- Set thirst to 50
-COMPONENTS.Status.Set:Single('PLAYER_THIRST', 50)
+Status.Set:Single('PLAYER_THIRST', 50)
 ```
 
 **Notes:**
@@ -315,10 +315,10 @@ Set all statuses to a specific value.
 ```lua
 -- Client side
 -- Reset all statuses to full
-COMPONENTS.Status.Set:All(100)
+Status.Set:All(100)
 
 -- Set all to zero (for testing)
-COMPONENTS.Status.Set:All(0)
+Status.Set:All(0)
 ```
 
 ---
@@ -339,13 +339,13 @@ Increase a status value.
 ```lua
 -- Client side
 -- Restore 25 hunger
-COMPONENTS.Status.Modify:Add('PLAYER_HUNGER', 25)
+Status.Modify:Add('PLAYER_HUNGER', 25)
 
 -- Restore with cooldown (prevents rapid consumption)
-COMPONENTS.Status.Modify:Add('PLAYER_HUNGER', 25, true)
+Status.Modify:Add('PLAYER_HUNGER', 25, true)
 
 -- Force restore (bypass cooldown)
-COMPONENTS.Status.Modify:Add('PLAYER_HUNGER', 25, false, true)
+Status.Modify:Add('PLAYER_HUNGER', 25, false, true)
 ```
 
 ---
@@ -365,10 +365,10 @@ Decrease a status value.
 ```lua
 -- Client side
 -- Remove 10 hunger
-COMPONENTS.Status.Modify:Remove('PLAYER_HUNGER', 10)
+Status.Modify:Remove('PLAYER_HUNGER', 10)
 
 -- Force remove (ignore protections)
-COMPONENTS.Status.Modify:Remove('PLAYER_HUNGER', 10, true)
+Status.Modify:Remove('PLAYER_HUNGER', 10, true)
 ```
 
 ---
@@ -385,7 +385,7 @@ Reset all statuses to maximum.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Status:Reset()
+Status:Reset()
 
 -- All statuses set to max (except noReset ones)
 ```
@@ -410,10 +410,10 @@ Toggle status system on/off.
 ```lua
 -- Client side
 -- Disable status ticking
-COMPONENTS.Status:Toggle()
+Status:Toggle()
 
 -- Re-enable
-COMPONENTS.Status:Toggle()
+Status:Toggle()
 ```
 
 ---
@@ -430,7 +430,7 @@ Check if status system is enabled.
 **Example:**
 ```lua
 -- Client side
-if COMPONENTS.Status:Check() then
+if Status:Check() then
     print('Status system is running')
 else
     print('Status system is disabled')
@@ -456,10 +456,10 @@ Modify status from server-side.
 ```lua
 -- Server side
 -- Give player hunger when they eat
-COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
+Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
 
 -- Remove stress
-COMPONENTS.Status.Modify:Remove(source, 'PLAYER_STRESS', 30)
+Status.Modify:Remove(source, 'PLAYER_STRESS', 30)
 ```
 
 ---
@@ -593,7 +593,7 @@ RegisterServerEvent('restaurant:server:ServeFood', function(foodItem)
     if not char then return end
 
     -- Give food item (auto-modifies hunger when used)
-    COMPONENTS.Inventory:AddItem(char:GetData('SID'), foodItem, 1, {}, 1)
+    Inventory:AddItem(char:GetData('SID'), foodItem, 1, {}, 1)
 end)
 ```
 
@@ -603,13 +603,13 @@ end)
 -- Client side - Add stress when shooting
 AddEventHandler('Weapons:Client:Fired', function()
     -- Add 2 stress per shot
-    COMPONENTS.Status.Modify:Add('PLAYER_STRESS', 2)
+    Status.Modify:Add('PLAYER_STRESS', 2)
 end)
 
 -- Client side - Add stress when shot at
 AddEventHandler('Characters:Client:ShotNear', function()
     -- Add 5 stress when bullets whiz by
-    COMPONENTS.Status.Modify:Add('PLAYER_STRESS', 5)
+    Status.Modify:Add('PLAYER_STRESS', 5)
 end)
 ```
 
@@ -626,8 +626,8 @@ CreateThread(function()
     while true do
         Wait(30000) -- Check every 30 seconds
 
-        local hunger = COMPONENTS.Status.Get:Single('PLAYER_HUNGER')
-        local thirst = COMPONENTS.Status.Get:Single('PLAYER_THIRST')
+        local hunger = Status.Get:Single('PLAYER_HUNGER')
+        local thirst = Status.Get:Single('PLAYER_THIRST')
 
         if hunger.value <= 25 and os.time() - lastWarning.hunger > 120 then
             TriggerEvent('mythic-notifications:client:Send', {

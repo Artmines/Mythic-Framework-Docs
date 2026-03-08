@@ -217,7 +217,7 @@ The phone hooks into character spawning to initialize phone data.
 ```lua
 -- Internally, the phone registers middleware on Characters:Spawning
 -- This initializes: apps, settings, permissions, aliases, job data
-COMPONENTS.Middleware:Add('Characters:Spawning', function(source, character)
+Middleware:Add('Characters:Spawning', function(source, character)
     -- Phone initialization happens here
 end)
 ```

@@ -710,7 +710,7 @@ Give player keys to a vehicle.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Callbacks:ServerCallback('Vehicles:GetKeys', 'ABC123456789', function(success)
+Callbacks:ServerCallback('Vehicles:GetKeys', 'ABC123456789', function(success)
     if success then
         print('Received vehicle keys')
     end
@@ -741,7 +741,7 @@ Toggle vehicle lock state.
 local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
 local vNet = NetworkGetNetworkIdFromEntity(vehicle)
 
-COMPONENTS.Callbacks:ServerCallback('Vehicles:ToggleLocks', {
+Callbacks:ServerCallback('Vehicles:ToggleLocks', {
     netId = vNet,
     state = nil  -- Toggle
 }, function(success, newState)
@@ -751,7 +751,7 @@ COMPONENTS.Callbacks:ServerCallback('Vehicles:ToggleLocks', {
 end)
 
 -- Force lock
-COMPONENTS.Callbacks:ServerCallback('Vehicles:ToggleLocks', {
+Callbacks:ServerCallback('Vehicles:ToggleLocks', {
     netId = vNet,
     state = true  -- Lock
 }, function(success, newState)
@@ -783,7 +783,7 @@ local vehicle = GetClosestVehicle(GetEntityCoords(PlayerPedId()), 5.0, 0, 71)
 if vehicle ~= 0 then
     local vNet = NetworkGetNetworkIdFromEntity(vehicle)
 
-    COMPONENTS.Callbacks:ServerCallback('Vehicles:BreakOpenLock', {
+    Callbacks:ServerCallback('Vehicles:BreakOpenLock', {
         netId = vNet
     }, function(success, newState)
         if success then
@@ -814,7 +814,7 @@ Get vehicles stored in a garage.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Callbacks:ServerCallback('Vehicles:GetVehiclesInStorage', 'legion_square', function(vehicles)
+Callbacks:ServerCallback('Vehicles:GetVehiclesInStorage', 'legion_square', function(vehicles)
     if vehicles then
         print('Found', #vehicles, 'vehicles in garage')
         for k, v in ipairs(vehicles) do
@@ -843,7 +843,7 @@ Get vehicles stored in property garage.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Callbacks:ServerCallback('Vehicles:GetVehiclesInPropertyStorage', 'property_123', function(vehicles, capacity, charId, charInfo)
+Callbacks:ServerCallback('Vehicles:GetVehiclesInPropertyStorage', 'property_123', function(vehicles, capacity, charId, charInfo)
     if vehicles then
         print('Property has', capacity.current, '/', capacity.max, 'vehicles')
 
@@ -880,7 +880,7 @@ Spawn vehicle from garage/property.
 local spawnPoint = GetOffsetFromEntityInWorldCoords(PlayerPedId(), 0.0, 5.0, 0.0)
 local heading = GetEntityHeading(PlayerPedId())
 
-COMPONENTS.Callbacks:ServerCallback('Vehicles:RetrieveVehicleFromStorage', {
+Callbacks:ServerCallback('Vehicles:RetrieveVehicleFromStorage', {
     VIN = 'ABC123456789',
     coords = spawnPoint,
     heading = heading,
@@ -918,7 +918,7 @@ local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
 local vState = Entity(vehicle).state
 
 if vState.VIN then
-    COMPONENTS.Callbacks:ServerCallback('Vehicles:PutVehicleInStorage', {
+    Callbacks:ServerCallback('Vehicles:PutVehicleInStorage', {
         VIN = vState.VIN,
         storageId = 'legion_square'
     }, function(success)
@@ -954,17 +954,19 @@ AddEventHandler('rental:server:RentVehicle', function(vehicleModel, duration)
 
     local rentalCost = 500 * duration  -- $500 per hour
 
-    if COMPONENTS.Characters:RemoveMoney(stateId, 'cash', rentalCost, 'Vehicle rental') then
+    local currentCash = char:GetData('Cash')
+    if currentCash >= rentalCost then
+        char:SetData('Cash', currentCash - rentalCost)
         local spawnCoords = GetRentalSpawnLocation()
 
-        COMPONENTS.Vehicles:SpawnTemp(
+        Vehicles:SpawnTemp(
             src,
             GetHashKey(vehicleModel),
             spawnCoords.coords,
             spawnCoords.heading,
             function(entityId, VIN, plate)
                 -- Give keys
-                COMPONENTS.Vehicles.Keys:Add(src, VIN)
+                Vehicles.Keys:Add(src, VIN)
 
                 -- Set rental expiry
                 RentalVehicles[VIN] = {
@@ -999,8 +1001,7 @@ AddEventHandler('jobs:server:SpawnJobVehicle', function()
         return
     end
 
-    local jobId = char:GetData('Job')
-    if jobId ~= 'police' then
+    if not Jobs.Permissions:HasJob(src, 'police') then
         return
     end
 
@@ -1008,7 +1009,7 @@ AddEventHandler('jobs:server:SpawnJobVehicle', function()
     local spawnLocation = GetJobSpawnLocation(jobGarage)
 
     -- Get available fleet vehicles
-    COMPONENTS.Callbacks:ClientCallback(src, 'Vehicles:GetVehiclesInStorage', jobGarage, function(vehicles)
+    Callbacks:ClientCallback(src, 'Vehicles:GetVehiclesInStorage', jobGarage, function(vehicles)
         if vehicles and #vehicles > 0 then
             -- Show vehicle selection menu
             TriggerClientEvent('police:client:ShowFleetMenu', src, vehicles, spawnLocation)

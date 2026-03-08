@@ -8,7 +8,7 @@ The Loans component manages vehicle and property loans, payment schedules, and t
 
 ## Overview
 
-Access via `COMPONENTS.Loans` (server-side only).
+Access via `Loans` (server-side only).
 
 <CardGroup cols={2}>
   <Card title="Vehicle Loans" icon="car">
@@ -34,15 +34,15 @@ Access via `COMPONENTS.Loans` (server-side only).
 Get how much a character can borrow based on their credit score.
 
 ```lua
-COMPONENTS.Loans:GetAllowedLoanAmount(stateId, type)
+Loans:GetAllowedLoanAmount(stateId, type)
 ```
 
 <ParamField path="stateId" type="number" required>
   Character State ID
 </ParamField>
 
-<ParamField path="type" type="string" required>
-  Loan type: `'vehicle'` or `'property'`
+<ParamField path="type" type="string" optional>
+  Loan type: `'vehicle'` or `'property'` (defaults to `'vehicle'`)
 </ParamField>
 
 <ResponseField name="result" type="table">
@@ -52,7 +52,7 @@ COMPONENTS.Loans:GetAllowedLoanAmount(stateId, type)
 **Example:**
 
 ```lua
-local loanInfo = COMPONENTS.Loans:GetAllowedLoanAmount(char:GetData('SID'), 'vehicle')
+local loanInfo = Loans:GetAllowedLoanAmount(char:GetData('SID'), 'vehicle')
 
 print('Credit Score:', loanInfo.creditScore)
 print('Max Borrowable: $' .. loanInfo.maxBorrowable)
@@ -65,7 +65,7 @@ print('Max Borrowable: $' .. loanInfo.maxBorrowable)
 Get all active loans for a character.
 
 ```lua
-COMPONENTS.Loans:GetPlayerLoans(stateId, type)
+Loans:GetPlayerLoans(stateId, type)
 ```
 
 <ParamField path="stateId" type="number" required>
@@ -87,7 +87,7 @@ COMPONENTS.Loans:GetPlayerLoans(stateId, type)
 Create a loan for a vehicle purchase.
 
 ```lua
-COMPONENTS.Loans:CreateVehicleLoan(targetSource, VIN, totalCost, downPayment, totalWeeks)
+Loans:CreateVehicleLoan(targetSource, VIN, totalCost, downPayment, totalWeeks)
 ```
 
 <ParamField path="targetSource" type="number" required>
@@ -118,7 +118,7 @@ COMPONENTS.Loans:CreateVehicleLoan(targetSource, VIN, totalCost, downPayment, to
 
 ```lua
 -- Player buying a vehicle on finance
-local success = COMPONENTS.Loans:CreateVehicleLoan(source, vehicleVIN, 85000, 20000, 12)
+local success = Loans:CreateVehicleLoan(source, vehicleVIN, 85000, 20000, 12)
 
 if success then
     TriggerClientEvent('mythic-notifications:client:Send', source, {
@@ -135,7 +135,7 @@ end
 Create a loan for a property purchase.
 
 ```lua
-COMPONENTS.Loans:CreatePropertyLoan(targetSource, propertyId, totalCost, downPayment, totalWeeks)
+Loans:CreatePropertyLoan(targetSource, propertyId, totalCost, downPayment, totalWeeks)
 ```
 
 <ParamField path="targetSource" type="number" required>
@@ -169,7 +169,7 @@ COMPONENTS.Loans:CreatePropertyLoan(targetSource, propertyId, totalCost, downPay
 Make a payment on an active loan.
 
 ```lua
-COMPONENTS.Loans:MakePayment(source, loanId, inAdvanced, advancedPaymentCount)
+Loans:MakePayment(source, loanId, inAdvanced, advancedPaymentCount)
 ```
 
 <ParamField path="source" type="number" required>
@@ -195,7 +195,7 @@ COMPONENTS.Loans:MakePayment(source, loanId, inAdvanced, advancedPaymentCount)
 **Example:**
 
 ```lua
-local result = COMPONENTS.Loans:MakePayment(source, loanId, false)
+local result = Loans:MakePayment(source, loanId, false)
 
 if result.success then
     if result.paidOff then
@@ -224,7 +224,7 @@ end
 Check if an asset (vehicle/property) still has an active loan.
 
 ```lua
-COMPONENTS.Loans:HasRemainingPayments(assetType, assetId)
+Loans:HasRemainingPayments(assetType, assetId)
 ```
 
 <ParamField path="assetType" type="string" required>
@@ -246,7 +246,7 @@ COMPONENTS.Loans:HasRemainingPayments(assetType, assetId)
 Get the default interest rate for loans.
 
 ```lua
-COMPONENTS.Loans:GetDefaultInterestRate()
+Loans:GetDefaultInterestRate()
 ```
 
 <ResponseField name="rate" type="number">
@@ -262,7 +262,7 @@ COMPONENTS.Loans:GetDefaultInterestRate()
 Get a character's credit score.
 
 ```lua
-COMPONENTS.Loans.Credit:Get(stateId)
+Loans.Credit:Get(stateId)
 ```
 
 <ParamField path="stateId" type="number" required>
@@ -280,7 +280,7 @@ COMPONENTS.Loans.Credit:Get(stateId)
 Set a character's credit score directly.
 
 ```lua
-COMPONENTS.Loans.Credit:Set(stateId, newVal)
+Loans.Credit:Set(stateId, newVal)
 ```
 
 ---
@@ -290,7 +290,7 @@ COMPONENTS.Loans.Credit:Set(stateId, newVal)
 Add to a character's credit score.
 
 ```lua
-COMPONENTS.Loans.Credit:Increase(stateId, increase)
+Loans.Credit:Increase(stateId, increase)
 ```
 
 ---
@@ -300,7 +300,7 @@ COMPONENTS.Loans.Credit:Increase(stateId, increase)
 Subtract from a character's credit score.
 
 ```lua
-COMPONENTS.Loans.Credit:Decrease(stateId, decrease)
+Loans.Credit:Decrease(stateId, decrease)
 ```
 
 ---
@@ -337,7 +337,7 @@ COMPONENTS.Loans.Credit:Decrease(stateId, decrease)
   <Card title="Finance - Banking" icon="building-columns" href="/api/finance/banking">
     Bank account operations
   </Card>
-  <Card title="Finance - Billing" icon="file-invoice-dollar" href="/api/finance/billing">
+  <Card title="Finance - Payments" icon="money-bill-transfer" href="/api/finance/payments">
     Bills and fines
   </Card>
   <Card title="Finance - Crypto" icon="bitcoin-sign" href="/api/finance/crypto">

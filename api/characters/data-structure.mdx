@@ -42,7 +42,7 @@ The complete character object structure stored in MongoDB:
 
     -- Money
     Cash = 5000,                         -- Cash on hand (note: capital C)
-    Bank = 25000,                        -- Bank balance (note: capital B)
+    -- Note: Bank balances are stored in a separate 'bank_accounts' collection, NOT on the character
 
     -- Licenses
     Licenses = {
@@ -222,7 +222,6 @@ Fields with default values if not specified:
 {
     Jobs = {},                 -- Empty jobs array (unemployed)
     Cash = 5000,               -- Starting cash (5000 by default)
-    Bank = 0,                  -- No starting bank money
     position = {               -- Default spawn position
         x = -258.211,
         y = -293.738,
@@ -395,10 +394,8 @@ local lastName = char:GetData('Last')
 print(firstName, lastName)             -- Name
 
 local stateId = char:GetData('SID')    -- Character ID
-local job = char:GetData('Job')        -- Job
-local jobGrade = char:GetData('JobGrade')
-local cash = char:GetData('Cash')      -- Money
-local bank = char:GetData('Bank')
+local jobs = char:GetData('Jobs')      -- Jobs array (table of job objects)
+local cash = char:GetData('Cash')      -- Cash on hand
 
 -- Access metadata
 local metadata = char:GetData('MetaData') or {}
@@ -413,18 +410,14 @@ print(metadata.hunger)                 -- Hunger
 local currentCash = char:GetData('Cash')
 char:SetData('Cash', 5000)
 
-local currentBank = char:GetData('Bank')
-char:SetData('Bank', 10000)
-
 -- Update nested metadata
 local metadata = char:GetData('MetaData') or {}
 metadata.hunger = 75
 metadata.thirst = 80
 char:SetData('MetaData', metadata)
 
--- Update job
-char:SetData('Job', 'police')
-char:SetData('JobGrade', 2)
+-- Note: Jobs are managed through the Jobs component, not SetData
+-- Use Jobs:GiveJob(stateId, jobId, workplaceId, gradeId) to assign jobs
 ```
 
 ### Adding to Metadata
@@ -457,7 +450,7 @@ char:SetData('MetaData', metadata)
 ### Find by Name
 
 ```lua
-COMPONENTS.Database.Game:find({
+Database.Game:find({
     collection = 'characters',
     query = { First = 'John', Last = 'Doe' }
 }, function(success, characters)
@@ -499,7 +492,7 @@ Database.Game:find({
 end)
 ```
 
-### Find Rich Players
+### Find Characters with Most Cash
 
 ```lua
 Database.Game:aggregate({
@@ -508,24 +501,28 @@ Database.Game:aggregate({
         {
             ['$project'] = {
                 name = { ['$concat'] = { '$First', ' ', '$Last' } },
-                totalMoney = { ['$add'] = { '$Cash', '$Bank' } }  -- Note: Capital C and B
+                Cash = 1
             }
         },
         {
             ['$match'] = {
-                totalMoney = { ['$gte'] = 1000000 }  -- $1M+
+                Cash = { ['$gte'] = 100000 }  -- $100k+ cash
             }
         },
         {
-            ['$sort'] = { totalMoney = -1 }
+            ['$sort'] = { Cash = -1 }
         }
     }
 }, function(success, results)
     if success and results then
-        -- Process rich players
+        -- Process results
     end
 end)
 ```
+
+<Note>
+Bank balances are stored in the `bank_accounts` collection, not on the character document. Query that collection separately to find bank balance data.
+</Note>
 
 ---
 
@@ -608,8 +605,8 @@ function GetCompleteCharacterData(source)
 
     local stateId = char:GetData('SID')
 
-    -- Get inventory
-    local inventory = COMPONENTS.Inventory:Get(stateId)
+    -- Get inventory item counts
+    local itemCounts = Inventory.Items:GetCounts(stateId, 1)
 
     -- Get vehicles (database query)
     local vehicles = Database.Game:findOne({
@@ -635,12 +632,10 @@ function GetCompleteCharacterData(source)
             First = char:GetData('First'),
             Last = char:GetData('Last'),
             Cash = char:GetData('Cash'),
-            Bank = char:GetData('Bank'),
-            Job = char:GetData('Job'),
-            JobGrade = char:GetData('JobGrade'),
-            -- Add other fields as needed
+            Jobs = char:GetData('Jobs'),  -- Array of job objects
+            Phone = char:GetData('Phone'),
         },
-        inventory = inventory,
+        inventory = itemCounts,
         vehicles = vehicles,
         properties = properties,
         bankAccounts = bankAccounts
@@ -659,12 +654,8 @@ function GetCompleteOfflineCharacterData(stateId)
         return nil
     end
 
-    -- Get related data
-    local inventory = COMPONENTS.Inventory:Get(stateId)
-
     return {
         character = char,
-        inventory = inventory
     }
 end
 ```
@@ -696,7 +687,7 @@ end
 
   <Accordion title="Validate Before Updates" icon="shield-check">
     ```lua
-    function UpdateCharacterMoney(source, account, amount)
+    function UpdateCharacterCash(source, amount)
         -- Validate character exists
         local player = Fetch:Source(source)
         if not player then
@@ -708,26 +699,24 @@ end
             return false, 'Character not loaded'
         end
 
-        -- Validate account
-        local accountField
-        if account == 'cash' then
-            accountField = 'Cash'
-        elseif account == 'bank' then
-            accountField = 'Bank'
-        else
-            return false, 'Invalid account (must be "cash" or "bank")'
-        end
-
         -- Validate amount
-        if type(amount) ~= 'number' or amount < 0 then
-            return false, 'Amount must be a positive number'
+        if type(amount) ~= 'number' then
+            return false, 'Amount must be a number'
         end
 
-        -- Update using DataStore
-        char:SetData(accountField, amount)
+        local currentCash = char:GetData('Cash')
+        local newCash = currentCash + amount
+
+        if newCash < 0 then
+            return false, 'Insufficient funds'
+        end
+
+        -- Update cash using DataStore
+        char:SetData('Cash', newCash)
 
         return true
     end
+    -- Note: For bank operations, use the Banking component API
     ```
   </Accordion>
 
@@ -736,7 +725,7 @@ end
     // MongoDB - Create indexes for performance
     db.characters.createIndex({ SID: 1 }, { unique: true })
     db.characters.createIndex({ Owner: 1 })
-    db.characters.createIndex({ job: 1 })
+    db.characters.createIndex({ 'Jobs.Id': 1 })
     db.characters.createIndex({ Phone: 1 }, { unique: true })
     ```
   </Accordion>

@@ -407,7 +407,7 @@ metadata = {
 
 ```lua
 -- Get item with metadata
-local item = COMPONENTS.Inventory:GetItemInSlot(char.SID, 1)
+local item = Inventory:GetItemInSlot(char.SID, 1)
 
 if item then
     print('Item:', item.label)
@@ -417,7 +417,7 @@ if item then
 end
 
 -- Add item with metadata
-COMPONENTS.Inventory:AddItem(char.SID, 'weapon_pistol', 1, {
+Inventory:AddItem(char.SID, 'weapon_pistol', 1, {
     serial = GenerateSerial(),
     durability = 100,
     ammo = 12,
@@ -425,11 +425,11 @@ COMPONENTS.Inventory:AddItem(char.SID, 'weapon_pistol', 1, {
 })
 
 -- Update metadata
-local item = COMPONENTS.Inventory:GetItemInSlot(char.SID, 1)
+local item = Inventory:GetItemInSlot(char.SID, 1)
 item.metadata.ammo = 10
 item.metadata.durability = 95
 
-COMPONENTS.Inventory:UpdateSlot(char.SID, 1, item)
+Inventory:UpdateSlot(char.SID, 1, item)
 ```
 
 ---
@@ -468,7 +468,7 @@ Config.Items = {
 
 AddEventHandler('Core:Shared:Ready', function()
     for itemName, itemData in pairs(Config.Items) do
-        COMPONENTS.Items:Register(itemName, itemData)
+        Items:Register(itemName, itemData)
     end
 end)
 ```
@@ -481,7 +481,7 @@ end)
 AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
     if itemName == 'energy_drink' then
         -- Restore energy
-        COMPONENTS.Characters:UpdateCharacter(characterId, {
+        Characters:UpdateCharacter(characterId, {
             ['metadata.needs.energy'] = 100
         })
 
@@ -489,7 +489,7 @@ AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId
         TriggerClientEvent('mythic-effects:client:SpeedBoost', source, 30000)
 
         -- Remove item
-        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+        Inventory.Items:Remove(characterId, 1, 'energy_drink', 1)
 
         -- Notify
         TriggerClientEvent('mythic-notifications:client:Send', source, {
@@ -632,7 +632,7 @@ Validate items before adding to inventory:
 
 ```lua
 function ValidateItem(itemName)
-    local item = COMPONENTS.Items:Get(itemName)
+    local item = Items:Get(itemName)
 
     if not item then
         return false, 'Item does not exist'
@@ -661,7 +661,7 @@ function SafeAddItem(characterId, itemName, count)
         return false, error
     end
 
-    return COMPONENTS.Inventory:AddItem(characterId, itemName, count)
+    return Inventory:AddItem(characterId, itemName, count)
 end
 ```
 

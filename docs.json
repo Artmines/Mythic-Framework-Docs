@@ -140,7 +140,7 @@
             "group": "Finance",
             "pages": [
               "api/finance/banking",
-              "api/finance/billing",
+              "api/finance/payments",
               "api/finance/crypto",
               "api/finance/loans"
             ]

@@ -8,7 +8,7 @@ The Crypto component manages cryptocurrency coins, player wallets, and exchange 
 
 ## Overview
 
-Access via `COMPONENTS.Crypto` (server-side only).
+Access via `Crypto` (server-side only).
 
 <CardGroup cols={2}>
   <Card title="Coin Management" icon="coins">
@@ -35,7 +35,7 @@ Crypto balances are stored in the character's data as `Crypto[ACRONYM] = amount`
 Register or update a cryptocurrency type.
 
 ```lua
-COMPONENTS.Crypto.Coin:Create(name, acronym, price, buyable, sellable)
+Crypto.Coin:Create(name, acronym, price, buyable, sellable)
 ```
 
 <ParamField path="name" type="string" required>
@@ -62,8 +62,8 @@ COMPONENTS.Crypto.Coin:Create(name, acronym, price, buyable, sellable)
 
 ```lua
 -- Register coins
-COMPONENTS.Crypto.Coin:Create('Bitcoin', 'BTC', 50000, true, true)
-COMPONENTS.Crypto.Coin:Create('Cayo Coin', 'CAYO', 150, true, false)  -- Can buy, can't sell
+Crypto.Coin:Create('Bitcoin', 'BTC', 50000, true, true)
+Crypto.Coin:Create('Cayo Coin', 'CAYO', 150, true, false)  -- Can buy, can't sell
 ```
 
 ---
@@ -73,7 +73,7 @@ COMPONENTS.Crypto.Coin:Create('Cayo Coin', 'CAYO', 150, true, false)  -- Can buy
 Get data for a specific coin.
 
 ```lua
-COMPONENTS.Crypto.Coin:Get(acronym)
+Crypto.Coin:Get(acronym)
 ```
 
 <ResponseField name="coin" type="table|nil">
@@ -87,7 +87,7 @@ COMPONENTS.Crypto.Coin:Get(acronym)
 Get all registered coins.
 
 ```lua
-COMPONENTS.Crypto.Coin:GetAll()
+Crypto.Coin:GetAll()
 ```
 
 <ResponseField name="coins" type="table">
@@ -103,7 +103,7 @@ COMPONENTS.Crypto.Coin:GetAll()
 Check if a player owns a minimum amount of a coin.
 
 ```lua
-COMPONENTS.Crypto:Has(source, coin, amount)
+Crypto:Has(source, coin, amount)
 ```
 
 <ParamField path="source" type="number" required>
@@ -125,7 +125,7 @@ COMPONENTS.Crypto:Has(source, coin, amount)
 **Example:**
 
 ```lua
-if COMPONENTS.Crypto:Has(source, 'BTC', 2) then
+if Crypto:Has(source, 'BTC', 2) then
     -- Player has at least 2 BTC
 end
 ```
@@ -139,7 +139,7 @@ end
 Check if a coin is tradeable on the exchange.
 
 ```lua
-COMPONENTS.Crypto.Exchange:IsListed(coin)
+Crypto.Exchange:IsListed(coin)
 ```
 
 ---
@@ -149,7 +149,7 @@ COMPONENTS.Crypto.Exchange:IsListed(coin)
 Purchase cryptocurrency using the player's bank account.
 
 ```lua
-COMPONENTS.Crypto.Exchange:Buy(coin, target, amount)
+Crypto.Exchange:Buy(coin, target, amount)
 ```
 
 <ParamField path="coin" type="string" required>
@@ -157,7 +157,7 @@ COMPONENTS.Crypto.Exchange:Buy(coin, target, amount)
 </ParamField>
 
 <ParamField path="target" type="number" required>
-  Player server ID or CryptoWallet ID
+  Character State ID (SID) of the buyer
 </ParamField>
 
 <ParamField path="amount" type="number" required>
@@ -168,6 +168,16 @@ COMPONENTS.Crypto.Exchange:Buy(coin, target, amount)
   `true` if purchase was successful
 </ResponseField>
 
+**Example:**
+
+```lua
+local char = Fetch:Source(source):GetData('Character')
+local stateId = char:GetData('SID')
+
+-- Buy 2 BTC for the player
+Crypto.Exchange:Buy('BTC', stateId, 2)
+```
+
 ---
 
 ### Crypto.Exchange:Sell
@@ -175,7 +185,7 @@ COMPONENTS.Crypto.Exchange:Buy(coin, target, amount)
 Sell cryptocurrency back for bank balance.
 
 ```lua
-COMPONENTS.Crypto.Exchange:Sell(coin, target, amount)
+Crypto.Exchange:Sell(coin, target, amount)
 ```
 
 <ParamField path="coin" type="string" required>
@@ -183,7 +193,7 @@ COMPONENTS.Crypto.Exchange:Sell(coin, target, amount)
 </ParamField>
 
 <ParamField path="target" type="number" required>
-  Player server ID
+  Character State ID (SID) of the seller
 </ParamField>
 
 <ParamField path="amount" type="number" required>
@@ -201,15 +211,15 @@ COMPONENTS.Crypto.Exchange:Sell(coin, target, amount)
 Add cryptocurrency directly to a wallet (no bank charge).
 
 ```lua
-COMPONENTS.Crypto.Exchange:Add(coin, target, amount, skipAlert)
+Crypto.Exchange:Add(coin, target, amount, skipAlert)
 ```
 
 <ParamField path="coin" type="string" required>
   Coin acronym
 </ParamField>
 
-<ParamField path="target" type="number|string" required>
-  Player server ID (if online) or CryptoWallet ID
+<ParamField path="target" type="string" required>
+  CryptoWallet ID (from `char:GetData('CryptoWallet')`)
 </ParamField>
 
 <ParamField path="amount" type="number" required>
@@ -224,12 +234,10 @@ COMPONENTS.Crypto.Exchange:Add(coin, target, amount, skipAlert)
 
 ```lua
 -- Reward crypto for completing a job
-COMPONENTS.Crypto.Exchange:Add('BTC', source, 0.5)
+local char = Fetch:Source(source):GetData('Character')
+local walletId = char:GetData('CryptoWallet')
 
-TriggerClientEvent('mythic-notifications:client:Send', source, {
-    message = 'Received 0.5 BTC',
-    type = 'success'
-})
+Crypto.Exchange:Add('BTC', walletId, 0.5)
 ```
 
 ---
@@ -239,7 +247,7 @@ TriggerClientEvent('mythic-notifications:client:Send', source, {
 Remove cryptocurrency from a wallet.
 
 ```lua
-COMPONENTS.Crypto.Exchange:Remove(coin, target, amount, skipAlert)
+Crypto.Exchange:Remove(coin, target, amount, skipAlert)
 ```
 
 <ResponseField name="success" type="boolean">
@@ -253,7 +261,7 @@ COMPONENTS.Crypto.Exchange:Remove(coin, target, amount, skipAlert)
 Transfer cryptocurrency between two wallets.
 
 ```lua
-COMPONENTS.Crypto.Exchange:Transfer(coin, sender, target, amount)
+Crypto.Exchange:Transfer(coin, sender, target, amount)
 ```
 
 <ParamField path="coin" type="string" required>
@@ -261,11 +269,11 @@ COMPONENTS.Crypto.Exchange:Transfer(coin, sender, target, amount)
 </ParamField>
 
 <ParamField path="sender" type="number" required>
-  Sender's server ID or wallet ID
+  Sender's State ID (SID)
 </ParamField>
 
-<ParamField path="target" type="number" required>
-  Recipient's server ID or wallet ID
+<ParamField path="target" type="string" required>
+  Recipient's CryptoWallet ID
 </ParamField>
 
 <ParamField path="amount" type="number" required>
@@ -280,14 +288,11 @@ COMPONENTS.Crypto.Exchange:Transfer(coin, sender, target, amount)
 
 ```lua
 -- Transfer crypto between players
-local success = COMPONENTS.Crypto.Exchange:Transfer('BTC', source, targetSource, 1.5)
+local char = Fetch:Source(source):GetData('Character')
+local senderSID = char:GetData('SID')
+local targetWalletId = '...' -- Recipient's CryptoWallet ID
 
-if success then
-    TriggerClientEvent('mythic-notifications:client:Send', source, {
-        message = 'Sent 1.5 BTC',
-        type = 'success'
-    })
-end
+local success = Crypto.Exchange:Transfer('BTC', senderSID, targetWalletId, 1.5)
 ```
 
 ---
@@ -298,7 +303,7 @@ end
   <Card title="Finance - Banking" icon="building-columns" href="/api/finance/banking">
     Bank account operations
   </Card>
-  <Card title="Finance - Billing" icon="file-invoice-dollar" href="/api/finance/billing">
+  <Card title="Finance - Payments" icon="money-bill-transfer" href="/api/finance/payments">
     Bills and fines
   </Card>
   <Card title="Characters API" icon="user" href="/api/characters/exports">

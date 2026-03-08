@@ -35,7 +35,7 @@ Add a vehicle to a character's ownership.
 local characterId = 123
 local vehicleHash = GetHashKey('adder')
 
-COMPONENTS.Vehicles.Owned:AddToCharacter(
+Vehicles.Owned:AddToCharacter(
     characterId,
     vehicleHash,
     0, -- Car type
@@ -51,7 +51,7 @@ COMPONENTS.Vehicles.Owned:AddToCharacter(
             print('Plate:', vehicleData.RegisteredPlate)
 
             -- Give keys to player
-            COMPONENTS.Vehicles.Keys:Add(source, vehicleData.VIN)
+            Vehicles.Keys:Add(source, vehicleData.VIN)
         else
             print('Failed to add vehicle')
         end
@@ -82,10 +82,12 @@ AddEventHandler('dealership:server:PurchaseVehicle', function(modelName, price)
 
     local vehicleHash = GetHashKey(modelName)
 
-    -- Charge player
-    if COMPONENTS.Characters:RemoveMoney(stateId, 'bank', price, 'Vehicle purchase') then
+    -- Charge player cash
+    local currentCash = char:GetData('Cash')
+    if currentCash >= price then
+        char:SetData('Cash', currentCash - price)
         -- Add vehicle to character
-        COMPONENTS.Vehicles.Owned:AddToCharacter(
+        Vehicles.Owned:AddToCharacter(
             stateId,
             vehicleHash,
             0,
@@ -98,7 +100,7 @@ AddEventHandler('dealership:server:PurchaseVehicle', function(modelName, price)
             function(success, vehicleData)
                 if success then
                     -- Give keys
-                    COMPONENTS.Vehicles.Keys:Add(src, vehicleData.VIN)
+                    Vehicles.Keys:Add(src, vehicleData.VIN)
 
                     -- Notify player
                     TriggerClientEvent('mythic-notifications:client:Send', src, {
@@ -136,7 +138,7 @@ Add a vehicle to a job fleet.
 -- Server side - Add police vehicle to fleet
 local policeCarHash = GetHashKey('police')
 
-COMPONENTS.Vehicles.Owned:AddToFleet(
+Vehicles.Owned:AddToFleet(
     'police',          -- Job ID
     'lspd',            -- Workplace (LSPD department)
     10,                -- Level 10 (Officer) required
@@ -191,7 +193,7 @@ Get active (spawned) vehicle data by VIN.
 ```lua
 -- Server side
 local VIN = 'ABC123456789'
-local vehicleData = COMPONENTS.Vehicles.Owned:GetActive(VIN)
+local vehicleData = Vehicles.Owned:GetActive(VIN)
 
 if vehicleData then
     print('Vehicle is spawned')
@@ -226,7 +228,7 @@ Get vehicle data from database by VIN.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Vehicles.Owned:GetVIN('ABC123456789', function(vehicleData)
+Vehicles.Owned:GetVIN('ABC123456789', function(vehicleData)
     if vehicleData then
         print('Owner:', vehicleData.Owner.Type, vehicleData.Owner.Id)
         print('Make/Model:', vehicleData.Make, vehicleData.Model)
@@ -265,7 +267,7 @@ Get all vehicles matching criteria.
 **Example:**
 ```lua
 -- Get all character's vehicles
-COMPONENTS.Vehicles.Owned:GetAll(0, 0, characterId, function(vehicles)
+Vehicles.Owned:GetAll(0, 0, characterId, function(vehicles)
     if vehicles then
         print(string.format('Found %d vehicles', #vehicles))
         for k, v in ipairs(vehicles) do
@@ -277,7 +279,7 @@ COMPONENTS.Vehicles.Owned:GetAll(0, 0, characterId, function(vehicles)
 end, nil, nil, false)
 
 -- Get vehicles in specific garage
-COMPONENTS.Vehicles.Owned:GetAll(
+Vehicles.Owned:GetAll(
     0,              -- Cars only
     0,              -- Character owned
     characterId,    -- Owner
@@ -300,24 +302,28 @@ if not char then
     return
 end
 
-local jobId = char:GetData('Job')
+-- Get first job from character's Jobs array
+local jobs = char:GetData('Jobs')
+local primaryJob = jobs and jobs[1]
 
-COMPONENTS.Vehicles.Owned:GetAll(
-    0,    -- Cars
-    nil,  -- Any owner type
-    nil,  -- Any owner
-    function(vehicles)
-        -- Display fleet menu
-    end,
-    nil,  -- Any storage
-    nil,  -- Any location
-    true, -- Ignore spawned
-    {     -- Fleet access check
-        Id = jobId,
-        Workplace = char:GetData('JobWorkplace'),
-        Level = char:GetData('JobGrade')
-    }
-)
+if primaryJob then
+    Vehicles.Owned:GetAll(
+        0,    -- Cars
+        nil,  -- Any owner type
+        nil,  -- Any owner
+        function(vehicles)
+            -- Display fleet menu
+        end,
+        nil,  -- Any storage
+        nil,  -- Any location
+        true, -- Ignore spawned
+        {     -- Fleet access check
+            Id = primaryJob.Id,
+            Workplace = primaryJob.WorkplaceId,
+            Level = primaryJob.GradeLevel
+        }
+    )
+end
 ```
 
 ---
@@ -347,7 +353,7 @@ local VIN = 'ABC123456789'
 local spawnCoords = vector3(100.0, 200.0, 30.0)
 local heading = 90.0
 
-COMPONENTS.Vehicles.Owned:Spawn(
+Vehicles.Owned:Spawn(
     source,
     VIN,
     spawnCoords,
@@ -358,7 +364,7 @@ COMPONENTS.Vehicles.Owned:Spawn(
             print('Plate:', vehicleData.RegisteredPlate)
 
             -- Give keys to player
-            COMPONENTS.Vehicles.Keys:Add(source, VIN)
+            Vehicles.Keys:Add(source, VIN)
 
             -- Notify client
             TriggerClientEvent('mythic-vehicles:client:VehicleSpawned', source, entityId)
@@ -391,17 +397,17 @@ AddEventHandler('garage:server:SpawnVehicle', function(VIN, spawnLocation)
     local stateId = char:GetData('SID')
 
     -- Verify ownership
-    COMPONENTS.Vehicles.Owned:GetVIN(VIN, function(vehicleData)
+    Vehicles.Owned:GetVIN(VIN, function(vehicleData)
         if vehicleData and vehicleData.Owner.Type == 0 and vehicleData.Owner.Id == stateId then
             -- Spawn vehicle
-            COMPONENTS.Vehicles.Owned:Spawn(
+            Vehicles.Owned:Spawn(
                 src,
                 VIN,
                 spawnLocation.coords,
                 spawnLocation.heading,
                 function(success, vehData, entityId)
                     if success then
-                        COMPONENTS.Vehicles.Keys:Add(src, VIN)
+                        Vehicles.Keys:Add(src, VIN)
                     end
                 end
             )
@@ -427,7 +433,7 @@ Store a spawned vehicle in a garage/property.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Vehicles.Owned:Store(
+Vehicles.Owned:Store(
     'ABC123456789',
     1,              -- Garage storage
     'legion_square',
@@ -455,7 +461,7 @@ Delete a spawned vehicle (despawn and save to database).
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Vehicles.Owned:Delete('ABC123456789', function(success)
+Vehicles.Owned:Delete('ABC123456789', function(success)
     if success then
         print('Vehicle deleted (saved to database)')
     end
@@ -476,13 +482,13 @@ Force save vehicle data to database immediately.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Vehicles.Owned:ForceSave('ABC123456789')
+Vehicles.Owned:ForceSave('ABC123456789')
 
 -- Use before server shutdown
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName == GetCurrentResourceName() then
         for VIN, vehicleData in pairs(ACTIVE_OWNED_VEHICLES) do
-            COMPONENTS.Vehicles.Owned:ForceSave(VIN)
+            Vehicles.Owned:ForceSave(VIN)
         end
     end
 end)
@@ -507,7 +513,7 @@ Get vehicle location (spawned or storage).
 **Example:**
 ```lua
 -- Server side (sync)
-local location = COMPONENTS.Vehicles.Owned:Track('ABC123456789')
+local location = Vehicles.Owned:Track('ABC123456789')
 if location then
     print('Vehicle location:', location)
 end
@@ -536,14 +542,14 @@ Check if player has keys to a vehicle.
 **Example:**
 ```lua
 -- Server side
-local hasKeys = COMPONENTS.Vehicles.Keys:Has(source, 'ABC123456789')
+local hasKeys = Vehicles.Keys:Has(source, 'ABC123456789')
 
 if hasKeys then
     print('Player has keys to this vehicle')
 end
 
 -- Check with group keys (police/ems can access without personal keys if on duty)
-local hasAccess = COMPONENTS.Vehicles.Keys:Has(source, 'ABC123456789', 'police')
+local hasAccess = Vehicles.Keys:Has(source, 'ABC123456789', 'police')
 ```
 
 ---
@@ -561,11 +567,11 @@ Give vehicle keys to a player.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Vehicles.Keys:Add(source, 'ABC123456789')
+Vehicles.Keys:Add(source, 'ABC123456789')
 
 -- Give keys when player buys a vehicle
 AddEventHandler('dealership:vehiclePurchased', function(source, vehicleData)
-    COMPONENTS.Vehicles.Keys:Add(source, vehicleData.VIN)
+    Vehicles.Keys:Add(source, vehicleData.VIN)
 
     TriggerClientEvent('mythic-notifications:client:Send', source, {
         message = 'You received the vehicle keys',
@@ -589,11 +595,11 @@ Remove vehicle keys from a player.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Vehicles.Keys:Remove(source, 'ABC123456789')
+Vehicles.Keys:Remove(source, 'ABC123456789')
 
 -- Remove keys when vehicle is sold
 AddEventHandler('dealership:vehicleSold', function(source, VIN)
-    COMPONENTS.Vehicles.Keys:Remove(source, VIN)
+    Vehicles.Keys:Remove(source, VIN)
 end)
 ```
 
@@ -631,7 +637,7 @@ local model = GetHashKey('adder')
 local coords = vector3(100.0, 200.0, 30.0)
 local heading = 90.0
 
-COMPONENTS.Vehicles:SpawnTemp(
+Vehicles:SpawnTemp(
     source,
     model,
     coords,
@@ -662,18 +668,18 @@ AddEventHandler('rental:server:RentVehicle', function(modelName, duration)
     local model = GetHashKey(modelName)
     local spawnCoords = GetRentalSpawnLocation()
 
-    COMPONENTS.Vehicles:SpawnTemp(
+    Vehicles:SpawnTemp(
         src,
         model,
         spawnCoords.coords,
         spawnCoords.heading,
         function(entityId, VIN, plate)
             -- Give temp keys
-            COMPONENTS.Vehicles.Keys:Add(src, VIN)
+            Vehicles.Keys:Add(src, VIN)
 
             -- Set rental expiry
             SetTimeout(duration * 60000, function()
-                COMPONENTS.Vehicles:Delete(entityId, function() end)
+                Vehicles:Delete(entityId, function() end)
             end)
         end
     )
@@ -681,7 +687,7 @@ end)
 
 -- Mission vehicle
 AddEventHandler('missions:spawnVehicle', function(location)
-    COMPONENTS.Vehicles:SpawnTemp(
+    Vehicles:SpawnTemp(
         0,  -- Server spawn
         GetHashKey('burrito'),
         location.coords,
@@ -709,7 +715,7 @@ Delete any vehicle (owned or temporary).
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Vehicles:Delete(vehicleEntity, function(success)
+Vehicles:Delete(vehicleEntity, function(success)
     if success then
         print('Vehicle deleted')
     end
@@ -732,7 +738,7 @@ Get all garage locations.
 **Example:**
 ```lua
 -- Server side
-local garages = COMPONENTS.Vehicles.Garages:GetAll()
+local garages = Vehicles.Garages:GetAll()
 
 for id, data in pairs(garages) do
     print(id, data.label, data.location)
@@ -758,7 +764,7 @@ Get specific garage data.
 **Example:**
 ```lua
 -- Server side
-local garage = COMPONENTS.Vehicles.Garages:Get('legion_square')
+local garage = Vehicles.Garages:Get('legion_square')
 
 if garage then
     print('Garage:', garage.name)
@@ -781,7 +787,7 @@ Get impound lot data.
 **Example:**
 ```lua
 -- Server side
-local impound = COMPONENTS.Vehicles.Garages:Impound()
+local impound = Vehicles.Garages:Impound()
 
 print('Impound:', impound.name)
 print('Location:', impound.coords)
@@ -806,7 +812,7 @@ Store character vehicle in property garage.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Vehicles.Owned.Properties:Store(
+Vehicles.Owned.Properties:Store(
     source,
     'ABC123456789',
     'property_123',
@@ -837,7 +843,7 @@ Get vehicles stored in property garage.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Vehicles.Owned.Properties:Get(
+Vehicles.Owned.Properties:Get(
     'property_123',
     characterId,
     function(vehicles)
@@ -868,12 +874,12 @@ Get count of vehicles in property garage.
 **Example:**
 ```lua
 -- Server side (sync)
-local count = COMPONENTS.Vehicles.Owned.Properties:GetCount('property_123')
+local count = Vehicles.Owned.Properties:GetCount('property_123')
 print('Vehicles in property:', count)
 
 -- Check capacity before storing
 local maxCapacity = 4
-local currentCount = COMPONENTS.Vehicles.Owned.Properties:GetCount('property_123', VIN)
+local currentCount = Vehicles.Owned.Properties:GetCount('property_123', VIN)
 
 if currentCount >= maxCapacity then
     -- Property garage is full

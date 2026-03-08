@@ -38,7 +38,7 @@ Middleware handlers are registered for specific events and execute in priority o
 Register middleware for a specific event.
 
 ```lua
-COMPONENTS.Middleware:Add(eventName, handler, priority)
+Middleware:Add(eventName, handler, priority)
 ```
 
 <ParamField path="eventName" type="string" required>
@@ -61,8 +61,8 @@ COMPONENTS.Middleware:Add(eventName, handler, priority)
 
 ```lua
 -- Log all player connections
-COMPONENTS.Middleware:Add("playerConnecting", function(source, name, setKickReason, deferrals)
-    COMPONENTS.Logger:Info("Connections", string.format("Player connecting: %s", name), {
+Middleware:Add("playerConnecting", function(source, name, setKickReason, deferrals)
+    Logger:Info("Connections", string.format("Player connecting: %s", name), {
         console = true,
         file = true
     })
@@ -76,7 +76,7 @@ end, 50)
 Trigger all middleware handlers for an event. All handlers run in priority order — errors in one handler do not stop others.
 
 ```lua
-COMPONENTS.Middleware:TriggerEvent(eventName, source, ...)
+Middleware:TriggerEvent(eventName, source, ...)
 ```
 
 <ParamField path="eventName" type="string" required>
@@ -101,7 +101,7 @@ COMPONENTS.Middleware:TriggerEvent(eventName, source, ...)
 
 ```lua
 -- Framework internally triggers middleware
-COMPONENTS.Middleware:TriggerEvent("Characters:Spawning", source, characterData)
+Middleware:TriggerEvent("Characters:Spawning", source, characterData)
 ```
 
 ---
@@ -111,7 +111,7 @@ COMPONENTS.Middleware:TriggerEvent("Characters:Spawning", source, characterData)
 Trigger middleware and **collect return values** from all handlers into a combined table. This is used when you need handlers to contribute data.
 
 ```lua
-local data = COMPONENTS.Middleware:TriggerEventWithData(eventName, source, ...)
+local data = Middleware:TriggerEventWithData(eventName, source, ...)
 ```
 
 <ParamField path="eventName" type="string" required>
@@ -132,7 +132,7 @@ local data = COMPONENTS.Middleware:TriggerEventWithData(eventName, source, ...)
 
 ```lua
 -- Handler should return an array of tables
-COMPONENTS.Middleware:Add("myEvent", function(source, ...)
+Middleware:Add("myEvent", function(source, ...)
     return {
         { name = "Item 1", value = 100 },
         { name = "Item 2", value = 200 }
@@ -144,7 +144,7 @@ end)
 
 ```lua
 -- Resource A registers middleware
-COMPONENTS.Middleware:Add("interaction:getOptions", function(source, targetId)
+Middleware:Add("interaction:getOptions", function(source, targetId)
     return {
         { label = "Search", action = "search" },
         { label = "Frisk", action = "frisk" }
@@ -152,14 +152,14 @@ COMPONENTS.Middleware:Add("interaction:getOptions", function(source, targetId)
 end, 10)
 
 -- Resource B registers middleware
-COMPONENTS.Middleware:Add("interaction:getOptions", function(source, targetId)
+Middleware:Add("interaction:getOptions", function(source, targetId)
     return {
         { label = "Give Keys", action = "givekeys" }
     }
 end, 20)
 
 -- Triggering code collects all options
-local options = COMPONENTS.Middleware:TriggerEventWithData("interaction:getOptions", source, targetId)
+local options = Middleware:TriggerEventWithData("interaction:getOptions", source, targetId)
 -- options = {
 --   { label = "Search", action = "search", ID = 1 },
 --   { label = "Frisk", action = "frisk", ID = 2 },
@@ -175,13 +175,13 @@ Lower priority numbers execute first:
 
 ```lua
 -- Priority 1 - Executes FIRST (default)
-COMPONENTS.Middleware:Add("event", handler1)
+Middleware:Add("event", handler1)
 
 -- Priority 10 - Executes SECOND
-COMPONENTS.Middleware:Add("event", handler2, 10)
+Middleware:Add("event", handler2, 10)
 
 -- Priority 100 - Executes THIRD
-COMPONENTS.Middleware:Add("event", handler3, 100)
+Middleware:Add("event", handler3, 100)
 ```
 
 <Note>
@@ -205,8 +205,8 @@ The default priority is `1` if not specified.
 
 ```lua
 -- Log all admin actions
-COMPONENTS.Middleware:Add("Admin:Action", function(source, action, target, details)
-    COMPONENTS.Logger:Info("Admin", string.format(
+Middleware:Add("Admin:Action", function(source, action, target, details)
+    Logger:Info("Admin", string.format(
         "%s performed %s on %s",
         GetPlayerName(source),
         action,
@@ -223,8 +223,8 @@ end, 50)
 
 ```lua
 -- Log player connections with identifiers
-COMPONENTS.Middleware:Add("playerConnecting", function(source, name, setKickReason, deferrals)
-    COMPONENTS.Logger:Info("Connections", string.format("Player connecting: %s (source: %s)", name, source), {
+Middleware:Add("playerConnecting", function(source, name, setKickReason, deferrals)
+    Logger:Info("Connections", string.format("Player connecting: %s (source: %s)", name, source), {
         console = true,
         file = true,
         database = true
@@ -240,8 +240,8 @@ end, 50)
 
 ```lua
 -- Log money transactions
-COMPONENTS.Middleware:Add("Finance:Transaction", function(source, amount, type, target)
-    COMPONENTS.Logger:Info("Economy", string.format(
+Middleware:Add("Finance:Transaction", function(source, amount, type, target)
+    Logger:Info("Economy", string.format(
         "Transaction: $%d (%s) from %s to %s",
         amount, type, tostring(source), tostring(target)
     ), {
@@ -255,8 +255,8 @@ end, 100)
 
 ```lua
 -- Log suspicious events
-COMPONENTS.Middleware:Add("AntiCheat:Detection", function(source, cheatType, details)
-    COMPONENTS.Logger:Critical("AntiCheat", string.format(
+Middleware:Add("AntiCheat:Detection", function(source, cheatType, details)
+    Logger:Critical("AntiCheat", string.format(
         "Detection: %s by source %s",
         cheatType, tostring(source)
     ), {
@@ -282,14 +282,14 @@ end, 1)
 
 ```lua
 -- Each job resource contributes its duty status
-COMPONENTS.Middleware:Add("Jobs:GetDutyStatus", function(source, ...)
+Middleware:Add("Jobs:GetDutyStatus", function(source, ...)
     local policeOnDuty = GetPoliceOnDuty()
     return {
         { job = "police", onDuty = #policeOnDuty, players = policeOnDuty }
     }
 end, 10)
 
-COMPONENTS.Middleware:Add("Jobs:GetDutyStatus", function(source, ...)
+Middleware:Add("Jobs:GetDutyStatus", function(source, ...)
     local emsOnDuty = GetEMSOnDuty()
     return {
         { job = "ems", onDuty = #emsOnDuty, players = emsOnDuty }
@@ -297,7 +297,7 @@ COMPONENTS.Middleware:Add("Jobs:GetDutyStatus", function(source, ...)
 end, 20)
 
 -- Collect all duty info
-local dutyInfo = COMPONENTS.Middleware:TriggerEventWithData("Jobs:GetDutyStatus", 0)
+local dutyInfo = Middleware:TriggerEventWithData("Jobs:GetDutyStatus", 0)
 -- dutyInfo contains entries from all registered handlers
 ```
 
@@ -331,9 +331,9 @@ Middleware handlers are **cleared when any resource starts** (except the current
   <Accordion title="Use Appropriate Priorities" icon="sort-numeric-down">
     ```lua
     -- ✅ Good: Critical logging first
-    COMPONENTS.Middleware:Add("event", securityLog, 1)
-    COMPONENTS.Middleware:Add("event", generalLog, 50)
-    COMPONENTS.Middleware:Add("event", analytics, 200)
+    Middleware:Add("event", securityLog, 1)
+    Middleware:Add("event", generalLog, 50)
+    Middleware:Add("event", analytics, 200)
     ```
   </Accordion>
 
@@ -342,12 +342,12 @@ Middleware handlers are **cleared when any resource starts** (except the current
 
     ```lua
     -- ✅ Good: Quick logging
-    COMPONENTS.Middleware:Add("event", function(source, data)
-        COMPONENTS.Logger:Info("Monitor", "Event fired", { file = true })
+    Middleware:Add("event", function(source, data)
+        Logger:Info("Monitor", "Event fired", { file = true })
     end, 100)
 
     -- ❌ Bad: Heavy database query in middleware
-    COMPONENTS.Middleware:Add("event", function(source, data)
+    Middleware:Add("event", function(source, data)
         Database.Game:find({ collection = "all_data", query = {} }, function(success, results)
             -- This is too slow for middleware
         end)
@@ -360,14 +360,14 @@ Middleware handlers are **cleared when any resource starts** (except the current
 
     ```lua
     -- ✅ Good: Return data arrays for collection
-    COMPONENTS.Middleware:Add("getOptions", function(source, target)
+    Middleware:Add("getOptions", function(source, target)
         return {
             { label = "Option A", callback = "doA" },
             { label = "Option B", callback = "doB" }
         }
     end)
 
-    local options = COMPONENTS.Middleware:TriggerEventWithData("getOptions", source, target)
+    local options = Middleware:TriggerEventWithData("getOptions", source, target)
     ```
 
     For plain side-effects (logging, notifications), use `TriggerEvent` instead.
@@ -378,7 +378,7 @@ Middleware handlers are **cleared when any resource starts** (except the current
 
     ```lua
     -- ❌ This does NOT prevent the event from firing
-    COMPONENTS.Middleware:Add("event", function(source, data)
+    Middleware:Add("event", function(source, data)
         return false  -- Return value is IGNORED by TriggerEvent
     end)
     ```

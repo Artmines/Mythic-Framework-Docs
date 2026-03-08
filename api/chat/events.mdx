@@ -45,7 +45,7 @@ AddEventHandler('chatMessage', function(source, author, message)
     for _, word in ipairs(bannedWords) do
         if string.find(lower, word) then
             CancelEvent()
-            COMPONENTS.Chat.Send.System:Single(source, 'Message blocked: inappropriate language')
+            Chat.Send.System:Single(source, 'Message blocked: inappropriate language')
             return
         end
     end
@@ -53,7 +53,7 @@ end)
 
 -- Log all chat messages
 AddEventHandler('chatMessage', function(source, author, message)
-    COMPONENTS.Logger:Info('Chat', string.format('%s: %s', author, message), {
+    Logger:Info('Chat', string.format('%s: %s', author, message), {
         file = true
     })
 end)
@@ -164,7 +164,7 @@ Chat refreshes available commands when a character spawns (priority 3).
 
 ```lua
 -- Internally registered at priority 3
-COMPONENTS.Middleware:Add('Characters:Spawning', function(source, character)
+Middleware:Add('Characters:Spawning', function(source, character)
     -- Refreshes command suggestions based on job/permissions
 end, 3)
 ```
@@ -177,11 +177,11 @@ Chat refreshes commands when duty status changes.
 
 ```lua
 AddEventHandler('Job:Server:DutyAdd', function(source)
-    COMPONENTS.Chat:Refresh:Commands(source)
+    Chat:Refresh:Commands(source)
 end)
 
 AddEventHandler('Job:Server:DutyRemove', function(source)
-    COMPONENTS.Chat:Refresh:Commands(source)
+    Chat:Refresh:Commands(source)
 end)
 ```
 

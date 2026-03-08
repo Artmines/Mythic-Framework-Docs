@@ -159,7 +159,7 @@ Vehicle type determines handling and storage locations.
 **Usage:**
 ```lua
 -- When adding vehicle
-COMPONENTS.Vehicles.Owned:AddToCharacter(
+Vehicles.Owned:AddToCharacter(
     characterId,
     vehicleHash,
     0,  -- Car type
@@ -168,7 +168,7 @@ COMPONENTS.Vehicles.Owned:AddToCharacter(
 )
 
 -- Boat
-COMPONENTS.Vehicles.Owned:AddToCharacter(
+Vehicles.Owned:AddToCharacter(
     characterId,
     GetHashKey('seashark'),
     1,  -- Boat type
@@ -177,7 +177,7 @@ COMPONENTS.Vehicles.Owned:AddToCharacter(
 )
 
 -- Aircraft
-COMPONENTS.Vehicles.Owned:AddToCharacter(
+Vehicles.Owned:AddToCharacter(
     characterId,
     GetHashKey('frogger'),
     2,  -- Aircraft type
@@ -663,7 +663,7 @@ end
     end
 
     -- Get vehicle data
-    COMPONENTS.Vehicles.Owned:GetVIN(vState.VIN, function(vehData)
+    Vehicles.Owned:GetVIN(vState.VIN, function(vehData)
         if vehData then
             -- Vehicle exists in database
         end
@@ -683,7 +683,7 @@ end
 
     local stateId = char:GetData('SID')
 
-    COMPONENTS.Vehicles.Owned:GetVIN(VIN, function(vehData)
+    Vehicles.Owned:GetVIN(VIN, function(vehData)
         if vehData.Owner.Type == 0 and vehData.Owner.Id == stateId then
             -- Player owns this vehicle
         else
@@ -711,7 +711,7 @@ end
 
     ```lua
     -- ✅ Good - Uses Delete export (saves automatically)
-    COMPONENTS.Vehicles.Owned:Delete(VIN, function(success)
+    Vehicles.Owned:Delete(VIN, function(success)
         if success then
             print('Vehicle saved and deleted')
         end
@@ -732,18 +732,18 @@ end
     local char = player:GetData('Character')
     if not char then return end
 
-    local jobId = char:GetData('Job')
-    local jobGrade = char:GetData('JobGrade')
-    local jobWorkplace = char:GetData('JobWorkplace')
+    -- Get character's jobs array
+    local jobs = char:GetData('Jobs')
 
-    COMPONENTS.Vehicles.Owned:GetVIN(VIN, function(vehData)
+    Vehicles.Owned:GetVIN(VIN, function(vehData)
         if vehData.Owner.Type == 1 then
-            -- Fleet vehicle
-            if jobId == vehData.Owner.Id then
-                if vehData.Owner.Level and jobGrade >= vehData.Owner.Level then
-                    -- Has required grade
-                    if not vehData.Owner.Workplace or vehData.Owner.Workplace == jobWorkplace then
-                        -- Has access
+            -- Fleet vehicle - check if character has the required job
+            for _, job in ipairs(jobs) do
+                if job.Id == vehData.Owner.Id then
+                    if not vehData.Owner.Level or job.GradeLevel >= vehData.Owner.Level then
+                        if not vehData.Owner.Workplace or vehData.Owner.Workplace == job.WorkplaceId then
+                            -- Has access
+                        end
                     end
                 end
             end

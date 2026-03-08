@@ -8,7 +8,7 @@ The HUD component manages all on-screen UI elements including health/armor bars,
 
 ## Overview
 
-Access via `COMPONENTS.Hud` (client-side only).
+Access via `Hud` (client-side only).
 
 <CardGroup cols={2}>
   <Card title="Health & Armor" icon="heart">
@@ -45,7 +45,7 @@ Show the HUD.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud:Show()
+Hud:Show()
 ```
 
 ---
@@ -62,7 +62,7 @@ Hide the HUD.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud:Hide()
+Hud:Hide()
 ```
 
 ---
@@ -80,7 +80,7 @@ Toggle HUD visibility.
 ```lua
 -- Client side
 -- Default keybind: F11
-COMPONENTS.Hud:Toggle()
+Hud:Toggle()
 ```
 
 ---
@@ -97,7 +97,7 @@ Check if HUD interactions are disabled.
 **Example:**
 ```lua
 -- Client side
-if not COMPONENTS.Hud:IsDisabled() then
+if not Hud:IsDisabled() then
     -- Player can interact with HUD
     print('HUD interactions enabled')
 else
@@ -129,7 +129,7 @@ Check if HUD is disabled (allows dead state).
 **Example:**
 ```lua
 -- Client side
-if not COMPONENTS.Hud:IsDisabledAllowDead() then
+if not Hud:IsDisabledAllowDead() then
     -- Allow interaction even if dead
     print('HUD available (death allowed)')
 end
@@ -151,7 +151,7 @@ Show vehicle HUD elements.
 **Example:**
 ```lua
 -- Client side - Auto-called when entering vehicle
-COMPONENTS.Hud.Vehicle:Show()
+Hud.Vehicle:Show()
 ```
 
 **Displays:**
@@ -175,7 +175,7 @@ Hide vehicle HUD elements.
 **Example:**
 ```lua
 -- Client side - Auto-called when exiting vehicle
-COMPONENTS.Hud.Vehicle:Hide()
+Hud.Vehicle:Hide()
 ```
 
 ---
@@ -192,7 +192,7 @@ Toggle vehicle HUD visibility.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud.Vehicle:Toggle()
+Hud.Vehicle:Toggle()
 ```
 
 ---
@@ -218,7 +218,7 @@ Register a status indicator (hunger, thirst, stress, etc.).
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud:RegisterStatus(
+Hud:RegisterStatus(
     'PLAYER_HUNGER',
     100,
     100,
@@ -247,7 +247,7 @@ Reset all status indicators (clears on logout).
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud:ResetStatus()
+Hud:ResetStatus()
 ```
 
 ---
@@ -267,10 +267,10 @@ Toggle crosshair display.
 ```lua
 -- Client side
 -- Show crosshair when weapon drawn
-COMPONENTS.Hud:XHair(true)
+Hud:XHair(true)
 
 -- Hide crosshair when weapon holstered
-COMPONENTS.Hud:XHair(false)
+Hud:XHair(false)
 ```
 
 ---
@@ -288,10 +288,10 @@ Toggle sniper scope overlay.
 ```lua
 -- Client side
 -- Show scope when aiming with sniper
-COMPONENTS.Hud:Scope(true)
+Hud:Scope(true)
 
 -- Hide scope
-COMPONENTS.Hud:Scope(false)
+Hud:Scope(false)
 ```
 
 ---
@@ -310,10 +310,10 @@ Apply flashbang effect.
 ```lua
 -- Client side
 -- 5 second full flashbang
-COMPONENTS.Hud.Flashbang:Do(5000, 1.0)
+Hud.Flashbang:Do(5000, 1.0)
 
 -- 3 second partial flashbang
-COMPONENTS.Hud.Flashbang:Do(3000, 0.6)
+Hud.Flashbang:Do(3000, 0.6)
 ```
 
 ---
@@ -330,7 +330,7 @@ Clear flashbang effect immediately.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud.Flashbang:End()
+Hud.Flashbang:End()
 ```
 
 ---
@@ -348,10 +348,10 @@ Set death screen state.
 ```lua
 -- Client side
 -- Show death overlay
-COMPONENTS.Hud:Dead(true)
+Hud:Dead(true)
 
 -- Hide death overlay
-COMPONENTS.Hud:Dead(false)
+Hud:Dead(false)
 ```
 
 ---
@@ -373,7 +373,7 @@ Show death screen with text.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud.DeathTexts:Show(
+Hud.DeathTexts:Show(
     'downed',
     os.time(),
     300, -- 5 minute timer
@@ -395,7 +395,7 @@ Show releasing text (waiting for respawn).
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud.DeathTexts:Release()
+Hud.DeathTexts:Release()
 ```
 
 ---
@@ -412,7 +412,7 @@ Hide death texts.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud.DeathTexts:Hide()
+Hud.DeathTexts:Hide()
 ```
 
 ---
@@ -432,7 +432,7 @@ Toggle player ID display (shows SIDs above players).
 ```lua
 -- Client side
 -- Default keybind: I
-COMPONENTS.Hud.ID:Toggle()
+Hud.ID:Toggle()
 ```
 
 **Notes:**
@@ -457,7 +457,7 @@ Open gem table minigame.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud.GemTable:Open(3)
+Hud.GemTable:Open(3)
 ```
 
 ---
@@ -474,7 +474,7 @@ Close gem table minigame.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud.GemTable:Close()
+Hud.GemTable:Close()
 ```
 
 ---
@@ -491,7 +491,7 @@ Open meth cooking minigame.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud.Meth:Open({
+Hud.Meth:Open({
     duration = 60000,
     difficulty = 3
 })
@@ -511,7 +511,7 @@ Close meth minigame.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Hud.Meth:Close()
+Hud.Meth:Close()
 ```
 
 ---
@@ -531,10 +531,10 @@ Shift location display position.
 ```lua
 -- Client side
 -- Shift location down (when phone open)
-COMPONENTS.Hud:ShiftLocation(true)
+Hud:ShiftLocation(true)
 
 -- Reset location position
-COMPONENTS.Hud:ShiftLocation(false)
+Hud:ShiftLocation(false)
 ```
 
 ---
@@ -546,7 +546,7 @@ COMPONENTS.Hud:ShiftLocation(false)
 ```lua
 -- Client side - Register custom status
 AddEventHandler('Characters:Client:Spawn', function()
-    COMPONENTS.Hud:RegisterStatus(
+    Hud:RegisterStatus(
         'PLAYER_CUSTOM',
         50,  -- Current value
         100, -- Max value
@@ -568,12 +568,12 @@ end)
 -- Client side - Show vehicle HUD automatically
 AddEventHandler('Vehicles:Client:EnterVehicle', function(vehicle, seat)
     if seat == -1 then -- Driver
-        COMPONENTS.Hud.Vehicle:Show()
+        Hud.Vehicle:Show()
     end
 end)
 
 AddEventHandler('Vehicles:Client:ExitVehicle', function(vehicle)
-    COMPONENTS.Hud.Vehicle:Hide()
+    Hud.Vehicle:Hide()
 end)
 ```
 
@@ -582,8 +582,8 @@ end)
 ```lua
 -- Client side - Handle player death
 AddEventHandler('Medical:Client:PlayerDead', function()
-    COMPONENTS.Hud:Dead(true)
-    COMPONENTS.Hud.DeathTexts:Show(
+    Hud:Dead(true)
+    Hud.DeathTexts:Show(
         'dead',
         os.time(),
         600 -- 10 minute respawn
@@ -591,8 +591,8 @@ AddEventHandler('Medical:Client:PlayerDead', function()
 end)
 
 AddEventHandler('Medical:Client:PlayerRevived', function()
-    COMPONENTS.Hud:Dead(false)
-    COMPONENTS.Hud.DeathTexts:Hide()
+    Hud:Dead(false)
+    Hud.DeathTexts:Hide()
 end)
 ```
 

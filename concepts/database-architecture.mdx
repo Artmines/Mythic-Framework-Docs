@@ -86,7 +86,7 @@ MongoDB operations are handled through the Node.js wrapper in mythic-base using 
 - `Database.Game` — Game data (characters, inventory, vehicles, etc.)
 - `Database.Auth` — Authentication data (users, roles, bans)
 
-After `RetrieveComponents()`, use `Database.Game:method()` directly. The full path is `COMPONENTS.Database.Game` but the local shorthand is standard.
+After `RetrieveComponents()`, use `Database.Game:method()` directly. The full path is `Database.Game` but the local shorthand is standard.
 </Note>
 
 ```lua
@@ -716,7 +716,7 @@ CREATE TABLE vehicles (
         query = { SID = charId }
     }, function(success, character)
         if not success then
-            COMPONENTS.Logger:Error('Database', 'Failed to fetch character', {
+            Logger:Error('Database', 'Failed to fetch character', {
                 charId = charId
             })
             return

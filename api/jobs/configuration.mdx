@@ -566,7 +566,7 @@ restart mythic-jobs
 /setjob [player_id] my_business owner
 
 -- Via code
-COMPONENTS.Jobs:SetJob(characterId, 'my_business', 99) -- 99 = owner level
+Jobs:GiveJob(stateId, 'my_business', nil, 'owner') -- owner grade
 ```
 
 ---
@@ -929,19 +929,17 @@ if not char then
     return
 end
 
--- Check specific permission
-if char.jobPermissions and char.jobPermissions.JOB_HIRE then
-    -- Employee can hire
+-- Use Jobs.Permissions to check job access (preferred method)
+if Jobs.Permissions:HasJob(source, 'police') then
+    -- Player has police job
 end
 
--- Check job and permission
-if char.job == 'police' and char.jobPermissions.MDT_INCIDENT_REPORT_CREATE then
-    -- Police officer can create reports
-end
-
--- Check grade level
-if char.job == 'police' and char.jobGrade >= 50 then
-    -- Sergeant or higher
+-- Check character's Jobs array directly
+local jobs = char:GetData('Jobs')
+for _, job in ipairs(jobs) do
+    if job.Id == 'police' and job.GradeLevel >= 50 then
+        -- Sergeant or higher
+    end
 end
 ```
 
@@ -966,7 +964,7 @@ end
 
 ```lua
 -- Server callback
-COMPONENTS.Callbacks:RegisterServerCallback('myresource:checkPermission', function(source, data, cb)
+Callbacks:RegisterServerCallback('myresource:checkPermission', function(source, data, cb)
     local player = Fetch:Source(source)
 
     if not player then
@@ -978,7 +976,7 @@ COMPONENTS.Callbacks:RegisterServerCallback('myresource:checkPermission', functi
         return cb(false)
     end
 
-    if char.jobPermissions and char.jobPermissions[data.permission] then
+    if Jobs.Permissions:HasJob(source, data.jobId) then
         cb(true)
     else
         cb(false)
@@ -986,8 +984,8 @@ COMPONENTS.Callbacks:RegisterServerCallback('myresource:checkPermission', functi
 end)
 
 -- Client request
-COMPONENTS.Callbacks:ServerCallback('myresource:checkPermission', {
-    permission = 'JOB_HIRE'
+Callbacks:ServerCallback('myresource:checkPermission', {
+    jobId = 'police'
 }, function(hasPermission)
     if hasPermission then
         -- Show hire menu

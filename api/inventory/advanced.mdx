@@ -41,7 +41,7 @@ Open a stash inventory for a player.
 
 **Syntax:**
 ```lua
-COMPONENTS.Inventory.Stash:Open(source, invType, identifier)
+Inventory.Stash:Open(source, invType, identifier)
 ```
 
 **Parameters:**
@@ -68,7 +68,7 @@ RegisterServerEvent('property:server:OpenStash', function()
 
     if propertyId then
         -- Open property stash
-        COMPONENTS.Inventory.Stash:Open(src, 13, propertyId)
+        Inventory.Stash:Open(src, 13, propertyId)
     else
         TriggerClientEvent('mythic-notifications:client:Send', src, {
             message = 'Not in a property',
@@ -88,9 +88,9 @@ RegisterServerEvent('gang:server:OpenStash', function(gangId)
     if not char then return end
 
     -- Check gang membership
-    if char:GetData('Gang') == gangId then
+    if char:GetData('GangChain') == gangId then
         -- Open gang stash
-        COMPONENTS.Inventory.Stash:Open(src, 13, string.format("gang_%s", gangId))
+        Inventory.Stash:Open(src, 13, string.format("gang_%s", gangId))
     else
         TriggerClientEvent('mythic-notifications:client:Send', src, {
             message = 'Not a member of this gang',
@@ -107,7 +107,7 @@ RegisterServerEvent('cache:server:Open', function(cacheId)
     -- ... distance check logic ...
 
     -- Open cache
-    COMPONENTS.Inventory.Stash:Open(src, 13, string.format("cache_%s", cacheId))
+    Inventory.Stash:Open(src, 13, string.format("cache_%s", cacheId))
 end)
 ```
 
@@ -140,7 +140,7 @@ Open a shop inventory for a player.
 
 **Syntax:**
 ```lua
-COMPONENTS.Inventory.Shop:Open(source, identifier)
+Inventory.Shop:Open(source, identifier)
 ```
 
 **Parameters:**
@@ -159,7 +159,7 @@ RegisterServerEvent('shop:server:Open247', function(shopId)
     if not player then return end
 
     -- Open shop
-    COMPONENTS.Inventory.Shop:Open(src, shopId)
+    Inventory.Shop:Open(src, shopId)
 end)
 
 -- Server side - Job-restricted shop
@@ -173,8 +173,8 @@ RegisterServerEvent('shop:server:OpenPoliceArmory', function()
     if not char then return end
 
     -- Check if police
-    if char:GetData('Job') == 'police' and player.state.onDuty then
-        COMPONENTS.Inventory.Shop:Open(src, 'police_armory')
+    if Jobs.Permissions:HasJob(src, 'police') then
+        Inventory.Shop:Open(src, 'police_armory')
     else
         TriggerClientEvent('mythic-notifications:client:Send', src, {
             message = 'Police only',
@@ -220,7 +220,7 @@ Police search of player inventory (non-intrusive).
 
 **Syntax:**
 ```lua
-COMPONENTS.Inventory.Search:Character(source, targetSource, characterId)
+Inventory.Search:Character(source, targetSource, characterId)
 ```
 
 **Parameters:**
@@ -243,7 +243,7 @@ RegisterServerEvent('police:server:SearchPlayer', function(targetSource)
     if not char then return end
 
     -- Check if police and on duty
-    if char:GetData('Job') ~= 'police' or not player.state.onDuty then
+    if not Jobs.Permissions:HasJob(src, 'police') then
         return
     end
 
@@ -267,10 +267,10 @@ RegisterServerEvent('police:server:SearchPlayer', function(targetSource)
     end
 
     -- Search player (read-only)
-    COMPONENTS.Inventory.Search:Character(src, targetSource, targetChar:GetData('SID'))
+    Inventory.Search:Character(src, targetSource, targetChar:GetData('SID'))
 
     -- Log search
-    COMPONENTS.Logger:Info('Police', string.format('%s %s searched %s %s',
+    Logger:Info('Police', string.format('%s %s searched %s %s',
         char:GetData('First'), char:GetData('Last'),
         targetChar:GetData('First'), targetChar:GetData('Last')
     ), {
@@ -288,7 +288,7 @@ Rob a player's inventory (can take items).
 
 **Syntax:**
 ```lua
-COMPONENTS.Inventory:Rob(source, targetSource, characterId)
+Inventory:Rob(source, targetSource, characterId)
 ```
 
 **Parameters:**
@@ -335,7 +335,7 @@ RegisterServerEvent('crime:server:RobPlayer', function(targetSource)
     end
 
     -- Rob player
-    COMPONENTS.Inventory:Rob(src, targetSource, targetChar:GetData('SID'))
+    Inventory:Rob(src, targetSource, targetChar:GetData('SID'))
 
     -- Notify victim
     TriggerClientEvent('mythic-notifications:client:Send', targetSource, {
@@ -344,7 +344,7 @@ RegisterServerEvent('crime:server:RobPlayer', function(targetSource)
     })
 
     -- Log robbery
-    COMPONENTS.Logger:Info('Crime', string.format('%s %s robbed %s %s',
+    Logger:Info('Crime', string.format('%s %s robbed %s %s',
         char:GetData('First'), char:GetData('Last'),
         targetChar:GetData('First'), targetChar:GetData('Last')
     ), {
@@ -366,7 +366,7 @@ Create a dropzone for an item drop.
 
 **Syntax:**
 ```lua
-COMPONENTS.Inventory:CreateDropzone(routeId, coords)
+Inventory:CreateDropzone(routeId, coords)
 ```
 
 **Parameters:**
@@ -394,7 +394,7 @@ local function CreateDrugRoute(routeId)
     }
 
     for i, coords in ipairs(dropPoints) do
-        local dzId = COMPONENTS.Inventory:CreateDropzone(routeId, coords)
+        local dzId = Inventory:CreateDropzone(routeId, coords)
         table.insert(dropzones, {
             id = dzId,
             coords = coords,
@@ -425,7 +425,7 @@ Check if coordinates are near a dropzone.
 
 **Syntax:**
 ```lua
-COMPONENTS.Inventory:CheckDropZones(routeId, coords)
+Inventory:CheckDropZones(routeId, coords)
 ```
 
 **Parameters:**
@@ -447,7 +447,7 @@ RegisterServerEvent('drugs:server:CheckDrop', function()
     local ped = GetPlayerPed(src)
     local coords = GetEntityCoords(ped)
 
-    local dropzone = COMPONENTS.Inventory:CheckDropZones(src, coords)
+    local dropzone = Inventory:CheckDropZones(src, coords)
 
     if dropzone then
         -- Player is at dropzone
@@ -469,7 +469,7 @@ Remove a dropzone.
 
 **Syntax:**
 ```lua
-COMPONENTS.Inventory:RemoveDropzone(routeId, dropzoneId)
+Inventory:RemoveDropzone(routeId, dropzoneId)
 ```
 
 **Parameters:**
@@ -487,19 +487,19 @@ RegisterServerEvent('drugs:server:CompleteDelivery', function(dropzoneId)
     -- Check player is at dropzone
     local ped = GetPlayerPed(src)
     local coords = GetEntityCoords(ped)
-    local dropzone = COMPONENTS.Inventory:CheckDropZones(src, coords)
+    local dropzone = Inventory:CheckDropZones(src, coords)
 
     if dropzone and dropzone.id == dropzoneId then
         -- Remove dropzone
-        COMPONENTS.Inventory:RemoveDropzone(src, dropzoneId)
+        Inventory:RemoveDropzone(src, dropzoneId)
 
         -- Reward player
-        COMPONENTS.Characters:AddMoney(char:GetData('SID'), 'cash', 500)
+        local player = Fetch:Source(src)
+        local char = player:GetData('Character')
+        local currentCash = char:GetData('Cash')
+        char:SetData('Cash', currentCash + 500)
 
-        TriggerClientEvent('mythic-notifications:client:Send', src, {
-            message = 'Delivery complete +$500',
-            type = 'success'
-        })
+        Notification:Success(src, 'Delivery complete +$500')
     end
 end)
 ```
@@ -512,7 +512,7 @@ Check if a dropzone exists.
 
 **Syntax:**
 ```lua
-COMPONENTS.Inventory:DropExists(routeId, dropzoneId)
+Inventory:DropExists(routeId, dropzoneId)
 ```
 
 **Parameters:**
@@ -538,7 +538,7 @@ Create a polygon inventory zone.
 
 **Syntax:**
 ```lua
-COMPONENTS.Inventory.Poly:Create(data)
+Inventory.Poly:Create(data)
 ```
 
 **Parameters:**
@@ -568,7 +568,7 @@ COMPONENTS.Inventory.Poly:Create(data)
 **Example:**
 ```lua
 -- Server side - Create police armory zone
-COMPONENTS.Inventory.Poly:Create({
+Inventory.Poly:Create({
     id = 'police_armory',
     type = 'box',
     coords = vector3(450.50, -980.25, 30.69),
@@ -587,7 +587,7 @@ COMPONENTS.Inventory.Poly:Create({
 })
 
 -- Create gang stash zone
-COMPONENTS.Inventory.Poly:Create({
+Inventory.Poly:Create({
     id = 'ballas_stash',
     type = 'box',
     coords = vector3(100.0, 200.0, 20.0),
@@ -641,7 +641,7 @@ RegisterServerEvent('property:server:OpenStorage', function()
     -- Check if owner or has keys
     if property.owner == char:GetData('SID') or Properties:HasKeys(src, propertyId) then
         -- Open property stash
-        COMPONENTS.Inventory.Stash:Open(src, 13, string.format("property_%s", propertyId))
+        Inventory.Stash:Open(src, 13, string.format("property_%s", propertyId))
     else
         TriggerClientEvent('mythic-notifications:client:Send', src, {
             message = 'No access to this storage',
@@ -667,7 +667,7 @@ RegisterServerEvent('drugs:server:StartDelivery', function()
     if not char then return end
 
     -- Check has drugs
-    if not COMPONENTS.Inventory:HasItem(char:GetData('SID'), 'coke_brick', 1) then
+    if not Inventory.Items:Has(char:GetData('SID'), 1, 'coke_brick', 1) then
         TriggerClientEvent('mythic-notifications:client:Send', src, {
             message = 'Need cocaine brick to start',
             type = 'error'
@@ -685,7 +685,7 @@ RegisterServerEvent('drugs:server:StartDelivery', function()
 
     local dropzones = {}
     for i, coords in ipairs(dropPoints) do
-        local dzId = COMPONENTS.Inventory:CreateDropzone(routeId, coords)
+        local dzId = Inventory:CreateDropzone(routeId, coords)
         table.insert(dropzones, {
             id = dzId,
             coords = coords,
@@ -711,7 +711,7 @@ RegisterServerEvent('drugs:server:CompleteDrop', function(dropzoneId)
     -- Check at dropzone
     local ped = GetPlayerPed(src)
     local coords = GetEntityCoords(ped)
-    local dropzone = COMPONENTS.Inventory:CheckDropZones(src, coords)
+    local dropzone = Inventory:CheckDropZones(src, coords)
 
     if not dropzone or dropzone.id ~= dropzoneId then
         return
@@ -725,30 +725,26 @@ RegisterServerEvent('drugs:server:CompleteDrop', function(dropzoneId)
             ActiveRoutes[src].completed = ActiveRoutes[src].completed + 1
 
             -- Remove dropzone
-            COMPONENTS.Inventory:RemoveDropzone(src, dropzoneId)
+            Inventory:RemoveDropzone(src, dropzoneId)
 
             -- Reward
             local char = Fetch:Source(src):GetData('Character')
-            COMPONENTS.Characters:AddMoney(char:GetData('SID'), 'cash', dz.reward)
+            local currentCash = char:GetData('Cash')
+            char:SetData('Cash', currentCash + dz.reward)
 
-            TriggerClientEvent('mythic-notifications:client:Send', src, {
-                message = string.format('Drop complete +$%d (%d/%d)',
-                    dz.reward,
-                    ActiveRoutes[src].completed,
-                    ActiveRoutes[src].total
-                ),
-                type = 'success'
-            })
+            Notification:Success(src, string.format('Drop complete +$%d (%d/%d)',
+                dz.reward,
+                ActiveRoutes[src].completed,
+                ActiveRoutes[src].total
+            ))
 
             -- Check if all complete
             if ActiveRoutes[src].completed >= ActiveRoutes[src].total then
                 -- Bonus for completing all
-                COMPONENTS.Characters:AddMoney(char:GetData('SID'), 'cash', 1000)
+                local bonusCash = char:GetData('Cash')
+                char:SetData('Cash', bonusCash + 1000)
 
-                TriggerClientEvent('mythic-notifications:client:Send', src, {
-                    message = 'All deliveries complete! +$1000 bonus',
-                    type = 'success'
-                })
+                Notification:Success(src, 'All deliveries complete! +$1000 bonus')
 
                 ActiveRoutes[src] = nil
             end

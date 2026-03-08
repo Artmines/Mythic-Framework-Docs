@@ -8,7 +8,7 @@ The Notification component displays on-screen toast messages to provide feedback
 
 ## Overview
 
-Access via `COMPONENTS.Notification` (client-side only).
+Access via `Notification` (client-side only).
 
 <CardGroup cols={2}>
   <Card title="Multiple Types" icon="palette">
@@ -47,13 +47,13 @@ Display success message (green).
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification:Success('Item purchased')
+Notification:Success('Item purchased')
 
 -- With custom duration
-COMPONENTS.Notification:Success('Vehicle spawned', 5000)
+Notification:Success('Vehicle spawned', 5000)
 
 -- With icon
-COMPONENTS.Notification:Success('Money received', 3000, 'dollar-sign')
+Notification:Success('Money received', 3000, 'dollar-sign')
 ```
 
 ---
@@ -72,10 +72,10 @@ Display error message (red).
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification:Error('Insufficient funds')
+Notification:Error('Insufficient funds')
 
 -- With duration and icon
-COMPONENTS.Notification:Error('Action failed', 4000, 'triangle-exclamation')
+Notification:Error('Action failed', 4000, 'triangle-exclamation')
 ```
 
 ---
@@ -94,10 +94,10 @@ Display warning message (orange/yellow).
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification:Warn('Low on fuel')
+Notification:Warn('Low on fuel')
 
 -- With icon
-COMPONENTS.Notification:Warn('Health critical', 3000, 'heart')
+Notification:Warn('Health critical', 3000, 'heart')
 ```
 
 ---
@@ -116,10 +116,10 @@ Display info message (blue).
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification:Info('Server restart in 10 minutes')
+Notification:Info('Server restart in 10 minutes')
 
 -- With icon
-COMPONENTS.Notification:Info('New message received', 3000, 'envelope')
+Notification:Info('New message received', 3000, 'envelope')
 ```
 
 ---
@@ -138,10 +138,10 @@ Display neutral message (gray).
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification:Standard('Player connected')
+Notification:Standard('Player connected')
 
 -- With icon
-COMPONENTS.Notification:Standard('Position saved', 2000, 'floppy-disk')
+Notification:Standard('Position saved', 2000, 'floppy-disk')
 ```
 
 ---
@@ -161,7 +161,7 @@ Display notification with custom styling.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification:Custom(
+Notification:Custom(
     'Special Event Started!',
     5000,
     'star',
@@ -173,7 +173,7 @@ COMPONENTS.Notification:Custom(
 )
 
 -- VIP notification
-COMPONENTS.Notification:Custom(
+Notification:Custom(
     'VIP Bonus Applied',
     4000,
     'crown',
@@ -203,14 +203,14 @@ Persistent notifications stay on screen until manually dismissed. Useful for ong
 ```lua
 -- Client side
 -- Show persistent success
-COMPONENTS.Notification.Persistent:Success(
+Notification.Persistent:Success(
     'heist_active',
     'Heist in progress',
     'mask'
 )
 
 -- Remove it later
-COMPONENTS.Notification.Persistent:Remove('heist_active')
+Notification.Persistent:Remove('heist_active')
 ```
 
 ---
@@ -220,7 +220,7 @@ COMPONENTS.Notification.Persistent:Remove('heist_active')
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification.Persistent:Error(
+Notification.Persistent:Error(
     'wanted_level',
     'Wanted by police - Level 5',
     'star'
@@ -234,7 +234,7 @@ COMPONENTS.Notification.Persistent:Error(
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification.Persistent:Warn(
+Notification.Persistent:Warn(
     'low_fuel',
     'Fuel critically low',
     'gas-pump'
@@ -248,7 +248,7 @@ COMPONENTS.Notification.Persistent:Warn(
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification.Persistent:Info(
+Notification.Persistent:Info(
     'radio_connected',
     'Connected to Radio Ch. 1',
     'walkie-talkie'
@@ -262,7 +262,7 @@ COMPONENTS.Notification.Persistent:Info(
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification.Persistent:Standard(
+Notification.Persistent:Standard(
     'duty_status',
     'On Duty - LSPD',
     'shield'
@@ -284,7 +284,7 @@ COMPONENTS.Notification.Persistent:Standard(
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification.Persistent:Custom(
+Notification.Persistent:Custom(
     'racing',
     'Race in Progress - Lap 2/5',
     'flag-checkered',
@@ -309,7 +309,7 @@ Remove a persistent notification.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification.Persistent:Remove('heist_active')
+Notification.Persistent:Remove('heist_active')
 ```
 
 ---
@@ -326,7 +326,7 @@ Clear ALL notifications (temporary and persistent).
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Notification:Clear()
+Notification:Clear()
 ```
 
 ---
@@ -348,10 +348,10 @@ RegisterServerEvent('shop:server:Purchase', function(itemId, price)
 
     if money >= price then
         -- Remove money
-        COMPONENTS.Characters:RemoveMoney(char:GetData('SID'), 'cash', price)
+        char:SetData('Cash', money - price)
 
         -- Add item
-        COMPONENTS.Inventory:AddItem(char:GetData('SID'), itemId, 1, {}, 1)
+        Inventory:AddItem(char:GetData('SID'), itemId, 1, {}, 1)
 
         -- Send success notification to client
         TriggerClientEvent('mythic-notifications:client:Success', src,
@@ -365,11 +365,11 @@ end)
 
 -- Client side - Listen for server notifications
 RegisterNetEvent('mythic-notifications:client:Success', function(message, duration, icon)
-    COMPONENTS.Notification:Success(message, duration, icon)
+    Notification:Success(message, duration, icon)
 end)
 
 RegisterNetEvent('mythic-notifications:client:Error', function(message, duration, icon)
-    COMPONENTS.Notification:Error(message, duration, icon)
+    Notification:Error(message, duration, icon)
 end)
 ```
 
@@ -382,7 +382,7 @@ local currentWantedLevel = 0
 AddEventHandler('police:client:UpdateWantedLevel', function(level)
     -- Remove old notification
     if currentWantedLevel > 0 then
-        COMPONENTS.Notification.Persistent:Remove('wanted_level')
+        Notification.Persistent:Remove('wanted_level')
     end
 
     currentWantedLevel = level
@@ -396,7 +396,7 @@ AddEventHandler('police:client:UpdateWantedLevel', function(level)
             color = '#f97316' -- Orange
         end
 
-        COMPONENTS.Notification.Persistent:Custom(
+        Notification.Persistent:Custom(
             'wanted_level',
             string.format('Wanted Level: %d', level),
             'star',
@@ -422,7 +422,7 @@ AddEventHandler('racing:client:Start', function(laps)
     currentLap = 1
     totalLaps = laps
 
-    COMPONENTS.Notification.Persistent:Info(
+    Notification.Persistent:Info(
         'race_status',
         string.format('Race Started - Lap %d/%d', currentLap, totalLaps),
         'flag-checkered'
@@ -434,22 +434,22 @@ AddEventHandler('racing:client:Checkpoint', function()
 
     if currentLap <= totalLaps then
         -- Update lap counter
-        COMPONENTS.Notification.Persistent:Info(
+        Notification.Persistent:Info(
             'race_status',
             string.format('Lap %d/%d', currentLap, totalLaps),
             'flag-checkered'
         )
     else
         -- Race finished
-        COMPONENTS.Notification.Persistent:Remove('race_status')
-        COMPONENTS.Notification:Success('Race Completed!', 5000, 'trophy')
+        Notification.Persistent:Remove('race_status')
+        Notification:Success('Race Completed!', 5000, 'trophy')
         raceActive = false
     end
 end)
 
 AddEventHandler('racing:client:DNF', function()
-    COMPONENTS.Notification.Persistent:Remove('race_status')
-    COMPONENTS.Notification:Error('Race Failed - DNF', 4000)
+    Notification.Persistent:Remove('race_status')
+    Notification:Error('Race Failed - DNF', 4000)
     raceActive = false
 end)
 ```
@@ -473,7 +473,7 @@ CreateThread(function()
 
             if fuel <= 10 and not fuelWarningActive then
                 -- Show warning
-                COMPONENTS.Notification.Persistent:Warn(
+                Notification.Persistent:Warn(
                     'fuel_warning',
                     'Fuel critically low!',
                     'gas-pump'
@@ -481,12 +481,12 @@ CreateThread(function()
                 fuelWarningActive = true
             elseif fuel > 10 and fuelWarningActive then
                 -- Remove warning
-                COMPONENTS.Notification.Persistent:Remove('fuel_warning')
+                Notification.Persistent:Remove('fuel_warning')
                 fuelWarningActive = false
             end
         elseif fuelWarningActive then
             -- Player left vehicle
-            COMPONENTS.Notification.Persistent:Remove('fuel_warning')
+            Notification.Persistent:Remove('fuel_warning')
             fuelWarningActive = false
         end
     end
@@ -498,7 +498,7 @@ end)
 ```lua
 -- Client side
 AddEventHandler('heist:client:Start', function(heistName)
-    COMPONENTS.Notification.Persistent:Custom(
+    Notification.Persistent:Custom(
         'heist_active',
         heistName .. ' - In Progress',
         'mask',
@@ -511,7 +511,7 @@ AddEventHandler('heist:client:Start', function(heistName)
 end)
 
 AddEventHandler('heist:client:UpdateProgress', function(stage)
-    COMPONENTS.Notification.Persistent:Custom(
+    Notification.Persistent:Custom(
         'heist_active',
         'Heist - ' .. stage,
         'mask',
@@ -523,8 +523,8 @@ AddEventHandler('heist:client:UpdateProgress', function(stage)
 end)
 
 AddEventHandler('heist:client:Complete', function(payout)
-    COMPONENTS.Notification.Persistent:Remove('heist_active')
-    COMPONENTS.Notification:Success(
+    Notification.Persistent:Remove('heist_active')
+    Notification:Success(
         string.format('Heist Complete! Earned $%s', FormatMoney(payout)),
         6000,
         'sack-dollar'
@@ -532,8 +532,8 @@ AddEventHandler('heist:client:Complete', function(payout)
 end)
 
 AddEventHandler('heist:client:Failed', function(reason)
-    COMPONENTS.Notification.Persistent:Remove('heist_active')
-    COMPONENTS.Notification:Error('Heist Failed - ' .. reason, 5000)
+    Notification.Persistent:Remove('heist_active')
+    Notification:Error('Heist Failed - ' .. reason, 5000)
 end)
 ```
 
@@ -594,48 +594,48 @@ Common Font Awesome icon names:
 
 ```lua
 -- ✅ GOOD - Use correct types
-COMPONENTS.Notification:Success('Item crafted')  -- Green for success
-COMPONENTS.Notification:Error('No permission')   -- Red for errors
-COMPONENTS.Notification:Warn('Low health')       -- Orange for warnings
-COMPONENTS.Notification:Info('Tip: Press E')     -- Blue for info
+Notification:Success('Item crafted')  -- Green for success
+Notification:Error('No permission')   -- Red for errors
+Notification:Warn('Low health')       -- Orange for warnings
+Notification:Info('Tip: Press E')     -- Blue for info
 
 -- ❌ BAD - Wrong types
-COMPONENTS.Notification:Success('Error occurred')  -- Don't use success for errors
-COMPONENTS.Notification:Error('Purchase complete') -- Don't use error for success
+Notification:Success('Error occurred')  -- Don't use success for errors
+Notification:Error('Purchase complete') -- Don't use error for success
 ```
 
 ### Duration Guidelines
 
 ```lua
 -- Short messages (default 2.5s is fine)
-COMPONENTS.Notification:Success('Saved')
+Notification:Success('Saved')
 
 -- Medium messages (3-4s)
-COMPONENTS.Notification:Info('New GPS waypoint set to destination', 3500)
+Notification:Info('New GPS waypoint set to destination', 3500)
 
 -- Long messages (5-6s)
-COMPONENTS.Notification:Warn('You are entering a dangerous area. Be careful!', 5000)
+Notification:Warn('You are entering a dangerous area. Be careful!', 5000)
 
 // ❌ BAD - Too short for long message
-COMPONENTS.Notification:Info('This is a very long notification message that players need time to read', 1000)
+Notification:Info('This is a very long notification message that players need time to read', 1000)
 
 // ❌ BAD - Too long for short message
-COMPONENTS.Notification:Success('OK', 10000)
+Notification:Success('OK', 10000)
 ```
 
 ### Persistent Notifications
 
 ```lua
 // ✅ GOOD - Use for ongoing status
-COMPONENTS.Notification.Persistent:Info('race_active', 'Race Active')
-COMPONENTS.Notification.Persistent:Warn('wanted', 'Wanted Level: 3')
+Notification.Persistent:Info('race_active', 'Race Active')
+Notification.Persistent:Warn('wanted', 'Wanted Level: 3')
 
 // ❌ BAD - Don't use for one-time events
-COMPONENTS.Notification.Persistent:Success('item_bought', 'Item purchased')  // Use standard Success instead
+Notification.Persistent:Success('item_bought', 'Item purchased')  // Use standard Success instead
 
 // ✅ GOOD - Always clean up
 AddEventHandler('race:client:End', function()
-    COMPONENTS.Notification.Persistent:Remove('race_active')
+    Notification.Persistent:Remove('race_active')
 end)
 ```
 

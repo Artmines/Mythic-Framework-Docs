@@ -8,7 +8,7 @@ The Banking component manages player bank accounts, balance operations, and tran
 
 ## Overview
 
-Access via `COMPONENTS.Banking` (server-side only).
+Access via `Banking` (server-side only).
 
 <CardGroup cols={2}>
   <Card title="Account Types" icon="wallet">
@@ -38,7 +38,7 @@ Access via `COMPONENTS.Banking` (server-side only).
 Get an account by its account number.
 
 ```lua
-COMPONENTS.Banking.Accounts:Get(accountNumber)
+Banking.Accounts:Get(accountNumber)
 ```
 
 <ParamField path="accountNumber" type="string" required>
@@ -52,7 +52,7 @@ COMPONENTS.Banking.Accounts:Get(accountNumber)
 **Example:**
 
 ```lua
-local account = COMPONENTS.Banking.Accounts:Get("1234567890")
+local account = Banking.Accounts:Get("1234567890")
 
 if account then
     print('Account:', account.Account)
@@ -68,7 +68,7 @@ end
 Creates or retrieves an existing personal checking account for a character. New accounts start with $5,000.
 
 ```lua
-COMPONENTS.Banking.Accounts:CreatePersonal(ownerSID)
+Banking.Accounts:CreatePersonal(ownerSID)
 ```
 
 <ParamField path="ownerSID" type="number" required>
@@ -84,9 +84,9 @@ COMPONENTS.Banking.Accounts:CreatePersonal(ownerSID)
 ```lua
 -- During character creation
 AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
-    local account = COMPONENTS.Banking.Accounts:CreatePersonal(character.SID)
+    local account = Banking.Accounts:CreatePersonal(character.SID)
 
-    COMPONENTS.Logger:Info('Finance', 'Personal account created', {
+    Logger:Info('Finance', 'Personal account created', {
         console = true,
         file = true
     }, {
@@ -103,7 +103,7 @@ end)
 Retrieves an existing personal checking account.
 
 ```lua
-COMPONENTS.Banking.Accounts:GetPersonal(ownerSID)
+Banking.Accounts:GetPersonal(ownerSID)
 ```
 
 <ParamField path="ownerSID" type="number" required>
@@ -121,7 +121,7 @@ local player = Fetch:Source(source)
 local char = player:GetData('Character')
 local stateId = char:GetData('SID')
 
-local account = COMPONENTS.Banking.Accounts:GetPersonal(stateId)
+local account = Banking.Accounts:GetPersonal(stateId)
 
 if account then
     print('Balance: $' .. account.Balance)
@@ -135,7 +135,7 @@ end
 Creates a personal savings account with optional joint owners.
 
 ```lua
-COMPONENTS.Banking.Accounts:CreatePersonalSavings(ownerSID, jointOwners)
+Banking.Accounts:CreatePersonalSavings(ownerSID, jointOwners)
 ```
 
 <ParamField path="ownerSID" type="number" required>
@@ -150,7 +150,7 @@ COMPONENTS.Banking.Accounts:CreatePersonalSavings(ownerSID, jointOwners)
 
 ```lua
 -- Create savings with a joint owner
-local savings = COMPONENTS.Banking.Accounts:CreatePersonalSavings(char:GetData('SID'), { partnerSID })
+local savings = Banking.Accounts:CreatePersonalSavings(char:GetData('SID'), { partnerSID })
 ```
 
 ---
@@ -160,7 +160,7 @@ local savings = COMPONENTS.Banking.Accounts:CreatePersonalSavings(char:GetData('
 Gets all savings accounts a character owns or has joint access to.
 
 ```lua
-COMPONENTS.Banking.Accounts:GetPersonalSavings(SID)
+Banking.Accounts:GetPersonalSavings(SID)
 ```
 
 <ParamField path="SID" type="number" required>
@@ -178,7 +178,7 @@ COMPONENTS.Banking.Accounts:GetPersonalSavings(SID)
 Adds a joint owner to a savings account.
 
 ```lua
-COMPONENTS.Banking.Accounts:AddPersonalSavingsJointOwner(accountId, jointOwnerSID)
+Banking.Accounts:AddPersonalSavingsJointOwner(accountId, jointOwnerSID)
 ```
 
 <ParamField path="accountId" type="string" required>
@@ -196,7 +196,7 @@ COMPONENTS.Banking.Accounts:AddPersonalSavingsJointOwner(accountId, jointOwnerSI
 Removes a joint owner from a savings account.
 
 ```lua
-COMPONENTS.Banking.Accounts:RemovePersonalSavingsJointOwner(accountId, jointOwnerSID)
+Banking.Accounts:RemovePersonalSavingsJointOwner(accountId, jointOwnerSID)
 ```
 
 ---
@@ -206,7 +206,7 @@ COMPONENTS.Banking.Accounts:RemovePersonalSavingsJointOwner(accountId, jointOwne
 Creates an organization (business/government) bank account.
 
 ```lua
-COMPONENTS.Banking.Accounts:CreateOrganization(accountId, accountName, startingBalance, jobAccess)
+Banking.Accounts:CreateOrganization(accountId, accountName, startingBalance, jobAccess)
 ```
 
 <ParamField path="accountId" type="string" required>
@@ -228,20 +228,26 @@ COMPONENTS.Banking.Accounts:CreateOrganization(accountId, accountName, startingB
 **Example:**
 
 ```lua
--- Create police department account
-COMPONENTS.Banking.Accounts:CreateOrganization('police_dept', 'LSPD Department Fund', 100000, {
+-- Create police department account with default permissions
+Banking.Accounts:CreateOrganization('police-lspd', 'LSPD Account', 100000, {
     {
-        job = 'police',
-        workplace = 'lspd',
-        permissions = {
-            WITHDRAW = 3,    -- Grade 3+ can withdraw
-            DEPOSIT = 1,     -- Grade 1+ can deposit
-            TRANSFER = 4,    -- Grade 4+ can transfer
-            BILL = 2         -- Grade 2+ can bill
+        Job = 'police',
+        Workplace = 'lspd',
+        Permissions = {
+            MANAGE = 'BANK_ACCOUNT_MANAGE',
+            WITHDRAW = 'BANK_ACCOUNT_WITHDRAW',
+            DEPOSIT = 'BANK_ACCOUNT_DEPOSIT',
+            TRANSACTIONS = 'BANK_ACCOUNT_TRANSACTIONS',
+            BILL = 'BANK_ACCOUNT_BILL',
+            BALANCE = 'BANK_ACCOUNT_BALANCE',
         }
     }
 })
 ```
+
+<Note>
+Permission values are **job permission strings** (not grade numbers). The system checks if the player's job has the specified permission via `Jobs.Permissions:HasJob`. Use strings like `'BANK_ACCOUNT_WITHDRAW'` which map to job permission definitions.
+</Note>
 
 ---
 
@@ -250,7 +256,7 @@ COMPONENTS.Banking.Accounts:CreateOrganization('police_dept', 'LSPD Department F
 Retrieves an organization account.
 
 ```lua
-COMPONENTS.Banking.Accounts:GetOrganization(accountId)
+Banking.Accounts:GetOrganization(accountId)
 ```
 
 ---
@@ -260,7 +266,7 @@ COMPONENTS.Banking.Accounts:GetOrganization(accountId)
 Adds job access to an existing organization account.
 
 ```lua
-COMPONENTS.Banking.Accounts:AddOrganizationAccessingJob(job, workplace, permissionSettings)
+Banking.Accounts:AddOrganizationAccessingJob(job, workplace, permissionSettings)
 ```
 
 ---
@@ -270,7 +276,7 @@ COMPONENTS.Banking.Accounts:AddOrganizationAccessingJob(job, workplace, permissi
 Removes job access from an organization account.
 
 ```lua
-COMPONENTS.Banking.Accounts:RemoveOrganizationAccessingJob(job, workplace)
+Banking.Accounts:RemoveOrganizationAccessingJob(job, workplace)
 ```
 
 ---
@@ -282,7 +288,7 @@ COMPONENTS.Banking.Accounts:RemoveOrganizationAccessingJob(job, workplace)
 Get the current balance of an account.
 
 ```lua
-COMPONENTS.Banking.Balance:Get(accountNumber)
+Banking.Balance:Get(accountNumber)
 ```
 
 <ParamField path="accountNumber" type="string" required>
@@ -296,7 +302,7 @@ COMPONENTS.Banking.Balance:Get(accountNumber)
 **Example:**
 
 ```lua
-local balance = COMPONENTS.Banking.Balance:Get("1234567890")
+local balance = Banking.Balance:Get("1234567890")
 print('Current balance: $' .. balance)
 ```
 
@@ -307,7 +313,7 @@ print('Current balance: $' .. balance)
 Check if an account has sufficient funds.
 
 ```lua
-COMPONENTS.Banking.Balance:Has(accountNumber, amount)
+Banking.Balance:Has(accountNumber, amount)
 ```
 
 <ParamField path="accountNumber" type="string" required>
@@ -325,7 +331,7 @@ COMPONENTS.Banking.Balance:Has(accountNumber, amount)
 **Example:**
 
 ```lua
-if COMPONENTS.Banking.Balance:Has(account.Account, 5000) then
+if Banking.Balance:Has(account.Account, 5000) then
     -- Player can afford it
 else
     TriggerClientEvent('mythic-notifications:client:Send', source, {
@@ -342,7 +348,7 @@ end
 Deposit funds into an account.
 
 ```lua
-COMPONENTS.Banking.Balance:Deposit(accountNumber, amount, transactionLog, skipPhoneNoti)
+Banking.Balance:Deposit(accountNumber, amount, transactionLog, skipPhoneNoti)
 ```
 
 <ParamField path="accountNumber" type="string" required>
@@ -370,9 +376,9 @@ COMPONENTS.Banking.Balance:Deposit(accountNumber, amount, transactionLog, skipPh
 ```lua
 local player = Fetch:Source(source)
 local char = player:GetData('Character')
-local account = COMPONENTS.Banking.Accounts:GetPersonal(char:GetData('SID'))
+local account = Banking.Accounts:GetPersonal(char:GetData('SID'))
 
-local newBalance = COMPONENTS.Banking.Balance:Deposit(account.Account, 5000, {
+local newBalance = Banking.Balance:Deposit(account.Account, 5000, {
     type = 'deposit',
     title = 'Paycheck',
     description = 'Weekly salary payment',
@@ -388,7 +394,7 @@ local newBalance = COMPONENTS.Banking.Balance:Deposit(account.Account, 5000, {
 Withdraw funds from an account.
 
 ```lua
-COMPONENTS.Banking.Balance:Withdraw(accountNumber, amount, transactionLog)
+Banking.Balance:Withdraw(accountNumber, amount, transactionLog)
 ```
 
 <ParamField path="accountNumber" type="string" required>
@@ -418,7 +424,7 @@ COMPONENTS.Banking.Balance:Withdraw(accountNumber, amount, transactionLog)
 Withdraw funds only if the account has sufficient balance.
 
 ```lua
-COMPONENTS.Banking.Balance:Charge(accountNumber, amount, transactionLog)
+Banking.Balance:Charge(accountNumber, amount, transactionLog)
 ```
 
 <ParamField path="accountNumber" type="string" required>
@@ -440,7 +446,7 @@ COMPONENTS.Banking.Balance:Charge(accountNumber, amount, transactionLog)
 **Example:**
 
 ```lua
-local result = COMPONENTS.Banking.Balance:Charge(account.Account, 2500, {
+local result = Banking.Balance:Charge(account.Account, 2500, {
     type = 'withdraw',
     title = 'Vehicle Purchase',
     description = 'Bought Elegy RH8',
@@ -471,7 +477,7 @@ end
 Record a transaction in the account's history.
 
 ```lua
-COMPONENTS.Banking.TransactionLogs:Add(accountNumber, type, amount, title, description, transactionAccount, data)
+Banking.TransactionLogs:Add(accountNumber, type, amount, title, description, transactionAccount, data)
 ```
 
 <ParamField path="accountNumber" type="string" required>
@@ -509,7 +515,7 @@ COMPONENTS.Banking.TransactionLogs:Add(accountNumber, type, amount, title, descr
 Get transaction history for an account.
 
 ```lua
-COMPONENTS.Banking.TransactionLogs:Get(accountNumber)
+Banking.TransactionLogs:Get(accountNumber)
 ```
 
 <ParamField path="accountNumber" type="string" required>
@@ -517,7 +523,7 @@ COMPONENTS.Banking.TransactionLogs:Get(accountNumber)
 </ParamField>
 
 <ResponseField name="transactions" type="table">
-  Array of transaction records (max 80, sorted by timestamp descending)
+  Array of transaction records for the account
 </ResponseField>
 
 ---
@@ -571,7 +577,7 @@ COMPONENTS.Banking.TransactionLogs:Get(accountNumber)
   <Accordion title="Always Use Charge for Purchases" icon="shield-check">
     ```lua
     -- ✅ Good: Charge checks balance automatically
-    local result = COMPONENTS.Banking.Balance:Charge(account.Account, price, {
+    local result = Banking.Balance:Charge(account.Account, price, {
         type = 'withdraw',
         title = 'Shop Purchase',
         description = itemName,
@@ -584,14 +590,14 @@ COMPONENTS.Banking.TransactionLogs:Get(accountNumber)
     end
 
     -- ❌ Bad: Withdraw without checking
-    COMPONENTS.Banking.Balance:Withdraw(account.Account, price, transactionLog)
+    Banking.Balance:Withdraw(account.Account, price, transactionLog)
     ```
   </Accordion>
 
   <Accordion title="Log All Transactions" icon="receipt">
     ```lua
     -- Always provide meaningful transaction logs
-    COMPONENTS.Banking.Balance:Deposit(account.Account, amount, {
+    Banking.Balance:Deposit(account.Account, amount, {
         type = 'deposit',
         title = 'Job Payment',
         description = string.format('Payment for %s work', jobLabel),
@@ -612,7 +618,7 @@ COMPONENTS.Banking.TransactionLogs:Get(accountNumber)
     local char = player:GetData('Character')
     if not char then return end
 
-    local account = COMPONENTS.Banking.Accounts:GetPersonal(char:GetData('SID'))
+    local account = Banking.Accounts:GetPersonal(char:GetData('SID'))
     if not account then return end
 
     -- Safe to use account
@@ -625,8 +631,8 @@ COMPONENTS.Banking.TransactionLogs:Get(accountNumber)
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Finance - Billing" icon="file-invoice-dollar" href="/api/finance/billing">
-    Bill creation and payment
+  <Card title="Finance - Payments" icon="money-bill-transfer" href="/api/finance/payments">
+    Cash, bills, fines, and charges
   </Card>
   <Card title="Finance - Crypto" icon="bitcoin-sign" href="/api/finance/crypto">
     Cryptocurrency system

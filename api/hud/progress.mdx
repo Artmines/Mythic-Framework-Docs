@@ -8,7 +8,7 @@ The Progress component displays progress bars for timed actions like crafting, l
 
 ## Overview
 
-Access via `COMPONENTS.Progress` (client-side only).
+Access via `Progress` (client-side only).
 
 <CardGroup cols={2}>
   <Card title="Visual Feedback" icon="clock">
@@ -46,7 +46,7 @@ Simple progress bar with callback.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Progress:Progress({
+Progress:Progress({
     name = 'eating_food',
     duration = 5000, -- 5 seconds
     label = 'Eating...',
@@ -279,7 +279,7 @@ Execute code when progress starts.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Progress:ProgressWithStartEvent({
+Progress:ProgressWithStartEvent({
     name = 'lockpicking',
     duration = 10000,
     label = 'Lockpicking...',
@@ -320,7 +320,7 @@ Execute code repeatedly during progress.
 -- Client side
 local searchProgress = 0
 
-COMPONENTS.Progress:ProgressWithTickEvent({
+Progress:ProgressWithTickEvent({
     name = 'searching',
     duration = 15000,
     label = 'Searching...',
@@ -368,7 +368,7 @@ Combine start and tick events.
 -- Client side
 local hackAttempts = 0
 
-COMPONENTS.Progress:ProgressWithStartAndTick({
+Progress:ProgressWithStartAndTick({
     name = 'hacking',
     duration = 20000,
     label = 'Hacking...',
@@ -418,7 +418,7 @@ Get current active action name.
 **Example:**
 ```lua
 -- Client side
-local currentAction = COMPONENTS.Progress:CurrentAction()
+local currentAction = Progress:CurrentAction()
 
 if currentAction then
     print('Currently doing:', currentAction)
@@ -442,10 +442,10 @@ Cancel current progress (if allowed).
 ```lua
 -- Client side
 -- Player pressed cancel keybind (auto-called)
-COMPONENTS.Progress:Cancel()
+Progress:Cancel()
 
 -- Force cancel (admin, server-side request)
-COMPONENTS.Progress:Cancel(true)
+Progress:Cancel(true)
 ```
 
 ---
@@ -464,9 +464,9 @@ Immediately fail the current progress.
 -- Client side
 -- Fail if player loses required item mid-action
 AddEventHandler('Inventory:Client:ItemRemoved', function(item)
-    local action = COMPONENTS.Progress:CurrentAction()
+    local action = Progress:CurrentAction()
     if action == 'using_lockpick' and item.name == 'lockpick' then
-        COMPONENTS.Progress:Fail()
+        Progress:Fail()
     end
 end)
 ```
@@ -485,7 +485,7 @@ Immediately complete the current progress.
 **Example:**
 ```lua
 -- Client side (rarely used - usually let it finish naturally)
-COMPONENTS.Progress:Finish()
+Progress:Finish()
 ```
 
 ---
@@ -509,7 +509,7 @@ Apply speed modifier to progress bars.
 ```lua
 -- Client side
 -- Speed buff (50% faster for 5 minutes)
-if COMPONENTS.Progress:Modifier(150, 300000) then
+if Progress:Modifier(150, 300000) then
     print('Speed boost applied!')
     TriggerEvent('mythic-notifications:client:Send', {
         message = 'You feel energized (+50% action speed)',
@@ -520,7 +520,7 @@ else
 end
 
 -- Slow debuff (50% slower for 30 seconds)
-if COMPONENTS.Progress:Modifier(50, 30000) then
+if Progress:Modifier(50, 30000) then
     print('Slowed!')
 end
 ```
@@ -539,14 +539,14 @@ end
 ```lua
 -- Client side
 AddEventHandler('crafting:client:CraftItem', function(recipe)
-    local hasItems = COMPONENTS.Inventory.Check.Player:HasItems(recipe.materials)
+    local hasItems = Inventory.Check.Player:HasItems(recipe.materials)
 
     if not hasItems then
-        COMPONENTS.Notification:Error('Missing materials')
+        Notification:Error('Missing materials')
         return
     end
 
-    COMPONENTS.Progress:Progress({
+    Progress:Progress({
         name = 'crafting_' .. recipe.result,
         duration = recipe.time * 1000,
         label = 'Crafting ' .. recipe.label .. '...',
@@ -579,14 +579,14 @@ end)
 ```lua
 -- Client side
 AddEventHandler('lockpick:client:Start', function(doorId)
-    if not COMPONENTS.Inventory.Check.Player:HasItem('lockpick', 1) then
-        COMPONENTS.Notification:Error('Need a lockpick')
+    if not Inventory.Check.Player:HasItem('lockpick', 1) then
+        Notification:Error('Need a lockpick')
         return
     end
 
     local successChance = math.random(100)
 
-    COMPONENTS.Progress:ProgressWithTickEvent({
+    Progress:ProgressWithTickEvent({
         name = 'lockpicking_door',
         duration = 15000,
         label = 'Lockpicking...',
@@ -605,11 +605,11 @@ AddEventHandler('lockpick:client:Start', function(doorId)
     }, function()
         -- Tick - chance to break lockpick
         if math.random(100) <= 10 then
-            COMPONENTS.Notification:Warn('Lockpick slipped!')
+            Notification:Warn('Lockpick slipped!')
             if math.random(100) <= 30 then
                 -- Break lockpick
                 TriggerServerEvent('lockpick:server:Break')
-                COMPONENTS.Progress:Fail()
+                Progress:Fail()
             end
         end
     end, function(cancelled)
@@ -617,10 +617,10 @@ AddEventHandler('lockpick:client:Start', function(doorId)
             -- Check success
             if successChance <= 60 then
                 TriggerServerEvent('doors:server:Unlock', doorId)
-                COMPONENTS.Notification:Success('Door unlocked')
+                Notification:Success('Door unlocked')
             else
                 TriggerServerEvent('lockpick:server:Break')
-                COMPONENTS.Notification:Error('Lockpick failed')
+                Notification:Error('Lockpick failed')
             end
         end
     end)
@@ -636,11 +636,11 @@ AddEventHandler('ems:client:Revive', function(targetId)
     local distance = #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(targetPed))
 
     if distance > 3.0 then
-        COMPONENTS.Notification:Error('Too far away')
+        Notification:Error('Too far away')
         return
     end
 
-    COMPONENTS.Progress:Progress({
+    Progress:Progress({
         name = 'reviving_player',
         duration = 10000,
         label = 'Reviving patient...',
@@ -668,7 +668,7 @@ AddEventHandler('ems:client:Revive', function(targetId)
             if newDist <= 3.0 then
                 TriggerServerEvent('ems:server:RevivePlayer', targetId)
             else
-                COMPONENTS.Notification:Error('Patient moved too far')
+                Notification:Error('Patient moved too far')
             end
         end
     end)
@@ -699,14 +699,24 @@ AddEventHandler('crafting:server:Complete', function(recipeId)
     local recipe = GetRecipe(recipeId)
 
     -- Verify player still has materials
-    if COMPONENTS.Inventory:HasItems(char:GetData('SID'), recipe.materials) then
+    local stateId = char:GetData('SID')
+    -- Check all materials
+    local hasMaterials = true
+    for _, mat in ipairs(recipe.materials) do
+        if not Inventory.Items:Has(stateId, 1, mat.item, mat.count) then
+            hasMaterials = false
+            break
+        end
+    end
+
+    if hasMaterials then
         -- Remove materials
         for _, mat in ipairs(recipe.materials) do
-            COMPONENTS.Inventory:RemoveItem(char:GetData('SID'), mat.item, mat.count, 1)
+            Inventory.Items:Remove(stateId, 1, mat.item, mat.count)
         end
 
         -- Give result
-        COMPONENTS.Inventory:AddItem(char:GetData('SID'), recipe.result, 1, {}, 1)
+        Inventory:AddItem(stateId, recipe.result, 1)
     end
 end)
 ```
@@ -717,7 +727,7 @@ end)
 -- Check distance before AND after progress
 local startCoords = GetEntityCoords(PlayerPedId())
 
-COMPONENTS.Progress:Progress({
+Progress:Progress({
     -- ... config
 }, function(cancelled)
     if not cancelled then
@@ -725,7 +735,7 @@ COMPONENTS.Progress:Progress({
         local distance = #(startCoords - endCoords)
 
         if distance > 5.0 then
-            COMPONENTS.Notification:Error('You moved too far')
+            Notification:Error('You moved too far')
             return
         end
 

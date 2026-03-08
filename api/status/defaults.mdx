@@ -53,21 +53,18 @@ Hunger decreases passively on a tick. The rate depends on activity level.
 
 ```lua
 -- Server-side: Feed the player
-COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 30)
+Status.Modify:Add(source, 'PLAYER_HUNGER', 30)
 
 -- Consumable item handler
 AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
     if itemName == 'sandwich' then
-        COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
-        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+        Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
+        Inventory.Items:Remove(characterId, 1, 'sandwich', 1)
 
-        TriggerClientEvent('mythic-notifications:client:Send', source, {
-            message = 'You ate a sandwich',
-            type = 'success'
-        })
+        Notification:Success(source, 'You ate a sandwich')
     elseif itemName == 'burger' then
-        COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 40)
-        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+        Status.Modify:Add(source, 'PLAYER_HUNGER', 40)
+        Inventory.Items:Remove(characterId, 1, 'burger', 1)
     end
 end)
 ```
@@ -98,12 +95,12 @@ The thirst status depletes passively. Low thirst restricts movement and causes v
 ```lua
 AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
     if itemName == 'water' then
-        COMPONENTS.Status.Modify:Add(source, 'PLAYER_THIRST', 35)
-        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+        Status.Modify:Add(source, 'PLAYER_THIRST', 35)
+        Inventory.Items:Remove(characterId, 1, itemName, 1)
     elseif itemName == 'cola' then
-        COMPONENTS.Status.Modify:Add(source, 'PLAYER_THIRST', 20)
-        COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 5)  -- Cola gives slight hunger
-        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+        Status.Modify:Add(source, 'PLAYER_THIRST', 20)
+        Status.Modify:Add(source, 'PLAYER_HUNGER', 5)  -- Cola gives slight hunger
+        Inventory.Items:Remove(characterId, 1, itemName, 1)
     end
 end)
 ```
@@ -138,13 +135,13 @@ Stress increases from various gameplay events. Common sources:
 ```lua
 -- Getting shot at increases stress
 AddEventHandler('mythic-damage:server:PlayerDamaged', function(source, damage)
-    COMPONENTS.Status.Modify:Add(source, 'PLAYER_STRESS', 10)
+    Status.Modify:Add(source, 'PLAYER_STRESS', 10)
 end)
 
 -- Car crash increases stress
 AddEventHandler('mythic-vehicles:server:Crash', function(source, speed)
     local stressAmount = math.min(math.floor(speed / 10), 20)
-    COMPONENTS.Status.Modify:Add(source, 'PLAYER_STRESS', stressAmount)
+    Status.Modify:Add(source, 'PLAYER_STRESS', stressAmount)
 end)
 ```
 
@@ -154,8 +151,8 @@ end)
 -- Smoking reduces stress
 AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
     if itemName == 'cigarette' then
-        COMPONENTS.Status.Modify:Remove(source, 'PLAYER_STRESS', 15)
-        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+        Status.Modify:Remove(source, 'PLAYER_STRESS', 15)
+        Inventory.Items:Remove(characterId, 1, itemName, 1)
     end
 end)
 ```
@@ -193,11 +190,11 @@ Drunk is an **inverted** status — 0 means sober, 100 means completely intoxica
 ```lua
 AddEventHandler('mythic-inventory:server:ItemUsed', function(source, characterId, itemName, slot, metadata)
     if itemName == 'beer' then
-        COMPONENTS.Status.Modify:Add(source, 'PLAYER_DRUNK', 15)
-        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+        Status.Modify:Add(source, 'PLAYER_DRUNK', 15)
+        Inventory.Items:Remove(characterId, 1, itemName, 1)
     elseif itemName == 'whiskey' then
-        COMPONENTS.Status.Modify:Add(source, 'PLAYER_DRUNK', 30)
-        COMPONENTS.Inventory:RemoveItem(characterId, slot, 1)
+        Status.Modify:Add(source, 'PLAYER_DRUNK', 30)
+        Inventory.Items:Remove(characterId, 1, itemName, 1)
     end
 end)
 ```
@@ -238,14 +235,14 @@ You can register your own statuses following the same pattern:
 
 ```lua
 -- Server-side registration
-COMPONENTS.Status:Register('PLAYER_ENERGY', 100, 'bolt', function(source, value)
+Status:Register('PLAYER_ENERGY', 100, 'bolt', function(source, value)
     -- Tick logic
 end, function(source, change)
     -- Modify logic
 end)
 
 -- Client-side registration with HUD
-COMPONENTS.Status:Register('PLAYER_ENERGY', 100, 'bolt', '#FFD700', true, function(change, force)
+Status:Register('PLAYER_ENERGY', 100, 'bolt', '#FFD700', true, function(change, force)
     -- Modify callback
 end, {
     id = 5,

@@ -8,7 +8,7 @@ The Status component manages player statuses like hunger, thirst, stress, and dr
 
 ## Overview
 
-Access via `COMPONENTS.Status` on both server and client.
+Access via `Status` on both server and client.
 
 <CardGroup cols={2}>
   <Card title="Built-in Statuses" icon="drumstick-bite">
@@ -38,7 +38,7 @@ Access via `COMPONENTS.Status` on both server and client.
 Register a status type on the server.
 
 ```lua
-COMPONENTS.Status:Register(name, max, icon, tick, modify)
+Status:Register(name, max, icon, tick, modify)
 ```
 
 <ParamField path="name" type="string" required>
@@ -68,7 +68,7 @@ COMPONENTS.Status:Register(name, max, icon, tick, modify)
 Get all registered status definitions.
 
 ```lua
-COMPONENTS.Status.Get:All()
+Status.Get:All()
 ```
 
 <ResponseField name="statuses" type="table">
@@ -82,7 +82,7 @@ COMPONENTS.Status.Get:All()
 Get a single status definition.
 
 ```lua
-COMPONENTS.Status.Get:Single(name)
+Status.Get:Single(name)
 ```
 
 <ParamField path="name" type="string" required>
@@ -96,7 +96,7 @@ COMPONENTS.Status.Get:Single(name)
 Set a status value for a player and sync to client.
 
 ```lua
-COMPONENTS.Status:Set(source, name, value)
+Status:Set(source, name, value)
 ```
 
 <ParamField path="source" type="number" required>
@@ -115,10 +115,10 @@ COMPONENTS.Status:Set(source, name, value)
 
 ```lua
 -- Reset a player's hunger to full
-COMPONENTS.Status:Set(source, 'PLAYER_HUNGER', 100)
+Status:Set(source, 'PLAYER_HUNGER', 100)
 
 -- Set stress to zero
-COMPONENTS.Status:Set(source, 'PLAYER_STRESS', 0)
+Status:Set(source, 'PLAYER_STRESS', 0)
 ```
 
 ---
@@ -128,7 +128,7 @@ COMPONENTS.Status:Set(source, 'PLAYER_STRESS', 0)
 Add to a status value via client callback.
 
 ```lua
-COMPONENTS.Status.Modify:Add(source, name, value, addCd, isForced)
+Status.Modify:Add(source, name, value, addCd, isForced)
 ```
 
 <ParamField path="source" type="number" required>
@@ -155,10 +155,10 @@ COMPONENTS.Status.Modify:Add(source, name, value, addCd, isForced)
 
 ```lua
 -- Feed the player (restore hunger)
-COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
+Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
 
 -- Hydrate the player
-COMPONENTS.Status.Modify:Add(source, 'PLAYER_THIRST', 30)
+Status.Modify:Add(source, 'PLAYER_THIRST', 30)
 ```
 
 ---
@@ -168,17 +168,17 @@ COMPONENTS.Status.Modify:Add(source, 'PLAYER_THIRST', 30)
 Remove from a status value via client callback.
 
 ```lua
-COMPONENTS.Status.Modify:Remove(source, name, value, addCd, isForced)
+Status.Modify:Remove(source, name, value, addCd, isForced)
 ```
 
 **Example:**
 
 ```lua
 -- Add stress
-COMPONENTS.Status.Modify:Remove(source, 'PLAYER_STRESS', 15)
+Status.Modify:Remove(source, 'PLAYER_STRESS', 15)
 
 -- Sober up
-COMPONENTS.Status.Modify:Remove(source, 'PLAYER_DRUNK', 20)
+Status.Modify:Remove(source, 'PLAYER_DRUNK', 20)
 ```
 
 <Note>
@@ -194,7 +194,7 @@ For inverted statuses like Stress and Drunk (where higher = worse), `Remove` dec
 Register a status with visual properties for the HUD.
 
 ```lua
-COMPONENTS.Status:Register(name, max, icon, color, flash, modify, options)
+Status:Register(name, max, icon, color, flash, modify, options)
 ```
 
 <ParamField path="name" type="string" required>
@@ -232,7 +232,7 @@ COMPONENTS.Status:Register(name, max, icon, color, flash, modify, options)
 Get all statuses with their current values.
 
 ```lua
-COMPONENTS.Status.Get:All()
+Status.Get:All()
 ```
 
 <ResponseField name="statuses" type="table">
@@ -246,7 +246,7 @@ COMPONENTS.Status.Get:All()
 Get a single status with current value.
 
 ```lua
-COMPONENTS.Status.Get:Single(name)
+Status.Get:Single(name)
 ```
 
 ---
@@ -256,7 +256,7 @@ COMPONENTS.Status.Get:Single(name)
 Set all statuses to a specific value.
 
 ```lua
-COMPONENTS.Status.Set:All(entity, value)
+Status.Set:All(entity, value)
 ```
 
 ---
@@ -266,14 +266,14 @@ COMPONENTS.Status.Set:All(entity, value)
 Set a single status to a specific value.
 
 ```lua
-COMPONENTS.Status.Set:Single(name, value)
+Status.Set:Single(name, value)
 ```
 
 **Example:**
 
 ```lua
 -- Client-side: Set hunger to full
-COMPONENTS.Status.Set:Single('PLAYER_HUNGER', 100)
+Status.Set:Single('PLAYER_HUNGER', 100)
 ```
 
 ---
@@ -283,7 +283,7 @@ COMPONENTS.Status.Set:Single('PLAYER_HUNGER', 100)
 Add to a status value on the client.
 
 ```lua
-COMPONENTS.Status.Modify:Add(status, value, addCd, force)
+Status.Modify:Add(status, value, addCd, force)
 ```
 
 ---
@@ -293,7 +293,7 @@ COMPONENTS.Status.Modify:Add(status, value, addCd, force)
 Remove from a status value on the client.
 
 ```lua
-COMPONENTS.Status.Modify:Remove(status, value, force)
+Status.Modify:Remove(status, value, force)
 ```
 
 ---
@@ -303,7 +303,7 @@ COMPONENTS.Status.Modify:Remove(status, value, force)
 Reset all resettable statuses to their maximum value.
 
 ```lua
-COMPONENTS.Status:Reset(entity, value)
+Status:Reset(entity, value)
 ```
 
 <Note>
@@ -317,7 +317,7 @@ Statuses with `noReset = true` (like Stress and Drunk) are not affected by Reset
 Toggle the status system on or off.
 
 ```lua
-COMPONENTS.Status:Toggle()
+Status:Toggle()
 ```
 
 ---
@@ -327,7 +327,7 @@ COMPONENTS.Status:Toggle()
 Check if the status system is currently enabled.
 
 ```lua
-COMPONENTS.Status:Check()
+Status:Check()
 ```
 
 <ResponseField name="enabled" type="boolean">
@@ -364,7 +364,7 @@ COMPONENTS.Status:Check()
   <Accordion title="Use Server Methods for Persistence" icon="database">
     ```lua
     -- ✅ Good: Server sets status (persists and syncs)
-    COMPONENTS.Status:Set(source, 'PLAYER_HUNGER', 100)
+    Status:Set(source, 'PLAYER_HUNGER', 100)
 
     -- ❌ Bad: Client-only change (won't persist on disconnect)
     -- Only use client methods for temporary visual effects
@@ -377,10 +377,10 @@ COMPONENTS.Status:Check()
     -- Stress/Drunk: 0 = sober, 100 = max (inverted)
 
     -- To feed a player:
-    COMPONENTS.Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
+    Status.Modify:Add(source, 'PLAYER_HUNGER', 25)
 
     -- To reduce stress:
-    COMPONENTS.Status.Modify:Remove(source, 'PLAYER_STRESS', 10)
+    Status.Modify:Remove(source, 'PLAYER_STRESS', 10)
     ```
   </Accordion>
 </AccordionGroup>

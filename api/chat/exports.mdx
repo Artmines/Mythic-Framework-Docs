@@ -8,7 +8,7 @@ The Chat component manages command registration, message broadcasting, and servi
 
 ## Overview
 
-Access via `COMPONENTS.Chat` (server-side only).
+Access via `Chat` (server-side only).
 
 <CardGroup cols={2}>
   <Card title="Commands" icon="terminal">
@@ -38,7 +38,7 @@ Access via `COMPONENTS.Chat` (server-side only).
 Register a custom chat command accessible to all players.
 
 ```lua
-COMPONENTS.Chat:RegisterCommand(command, callback, suggestion, arguments, job)
+Chat:RegisterCommand(command, callback, suggestion, arguments, job)
 ```
 
 <ParamField path="command" type="string" required>
@@ -65,14 +65,14 @@ COMPONENTS.Chat:RegisterCommand(command, callback, suggestion, arguments, job)
 
 ```lua
 -- Simple command
-COMPONENTS.Chat:RegisterCommand('me', function(source, args, rawCommand)
+Chat:RegisterCommand('me', function(source, args, rawCommand)
     local message = table.concat(args, ' ')
     local player = Fetch:Source(source)
     local char = player:GetData('Character')
     local name = char:GetData('First') .. ' ' .. char:GetData('Last')
 
     -- Broadcast to nearby players
-    COMPONENTS.Chat.Send.System:Single(source, name .. ' ' .. message)
+    Chat.Send.System:Single(source, name .. ' ' .. message)
 end, {
     help = 'Roleplay action',
     params = {
@@ -81,7 +81,7 @@ end, {
 }, -1)
 
 -- Job-restricted command
-COMPONENTS.Chat:RegisterCommand('cuff', function(source, args, rawCommand)
+Chat:RegisterCommand('cuff', function(source, args, rawCommand)
     local targetId = tonumber(args[1])
     if not targetId then return end
 
@@ -104,7 +104,7 @@ end, {
 Register a command that requires admin permissions.
 
 ```lua
-COMPONENTS.Chat:RegisterAdminCommand(command, callback, suggestion, arguments)
+Chat:RegisterAdminCommand(command, callback, suggestion, arguments)
 ```
 
 Parameters are the same as `RegisterCommand` (without `job`).
@@ -112,11 +112,11 @@ Parameters are the same as `RegisterCommand` (without `job`).
 **Example:**
 
 ```lua
-COMPONENTS.Chat:RegisterAdminCommand('heal', function(source, args, rawCommand)
+Chat:RegisterAdminCommand('heal', function(source, args, rawCommand)
     local targetId = tonumber(args[1]) or source
-    COMPONENTS.Callbacks:ClientCallback(targetId, 'Damage:Heal', true)
+    Callbacks:ClientCallback(targetId, 'Damage:Heal', true)
 
-    COMPONENTS.Chat.Send.System:Single(source, 'Player healed')
+    Chat.Send.System:Single(source, 'Player healed')
 end, {
     help = 'Heal a player',
     params = {
@@ -132,7 +132,7 @@ end, {
 Register a command that requires staff permissions.
 
 ```lua
-COMPONENTS.Chat:RegisterStaffCommand(command, callback, suggestion, arguments)
+Chat:RegisterStaffCommand(command, callback, suggestion, arguments)
 ```
 
 ---
@@ -142,7 +142,7 @@ COMPONENTS.Chat:RegisterStaffCommand(command, callback, suggestion, arguments)
 Refresh the command suggestion list for a specific player. Call this after duty changes or job updates.
 
 ```lua
-COMPONENTS.Chat:Refresh:Commands(source)
+Chat:Refresh:Commands(source)
 ```
 
 <ParamField path="source" type="number" required>
@@ -156,7 +156,7 @@ COMPONENTS.Chat:Refresh:Commands(source)
 Clear the chat for all connected players.
 
 ```lua
-COMPONENTS.Chat:ClearAll()
+Chat:ClearAll()
 ```
 
 ---
@@ -168,7 +168,7 @@ COMPONENTS.Chat:ClearAll()
 Send a server message to all players.
 
 ```lua
-COMPONENTS.Chat.Send.Server:All(message)
+Chat.Send.Server:All(message)
 ```
 
 <ParamField path="message" type="string" required>
@@ -178,7 +178,7 @@ COMPONENTS.Chat.Send.Server:All(message)
 **Example:**
 
 ```lua
-COMPONENTS.Chat.Send.Server:All('Server restart in 5 minutes')
+Chat.Send.Server:All('Server restart in 5 minutes')
 ```
 
 ---
@@ -188,7 +188,7 @@ COMPONENTS.Chat.Send.Server:All('Server restart in 5 minutes')
 Send a server message to a single player.
 
 ```lua
-COMPONENTS.Chat.Send.Server:Single(source, message)
+Chat.Send.Server:Single(source, message)
 ```
 
 <ParamField path="source" type="number" required>
@@ -206,7 +206,7 @@ COMPONENTS.Chat.Send.Server:Single(source, message)
 Broadcast a system message to all players.
 
 ```lua
-COMPONENTS.Chat.Send.System:All(message)
+Chat.Send.System:All(message)
 ```
 
 ---
@@ -216,14 +216,14 @@ COMPONENTS.Chat.Send.System:All(message)
 Send a system message to a single player.
 
 ```lua
-COMPONENTS.Chat.Send.System:Single(source, message)
+Chat.Send.System:Single(source, message)
 ```
 
 **Example:**
 
 ```lua
 -- Feedback to a player after a command
-COMPONENTS.Chat.Send.System:Single(source, 'Your request has been submitted')
+Chat.Send.System:Single(source, 'Your request has been submitted')
 ```
 
 ---
@@ -233,7 +233,7 @@ COMPONENTS.Chat.Send.System:Single(source, 'Your request has been submitted')
 Broadcast a system-wide message.
 
 ```lua
-COMPONENTS.Chat.Send.System:Broadcast(message)
+Chat.Send.System:Broadcast(message)
 ```
 
 ---
@@ -243,7 +243,7 @@ COMPONENTS.Chat.Send.System:Broadcast(message)
 Send a broadcast message with an author.
 
 ```lua
-COMPONENTS.Chat.Send.Broadcast:All(author, message)
+Chat.Send.Broadcast:All(author, message)
 ```
 
 <ParamField path="author" type="string" required>
@@ -261,7 +261,7 @@ COMPONENTS.Chat.Send.Broadcast:All(author, message)
 Send an Out-of-Character message from a player.
 
 ```lua
-COMPONENTS.Chat.Send.OOC(source, message)
+Chat.Send.OOC(source, message)
 ```
 
 ---
@@ -273,7 +273,7 @@ COMPONENTS.Chat.Send.OOC(source, message)
 Send a 911 emergency call (visible to on-duty police and EMS).
 
 ```lua
-COMPONENTS.Chat.Send.Services:Emergency(source, message)
+Chat.Send.Services:Emergency(source, message)
 ```
 
 <ParamField path="source" type="number" required>
@@ -288,7 +288,7 @@ COMPONENTS.Chat.Send.Services:Emergency(source, message)
 
 ```lua
 -- Player calls 911
-COMPONENTS.Chat.Send.Services:Emergency(source, 'Shots fired at Legion Square, multiple victims')
+Chat.Send.Services:Emergency(source, 'Shots fired at Legion Square, multiple victims')
 ```
 
 ---
@@ -298,7 +298,7 @@ COMPONENTS.Chat.Send.Services:Emergency(source, 'Shots fired at Legion Square, m
 Send an anonymous 911 call.
 
 ```lua
-COMPONENTS.Chat.Send.Services:EmergencyAnonymous(source, message)
+Chat.Send.Services:EmergencyAnonymous(source, message)
 ```
 
 ---
@@ -308,7 +308,7 @@ COMPONENTS.Chat.Send.Services:EmergencyAnonymous(source, message)
 Send a 911 response to a specific caller.
 
 ```lua
-COMPONENTS.Chat.Send.Services:EmergencyRespond(source, target, message)
+Chat.Send.Services:EmergencyRespond(source, target, message)
 ```
 
 <ParamField path="source" type="number" required>
@@ -330,7 +330,7 @@ COMPONENTS.Chat.Send.Services:EmergencyRespond(source, target, message)
 Send a 311 non-emergency call.
 
 ```lua
-COMPONENTS.Chat.Send.Services:NonEmergency(source, message)
+Chat.Send.Services:NonEmergency(source, message)
 ```
 
 ---
@@ -340,7 +340,7 @@ COMPONENTS.Chat.Send.Services:NonEmergency(source, message)
 Send an anonymous 311 call.
 
 ```lua
-COMPONENTS.Chat.Send.Services:NonEmergencyAnonymous(source, message)
+Chat.Send.Services:NonEmergencyAnonymous(source, message)
 ```
 
 ---
@@ -350,7 +350,7 @@ COMPONENTS.Chat.Send.Services:NonEmergencyAnonymous(source, message)
 Send a 311 response to a caller.
 
 ```lua
-COMPONENTS.Chat.Send.Services:NonEmergencyRespond(source, target, message)
+Chat.Send.Services:NonEmergencyRespond(source, target, message)
 ```
 
 ---
@@ -360,7 +360,7 @@ COMPONENTS.Chat.Send.Services:NonEmergencyRespond(source, target, message)
 Send a dispatch message to a player.
 
 ```lua
-COMPONENTS.Chat.Send.Services:Dispatch(source, message)
+Chat.Send.Services:Dispatch(source, message)
 ```
 
 ---
@@ -370,7 +370,7 @@ COMPONENTS.Chat.Send.Services:Dispatch(source, message)
 Send a test result message to a player.
 
 ```lua
-COMPONENTS.Chat.Send.Services:TestResult(source, message)
+Chat.Send.Services:TestResult(source, message)
 ```
 
 ---
@@ -382,24 +382,24 @@ COMPONENTS.Chat.Send.Services:TestResult(source, message)
     ```lua
     -- When a player goes on duty, refresh their commands
     AddEventHandler('mythic-jobs:server:ClockedIn', function(source, characterId, jobName)
-        COMPONENTS.Chat:Refresh:Commands(source)
+        Chat:Refresh:Commands(source)
     end)
 
     AddEventHandler('mythic-jobs:server:ClockedOut', function(source, characterId, jobName)
-        COMPONENTS.Chat:Refresh:Commands(source)
+        Chat:Refresh:Commands(source)
     end)
     ```
   </Accordion>
 
   <Accordion title="Validate Command Arguments" icon="shield-check">
     ```lua
-    COMPONENTS.Chat:RegisterCommand('give', function(source, args, rawCommand)
+    Chat:RegisterCommand('give', function(source, args, rawCommand)
         local targetId = tonumber(args[1])
         local item = args[2]
         local count = tonumber(args[3]) or 1
 
         if not targetId or not item then
-            COMPONENTS.Chat.Send.System:Single(source, 'Usage: /give [id] [item] [count]')
+            Chat.Send.System:Single(source, 'Usage: /give [id] [item] [count]')
             return
         end
 

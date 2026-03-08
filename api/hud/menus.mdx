@@ -63,7 +63,7 @@ Display an input form with multiple fields.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Input:Show(
+Input:Show(
     'Create Character',
     'Submit',
     {
@@ -130,7 +130,7 @@ Close the input form.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Input:Close()
+Input:Close()
 ```
 
 ---
@@ -162,7 +162,7 @@ Display a list menu.
 **Example:**
 ```lua
 -- Client side - Vehicle menu
-COMPONENTS.ListMenu:Show({
+ListMenu:Show({
         main = {
             label = 'Vehicle Menu',
             items = {
@@ -229,7 +229,7 @@ Close the list menu.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.ListMenu:Close()
+ListMenu:Close()
 ```
 
 ---
@@ -250,7 +250,7 @@ Display the interaction menu.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Interaction:Show()
+Interaction:Show()
 ```
 
 **Notes:**
@@ -272,7 +272,7 @@ Hide the interaction menu.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Interaction:Hide()
+Interaction:Hide()
 ```
 
 ---
@@ -294,13 +294,13 @@ Register a custom menu item in the F1 interaction menu.
 **Example:**
 ```lua
 -- Client side - Register GPS menu
-COMPONENTS.Interaction:RegisterMenu(
+Interaction:RegisterMenu(
     'gps',
     'GPS',
     'map-location-dot',
     function()
         -- Action when clicked
-        COMPONENTS.Interaction:ShowMenu({
+        Interaction:ShowMenu({
             {
                 label = 'Set Waypoint',
                 icon = 'location-dot',
@@ -357,7 +357,7 @@ Display a submenu in the interaction menu.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Interaction:ShowMenu({
+Interaction:ShowMenu({
     {
         label = 'Bank Account',
         icon = 'building-columns',
@@ -373,7 +373,7 @@ COMPONENTS.Interaction:ShowMenu({
         icon = 'money-bill-transfer',
         action = function()
             -- Custom action
-            COMPONENTS.Input:Show(
+            Input:Show(
                 'Transfer Money',
                 'Send',
                 {{ id = 'amount', type = 'number', label = 'Amount' }},
@@ -398,7 +398,7 @@ Go back to the previous menu level.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Interaction:Back()
+Interaction:Back()
 ```
 
 ---
@@ -424,7 +424,7 @@ Display a confirmation dialog.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Confirm:Show(
+Confirm:Show(
     'Delete Character',
     {
         yes = 'character:client:ConfirmDelete',
@@ -440,11 +440,11 @@ COMPONENTS.Confirm:Show(
 AddEventHandler('character:client:ConfirmDelete', function(data)
     -- data.characterId = 123
     TriggerServerEvent('character:server:Delete', data.characterId)
-    COMPONENTS.Notification:Success('Character deleted')
+    Notification:Success('Character deleted')
 end)
 
 AddEventHandler('character:client:CancelDelete', function(data)
-    COMPONENTS.Notification:Info('Cancelled')
+    Notification:Info('Cancelled')
 end)
 ```
 
@@ -462,7 +462,7 @@ Close the confirmation dialog.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Confirm:Close()
+Confirm:Close()
 ```
 
 ---
@@ -484,7 +484,7 @@ Display an info overlay.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.InfoOverlay:Show(
+InfoOverlay:Show(
     'Welcome to Los Santos',
     'Press {keybind}F1{/keybind} to open the interaction menu<br>' ..
     'Press {keybind}F2{/keybind} to open inventory<br>' ..
@@ -492,7 +492,7 @@ COMPONENTS.InfoOverlay:Show(
 )
 
 -- With HTML formatting
-COMPONENTS.InfoOverlay:Show(
+InfoOverlay:Show(
     'Heist Rules',
     '<ul>' ..
     '<li>Stay with your team</li>' ..
@@ -516,7 +516,7 @@ Close the info overlay.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.InfoOverlay:Close()
+InfoOverlay:Close()
 ```
 
 ---
@@ -533,7 +533,7 @@ Check if an info overlay is currently open.
 **Example:**
 ```lua
 -- Client side
-if COMPONENTS.InfoOverlay:IsOpen() then
+if InfoOverlay:IsOpen() then
     print('Overlay is currently showing')
 else
     print('No overlay active')
@@ -562,13 +562,13 @@ Use `{keybind}KEY{/keybind}` tags to display formatted keybinds.
 **Example:**
 ```lua
 -- Client side - Simple action text
-COMPONENTS.Action:Show('Press {keybind}E{/keybind} to enter')
+Action:Show('Press {keybind}E{/keybind} to enter')
 
 -- With duration (auto-hide after 5 seconds)
-COMPONENTS.Action:Show('Press {keybind}E{/keybind} to interact', 5000)
+Action:Show('Press {keybind}E{/keybind} to interact', 5000)
 
 -- Multiple keybinds
-COMPONENTS.Action:Show(
+Action:Show(
     'Press {keybind}E{/keybind} to enter or {keybind}G{/keybind} to knock'
 )
 
@@ -580,14 +580,14 @@ CreateThread(function()
         local door = GetClosestObjectOfType(coords, 2.0, GetHashKey('prop_door'), false, false, false)
 
         if door ~= 0 then
-            COMPONENTS.Action:Show('Press {keybind}E{/keybind} to open door')
+            Action:Show('Press {keybind}E{/keybind} to open door')
 
             if IsControlJustPressed(0, 38) then -- E key
                 -- Open door
                 TriggerEvent('doors:client:Open', door)
             end
         else
-            COMPONENTS.Action:Hide()
+            Action:Hide()
         end
 
         Wait(0)
@@ -609,7 +609,7 @@ Hide the action text.
 **Example:**
 ```lua
 -- Client side
-COMPONENTS.Action:Hide()
+Action:Hide()
 ```
 
 ---
@@ -621,7 +621,7 @@ COMPONENTS.Action:Hide()
 ```lua
 -- Client side - ATM interaction
 AddEventHandler('atm:client:Open', function()
-    COMPONENTS.ListMenu:Show({
+    ListMenu:Show({
         {
             label = 'Check Balance',
             description = 'View your account balance',
@@ -633,7 +633,7 @@ AddEventHandler('atm:client:Open', function()
             description = 'Withdraw cash',
             icon = 'hand-holding-dollar',
             action = function()
-                COMPONENTS.Input:Show(
+                Input:Show(
                     'Withdraw Cash',
                     'Withdraw',
                     {
@@ -655,7 +655,7 @@ AddEventHandler('atm:client:Open', function()
             description = 'Deposit cash',
             icon = 'piggy-bank',
             action = function()
-                COMPONENTS.Input:Show(
+                Input:Show(
                     'Deposit Cash',
                     'Deposit',
                     {
@@ -676,7 +676,7 @@ AddEventHandler('atm:client:Open', function()
             description = 'Transfer to another account',
             icon = 'money-bill-transfer',
             action = function()
-                COMPONENTS.Input:Show(
+                Input:Show(
                     'Transfer Money',
                     'Send',
                     {
@@ -723,7 +723,7 @@ end)
 ```lua
 -- Client side - Vehicle rental
 AddEventHandler('rental:client:OpenMenu', function()
-    COMPONENTS.ListMenu:Show({
+    ListMenu:Show({
         {
             label = 'Bicycles',
             icon = 'bicycle',
@@ -770,7 +770,7 @@ AddEventHandler('rental:client:OpenMenu', function()
 end)
 
 AddEventHandler('rental:client:RentVehicle', function(data)
-    COMPONENTS.Confirm:Show(
+    Confirm:Show(
         'Rent Vehicle',
         {
             yes = 'rental:client:ConfirmRental',
@@ -785,7 +785,7 @@ end)
 
 AddEventHandler('rental:client:ConfirmRental', function(data)
     TriggerServerEvent('rental:server:Rent', data.model, data.price)
-    COMPONENTS.ListMenu:Close()
+    ListMenu:Close()
 end)
 ```
 
@@ -794,7 +794,7 @@ end)
 ```lua
 -- Client side - Crafting bench
 AddEventHandler('crafting:client:OpenBench', function()
-    COMPONENTS.ListMenu:Show({
+    ListMenu:Show({
         {
             label = 'Weapons',
             icon = 'gun',
@@ -849,7 +849,7 @@ AddEventHandler('crafting:client:OpenBench', function()
 end)
 
 AddEventHandler('crafting:client:Craft', function(data)
-    COMPONENTS.Confirm:Show(
+    Confirm:Show(
         'Craft Item',
         {
             yes = 'crafting:client:ConfirmCraft',
@@ -864,7 +864,7 @@ end)
 
 AddEventHandler('crafting:client:ConfirmCraft', function(data)
     TriggerServerEvent('crafting:server:Craft', data)
-    COMPONENTS.ListMenu:Close()
+    ListMenu:Close()
 end)
 ```
 
@@ -874,7 +874,7 @@ end)
 -- Client side - Tutorial overlays
 AddEventHandler('tutorial:client:Start', function()
     -- Step 1: Movement
-    COMPONENTS.InfoOverlay:Show(
+    InfoOverlay:Show(
         'Movement Controls',
         'Use {keybind}W{/keybind}{keybind}A{/keybind}{keybind}S{/keybind}{keybind}D{/keybind} to move<br>' ..
         'Hold {keybind}Shift{/keybind} to sprint<br>' ..
@@ -882,11 +882,11 @@ AddEventHandler('tutorial:client:Start', function()
     )
 
     Wait(10000)
-    COMPONENTS.InfoOverlay:Close()
+    InfoOverlay:Close()
     Wait(2000)
 
     -- Step 2: Interaction
-    COMPONENTS.InfoOverlay:Show(
+    InfoOverlay:Show(
         'Interaction',
         'Press {keybind}E{/keybind} to interact with objects and NPCs<br>' ..
         'Press {keybind}F1{/keybind} to open the main menu<br>' ..
@@ -894,11 +894,11 @@ AddEventHandler('tutorial:client:Start', function()
     )
 
     Wait(10000)
-    COMPONENTS.InfoOverlay:Close()
+    InfoOverlay:Close()
     Wait(2000)
 
     -- Step 3: Vehicles
-    COMPONENTS.InfoOverlay:Show(
+    InfoOverlay:Show(
         'Vehicles',
         'Press {keybind}F{/keybind} to enter/exit vehicles<br>' ..
         'Hold {keybind}F{/keybind} to lock/unlock your vehicle<br>' ..
@@ -906,9 +906,9 @@ AddEventHandler('tutorial:client:Start', function()
     )
 
     Wait(10000)
-    COMPONENTS.InfoOverlay:Close()
+    InfoOverlay:Close()
 
-    COMPONENTS.Notification:Success('Tutorial complete!', 5000)
+    Notification:Success('Tutorial complete!', 5000)
 end)
 ```
 
@@ -916,22 +916,22 @@ end)
 
 ```lua
 -- Client side - Register admin menu in F1
-COMPONENTS.Interaction:RegisterMenu(
+Interaction:RegisterMenu(
     'admin',
     'Admin',
     'shield',
     function()
-        COMPONENTS.Interaction:ShowMenu({
+        Interaction:ShowMenu({
             {
                 label = 'Player Management',
                 icon = 'users',
                 action = function()
-                    COMPONENTS.Interaction:ShowMenu({
+                    Interaction:ShowMenu({
                         {
                             label = 'Teleport to Player',
                             icon = 'location-arrow',
                             action = function()
-                                COMPONENTS.Input:Show(
+                                Input:Show(
                                     'Teleport to Player',
                                     'Teleport',
                                     {
@@ -950,7 +950,7 @@ COMPONENTS.Interaction:RegisterMenu(
                             label = 'Kick Player',
                             icon = 'user-xmark',
                             action = function()
-                                COMPONENTS.Input:Show(
+                                Input:Show(
                                     'Kick Player',
                                     'Kick',
                                     {
@@ -975,15 +975,15 @@ COMPONENTS.Interaction:RegisterMenu(
                 end
             },
             {
-                label: 'Vehicle Management',
+                label = 'Vehicle Management',
                 icon = 'car',
                 action = function()
-                    COMPONENTS.Interaction:ShowMenu({
+                    Interaction:ShowMenu({
                         {
                             label = 'Spawn Vehicle',
                             icon = 'plus',
                             action = function()
-                                COMPONENTS.Input:Show(
+                                Input:Show(
                                     'Spawn Vehicle',
                                     'Spawn',
                                     {
@@ -1027,7 +1027,7 @@ COMPONENTS.Interaction:RegisterMenu(
 AddEventHandler('bank:client:Withdraw', function(values)
     -- Client-side validation
     if not values.amount or values.amount <= 0 then
-        COMPONENTS.Notification:Error('Invalid amount')
+        Notification:Error('Invalid amount')
         return
     end
 
@@ -1052,7 +1052,7 @@ end)
 
 ```lua
 // ✅ GOOD - Clear menu hierarchy
-COMPONENTS.ListMenu:Show({
+ListMenu:Show({
     {
         label = 'Main Category',
         submenu = {
@@ -1079,16 +1079,16 @@ COMPONENTS.ListMenu:Show({
 // ✅ GOOD - Close menus when done
 AddEventHandler('shop:client:Purchase', function(data)
     TriggerServerEvent('shop:server:Purchase', data.item)
-    COMPONENTS.ListMenu:Close() -- Close menu after action
+    ListMenu:Close() -- Close menu after action
 end)
 
 // ✅ GOOD - Close on player death/logout
 AddEventHandler('playerDropped', function()
-    COMPONENTS.Input:Close()
-    COMPONENTS.ListMenu:Close()
-    COMPONENTS.Confirm:Close()
-    COMPONENTS.InfoOverlay:Close()
-    COMPONENTS.Interaction:Hide()
+    Input:Close()
+    ListMenu:Close()
+    Confirm:Close()
+    InfoOverlay:Close()
+    Interaction:Hide()
 end)
 ```
 

@@ -7,7 +7,7 @@ icon: 'user'
 The Characters system manages player characters in Mythic Framework, including creation, selection, loading, and data persistence. Character data is accessed through the **Fetch component** using the DataStore pattern.
 
 <Warning>
-**Critical:** Do NOT use `COMPONENTS.Characters:GetCharacter()` - this method does not exist.
+**Critical:** Do NOT use `Characters:GetCharacter()` - this method does not exist.
 
 **Always use the Fetch component:**
 ```lua
@@ -79,7 +79,7 @@ RegisterNetEvent('myresource:server:doSomething', function()
     local stateId = char:GetData('SID')
     local name = string.format('%s %s', char:GetData('First'), char:GetData('Last'))
     local cash = char:GetData('Cash')
-    local bank = char:GetData('Bank')
+    local jobs = char:GetData('Jobs')  -- Array of job objects
 
     print('Character:', name, 'SID:', stateId, 'Cash:', cash)
 end)
@@ -112,10 +112,8 @@ char:GetData(key)
 - `DOB` (string) - Date of birth
 - `Gender` (number) - Gender code
 - `Phone` (string) - Phone number
-- `Job` (string) - Current job ID
-- `JobGrade` (number) - Job rank/grade
+- `Jobs` (table) - Array of job objects (each with `Id`, `WorkplaceId`, `GradeId`, `GradeLevel`)
 - `Cash` (number) - Cash on hand
-- `Bank` (number) - Bank balance
 - `MetaData` (table) - Additional character data
 
 **Examples:**
@@ -125,8 +123,7 @@ local stateId = char:GetData('SID')
 local firstName = char:GetData('First')
 local lastName = char:GetData('Last')
 local cash = char:GetData('Cash')
-local bank = char:GetData('Bank')
-local job = char:GetData('Job')
+local jobs = char:GetData('Jobs')  -- Array of job objects
 
 -- Get all data
 local allData = char:GetData()
@@ -160,17 +157,12 @@ Character SetData automatically syncs to client with `Characters:Client:SetData`
 
 **Examples:**
 ```lua
--- Update money
+-- Update cash
 local currentCash = char:GetData('Cash')
 char:SetData('Cash', currentCash + 500)
 
--- Update bank
-local currentBank = char:GetData('Bank')
-char:SetData('Bank', currentBank - 1000)
-
--- Update job
-char:SetData('Job', 'police')
-char:SetData('JobGrade', 2)
+-- Note: Bank balances are managed via the Banking component, not character SetData
+-- Note: Jobs are managed via the Jobs component: Jobs:GiveJob(stateId, jobId, workplaceId, gradeId)
 
 -- Update phone number
 char:SetData('Phone', '555-1234')
@@ -307,9 +299,9 @@ end)
 
 ---
 
-### Money Management
+### Cash Management
 
-**Adding Money:**
+**Adding/Removing Cash:**
 ```lua
 -- Add cash
 local player = Fetch:Source(source)
@@ -318,20 +310,12 @@ local char = player:GetData('Character')
 local currentCash = char:GetData('Cash')
 char:SetData('Cash', currentCash + 500)
 
--- Add to bank
-local currentBank = char:GetData('Bank')
-char:SetData('Bank', currentBank + 1000)
-
 -- Notify player
-TriggerClientEvent('mythic-notifications:client:Send', source, {
-    message = 'Received $500 cash',
-    type = 'success'
-})
+Notification:Success(source, 'Received $500 cash')
 ```
 
-**Removing Money:**
+**Remove Cash with Validation:**
 ```lua
--- Remove cash with validation
 local player = Fetch:Source(source)
 local char = player:GetData('Character')
 local price = 250
@@ -340,22 +324,14 @@ local currentCash = char:GetData('Cash')
 
 if currentCash >= price then
     char:SetData('Cash', currentCash - price)
-
-    TriggerClientEvent('mythic-notifications:client:Send', source, {
-        message = string.format('Paid $%d', price),
-        type = 'success'
-    })
+    Notification:Success(source, string.format('Paid $%d', price))
 else
-    TriggerClientEvent('mythic-notifications:client:Send', source, {
-        message = 'Insufficient funds',
-        type = 'error'
-    })
+    Notification:Error(source, 'Insufficient funds')
 end
 ```
 
-**Checking Money:**
+**Checking Cash:**
 ```lua
--- Check if character has enough money
 function CanAfford(source, amount)
     local player = Fetch:Source(source)
     if not player then return false end
@@ -366,74 +342,11 @@ function CanAfford(source, amount)
     local cash = char:GetData('Cash')
     return cash >= amount
 end
-
--- Usage
-if CanAfford(source, 500) then
-    -- Process purchase
-else
-    -- Send error
-end
 ```
 
----
-
-### Bank Transfers
-
-**Transfer between online players:**
-```lua
-RegisterNetEvent('banking:server:transfer', function(targetSID, amount, memo)
-    local src = source
-    local sender = Fetch:Source(src):GetData('Character')
-    local senderBank = sender:GetData('Bank')
-
-    -- Check sufficient funds
-    if senderBank < amount then
-        TriggerClientEvent('mythic-notifications:client:Send', src, {
-            message = 'Insufficient funds',
-            type = 'error'
-        })
-        return
-    end
-
-    -- Find recipient
-    local recipient = Fetch:SID(targetSID)
-
-    if recipient then
-        -- Online - use DataStore
-        local recipientChar = recipient:GetData('Character')
-        local recipientBank = recipientChar:GetData('Bank')
-
-        recipientChar:SetData('Bank', recipientBank + amount)
-
-        -- Notify recipient
-        TriggerClientEvent('mythic-notifications:client:Send', recipient:GetData('Source'), {
-            message = string.format('Received $%d: %s', amount, memo),
-            type = 'success'
-        })
-    else
-        -- Offline - update database directly
-        Database.Game:updateOne({
-            collection = 'characters',
-            query = {SID = targetSID},
-            update = {
-                ['$inc'] = {Bank = amount}
-            }
-        }, function(success, updated)
-            if not success then
-                print('[ERROR] Failed to update offline character bank')
-            end
-        end)
-    end
-
-    -- Deduct from sender
-    sender:SetData('Bank', senderBank - amount)
-
-    TriggerClientEvent('mythic-notifications:client:Send', src, {
-        message = string.format('Transferred $%d', amount),
-        type = 'success'
-    })
-end)
-```
+<Note>
+Bank balances are managed through the **Banking component** (`Banking.Balance:Get/Deposit/Withdraw/Charge`), not through character `SetData`. See the [Banking API](/api/finance/banking) for bank operations.
+</Note>
 
 ---
 
@@ -559,7 +472,7 @@ end)
 
     **❌ Wrong:**
     ```lua
-    local char = COMPONENTS.Characters:GetCharacter(source)  -- DOESN'T EXIST!
+    local char = Characters:GetCharacter(source)  -- DOESN'T EXIST!
     ```
   </Accordion>
 
@@ -616,37 +529,37 @@ end)
     ```
   </Accordion>
 
-  <Accordion title="Validate Before Modifying Money" icon="dollar-sign">
+  <Accordion title="Validate Before Modifying Cash" icon="dollar-sign">
     ```lua
-    function ModifyMoney(source, account, amount, reason)
+    function ModifyCash(source, amount, reason)
         local player = Fetch:Source(source)
         if not player then return false end
 
         local char = player:GetData('Character')
         if not char then return false end
 
-        local current = char:GetData(account == 'cash' and 'Cash' or 'Bank')
+        local currentCash = char:GetData('Cash')
 
-        if amount < 0 and current < math.abs(amount) then
+        if amount < 0 and currentCash < math.abs(amount) then
             return false  -- Insufficient funds
         end
 
-        char:SetData(account == 'cash' and 'Cash' or 'Bank', current + amount)
+        char:SetData('Cash', currentCash + amount)
 
         -- Log transaction
-        COMPONENTS.Logger:Info('Economy', 'Money modified', {
+        Logger:Info('Economy', 'Cash modified', {
             console = true,
             file = true,
             database = true
         }, {
             characterSID = char:GetData('SID'),
-            account = account,
             amount = amount,
             reason = reason
         })
 
         return true
     end
+    -- Note: For bank operations, use Banking.Balance:Deposit/Withdraw/Charge
     ```
   </Accordion>
 </AccordionGroup>
@@ -666,33 +579,23 @@ AddEventHandler('jobs:server:processPaycheck', function()
         local char = player:GetData('Character')
 
         if char then
-            local job = char:GetData('Job')
-            local jobGrade = char:GetData('JobGrade')
+            local jobs = char:GetData('Jobs')  -- Array of job objects
 
-            -- Calculate pay based on job and grade
-            local payAmount = GetJobPayAmount(job, jobGrade)
+            if jobs and #jobs > 0 then
+                for _, job in ipairs(jobs) do
+                    -- Calculate pay based on job
+                    local payAmount = GetJobPayAmount(job.Id, job.GradeLevel)
 
-            if payAmount > 0 then
-                -- Add to bank
-                local currentBank = char:GetData('Bank')
-                char:SetData('Bank', currentBank + payAmount)
+                    if payAmount > 0 then
+                        -- Add to cash
+                        local currentCash = char:GetData('Cash')
+                        char:SetData('Cash', currentCash + payAmount)
 
-                -- Notify player
-                TriggerClientEvent('mythic-notifications:client:Send', source, {
-                    message = string.format('Paycheck: $%d deposited', payAmount),
-                    type = 'success'
-                })
-
-                -- Log
-                COMPONENTS.Logger:Info('Jobs', 'Paycheck processed', {
-                    console = true,
-                    file = true
-                }, {
-                    characterSID = char:GetData('SID'),
-                    job = job,
-                    grade = jobGrade,
-                    amount = payAmount
-                })
+                        -- Notify player
+                        Notification:Success(source,
+                            string.format('Paycheck: $%d received', payAmount))
+                    end
+                end
             end
         end
     end
@@ -705,7 +608,7 @@ end)
 
 ```lua
 -- Server side
-COMPONENTS.Callbacks:RegisterServerCallback('shop:purchaseItem', function(source, data, cb)
+Callbacks:RegisterServerCallback('shop:purchaseItem', function(source, data, cb)
     local player = Fetch:Source(source)
     if not player then
         return cb(false, 'Player not found')
@@ -735,7 +638,7 @@ COMPONENTS.Callbacks:RegisterServerCallback('shop:purchaseItem', function(source
 
     -- Add item to inventory
     local stateId = char:GetData('SID')
-    local success, slot = COMPONENTS.Inventory:AddItem(
+    local success, slot = Inventory:AddItem(
         stateId,
         data.itemName,
         data.count
@@ -750,7 +653,7 @@ COMPONENTS.Callbacks:RegisterServerCallback('shop:purchaseItem', function(source
         })
 
         -- Log purchase
-        COMPONENTS.Logger:Info('Shop', 'Purchase completed', {
+        Logger:Info('Shop', 'Purchase completed', {
             console = true,
             file = true,
             database = true

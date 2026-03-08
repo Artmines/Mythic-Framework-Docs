@@ -8,7 +8,7 @@ The Phone component provides server-side notification delivery and client-side U
 
 ## Overview
 
-Access via `COMPONENTS.Phone` on both server and client.
+Access via `Phone` on both server and client.
 
 <CardGroup cols={2}>
   <Card title="Notifications" icon="bell">
@@ -38,7 +38,7 @@ Access via `COMPONENTS.Phone` on both server and client.
 Send a notification to a player's phone.
 
 ```lua
-COMPONENTS.Phone.Notification:Add(source, title, description, time, duration, app, actions, notifData)
+Phone.Notification:Add(source, title, description, time, duration, app, actions, notifData)
 ```
 
 <ParamField path="source" type="number" required>
@@ -77,23 +77,19 @@ COMPONENTS.Phone.Notification:Add(source, title, description, time, duration, ap
 
 ```lua
 -- Simple notification
-COMPONENTS.Phone.Notification:Add(source, 'New Message', 'You have a new text message', os.time(), 5000, 'messages')
+Phone.Notification:Add(source, 'New Message', 'You have a new text message', os.time(), 5000, 'messages')
 
 -- Notification with data
-COMPONENTS.Phone.Notification:Add(source, 'Bank Alert', 'Deposit of $5,000 received', os.time(), 5000, 'bank', nil, {
+Phone.Notification:Add(source, 'Bank Alert', 'Deposit of $5,000 received', os.time(), 5000, 'bank', nil, {
     amount = 5000,
     account = accountNumber
 })
 
 -- 911 dispatch notification to police
-local onDutyPolice = COMPONENTS.Jobs:GetOnDutyPlayers('police')
+local dutyData = Jobs.Duty:GetDutyData('police')
 
-for _, sid in ipairs(onDutyPolice) do
-    local player = Fetch:SID(sid)
-    if player then
-        local policeSource = player:GetData('Source')
-        COMPONENTS.Phone.Notification:Add(policeSource, '911 Call', 'Shots fired at Legion Square', os.time(), 10000, 'phone')
-    end
+for _, policeSource in ipairs(dutyData.DutyPlayers) do
+    Phone.Notification:Add(policeSource, '911 Call', 'Shots fired at Legion Square', os.time(), 10000, 'phone')
 end
 ```
 
@@ -104,7 +100,7 @@ end
 Send a notification with a specific ID for tracking and updating.
 
 ```lua
-COMPONENTS.Phone.Notification:AddWithId(source, id, title, description, time, duration, app, actions, notifData)
+Phone.Notification:AddWithId(source, id, title, description, time, duration, app, actions, notifData)
 ```
 
 <ParamField path="id" type="string" required>
@@ -117,7 +113,7 @@ All other parameters are the same as `Notification:Add`.
 
 ```lua
 -- Trackable notification
-COMPONENTS.Phone.Notification:AddWithId(source, 'delivery_123', 'Delivery Update', 'Your package is on the way', os.time(), 8000, 'email')
+Phone.Notification:AddWithId(source, 'delivery_123', 'Delivery Update', 'Your package is on the way', os.time(), 8000, 'email')
 ```
 
 ---
@@ -127,7 +123,7 @@ COMPONENTS.Phone.Notification:AddWithId(source, 'delivery_123', 'Delivery Update
 Update an existing notification by ID.
 
 ```lua
-COMPONENTS.Phone.Notification:Update(source, id, title, description)
+Phone.Notification:Update(source, id, title, description)
 ```
 
 <ParamField path="source" type="number" required>
@@ -150,7 +146,7 @@ COMPONENTS.Phone.Notification:Update(source, id, title, description)
 
 ```lua
 -- Update delivery status
-COMPONENTS.Phone.Notification:Update(source, 'delivery_123', 'Delivery Complete', 'Your package has been delivered')
+Phone.Notification:Update(source, 'delivery_123', 'Delivery Complete', 'Your package has been delivered')
 ```
 
 ---
@@ -160,7 +156,7 @@ COMPONENTS.Phone.Notification:Update(source, 'delivery_123', 'Delivery Complete'
 Remove a notification by its ID.
 
 ```lua
-COMPONENTS.Phone.Notification:RemoveById(source, id)
+Phone.Notification:RemoveById(source, id)
 ```
 
 ---
@@ -170,7 +166,7 @@ COMPONENTS.Phone.Notification:RemoveById(source, id)
 Update a player's job data on their phone (permissions, apps, etc.).
 
 ```lua
-COMPONENTS.Phone:UpdateJobData(source, returnValues)
+Phone:UpdateJobData(source, returnValues)
 ```
 
 <ParamField path="source" type="number" required>
@@ -194,7 +190,7 @@ COMPONENTS.Phone:UpdateJobData(source, returnValues)
 Opens the phone UI.
 
 ```lua
-COMPONENTS.Phone:Open()
+Phone:Open()
 ```
 
 ---
@@ -204,7 +200,7 @@ COMPONENTS.Phone:Open()
 Closes the phone UI.
 
 ```lua
-COMPONENTS.Phone:Close(forced, doJankyStuff)
+Phone:Close(forced, doJankyStuff)
 ```
 
 <ParamField path="forced" type="boolean" optional>
@@ -222,7 +218,7 @@ COMPONENTS.Phone:Close(forced, doJankyStuff)
 Check if the phone UI is currently open.
 
 ```lua
-COMPONENTS.Phone:IsOpen()
+Phone:IsOpen()
 ```
 
 <ResponseField name="isOpen" type="boolean">
@@ -233,8 +229,8 @@ COMPONENTS.Phone:IsOpen()
 
 ```lua
 -- Close phone before starting an action
-if COMPONENTS.Phone:IsOpen() then
-    COMPONENTS.Phone:Close()
+if Phone:IsOpen() then
+    Phone:Close()
 end
 ```
 
@@ -245,7 +241,7 @@ end
 Opens the phone in limited mode (e.g., for payphones).
 
 ```lua
-COMPONENTS.Phone:OpenLimited()
+Phone:OpenLimited()
 ```
 
 ---
@@ -255,7 +251,7 @@ COMPONENTS.Phone:OpenLimited()
 Opens the phone specifically for payphone use.
 
 ```lua
-COMPONENTS.Phone:OpenPayphone()
+Phone:OpenPayphone()
 ```
 
 ---
@@ -265,7 +261,7 @@ COMPONENTS.Phone:OpenPayphone()
 Check if a specific app is installed and usable by the current player.
 
 ```lua
-COMPONENTS.Phone:IsAppUsable(app)
+Phone:IsAppUsable(app)
 ```
 
 <ParamField path="app" type="string|table" required>
@@ -285,7 +281,7 @@ COMPONENTS.Phone:IsAppUsable(app)
 Set phone data by key.
 
 ```lua
-COMPONENTS.Phone.Data:Set(key, data)
+Phone.Data:Set(key, data)
 ```
 
 ---
@@ -295,7 +291,7 @@ COMPONENTS.Phone.Data:Set(key, data)
 Add data to the phone store.
 
 ```lua
-COMPONENTS.Phone.Data:Add(type, data, key)
+Phone.Data:Add(type, data, key)
 ```
 
 ---
@@ -305,7 +301,7 @@ COMPONENTS.Phone.Data:Add(type, data, key)
 Update existing phone data.
 
 ```lua
-COMPONENTS.Phone.Data:Update(type, id, data)
+Phone.Data:Update(type, id, data)
 ```
 
 ---
@@ -315,7 +311,7 @@ COMPONENTS.Phone.Data:Update(type, id, data)
 Remove phone data by key and ID.
 
 ```lua
-COMPONENTS.Phone.Data:Remove(key, id)
+Phone.Data:Remove(key, id)
 ```
 
 ---
@@ -325,7 +321,7 @@ COMPONENTS.Phone.Data:Remove(key, id)
 Clear all phone data.
 
 ```lua
-COMPONENTS.Phone.Data:Reset()
+Phone.Data:Reset()
 ```
 
 ---
@@ -337,7 +333,7 @@ COMPONENTS.Phone.Data:Reset()
 Check if the current player has a specific app permission.
 
 ```lua
-COMPONENTS.Phone.Permissions:HasPermission(app, permission)
+Phone.Permissions:HasPermission(app, permission)
 ```
 
 <ParamField path="app" type="string" required>
@@ -356,7 +352,7 @@ COMPONENTS.Phone.Permissions:HasPermission(app, permission)
 
 ```lua
 -- Check if player can create redline races
-if COMPONENTS.Phone.Permissions:HasPermission('redline', 'create') then
+if Phone.Permissions:HasPermission('redline', 'create') then
     -- Allow race creation
 end
 ```
@@ -369,23 +365,23 @@ end
   <Accordion title="Use Meaningful Notification Durations" icon="clock">
     ```lua
     -- ✅ Good: Important notifications stay longer
-    COMPONENTS.Phone.Notification:Add(source, '911 Call', 'Emergency at ...', os.time(), 10000, 'phone')
+    Phone.Notification:Add(source, '911 Call', 'Emergency at ...', os.time(), 10000, 'phone')
 
     -- ✅ Good: Info notifications are shorter
-    COMPONENTS.Phone.Notification:Add(source, 'Bank', 'Deposit received', os.time(), 3000, 'bank')
+    Phone.Notification:Add(source, 'Bank', 'Deposit received', os.time(), 3000, 'bank')
     ```
   </Accordion>
 
   <Accordion title="Track Notifications When Needed" icon="tag">
     ```lua
     -- Use AddWithId when you need to update or remove later
-    COMPONENTS.Phone.Notification:AddWithId(source, 'taxi_' .. requestId, 'Taxi Request', 'Picking up...', os.time(), 0, 'phone')
+    Phone.Notification:AddWithId(source, 'taxi_' .. requestId, 'Taxi Request', 'Picking up...', os.time(), 0, 'phone')
 
     -- Later, update it
-    COMPONENTS.Phone.Notification:Update(source, 'taxi_' .. requestId, 'Taxi', 'Arrived at pickup')
+    Phone.Notification:Update(source, 'taxi_' .. requestId, 'Taxi', 'Arrived at pickup')
 
     -- Or remove it
-    COMPONENTS.Phone.Notification:RemoveById(source, 'taxi_' .. requestId)
+    Phone.Notification:RemoveById(source, 'taxi_' .. requestId)
     ```
   </Accordion>
 </AccordionGroup>

@@ -210,10 +210,10 @@ Use the Chat component to register your own admin/staff commands:
 
 ```lua
 -- Admin command
-COMPONENTS.Chat:RegisterAdminCommand('spawn_vehicle', function(source, args, rawCommand)
+Chat:RegisterAdminCommand('spawn_vehicle', function(source, args, rawCommand)
     local model = args[1]
     if not model then
-        COMPONENTS.Chat.Send.System:Single(source, 'Usage: /spawn_vehicle [model]')
+        Chat.Send.System:Single(source, 'Usage: /spawn_vehicle [model]')
         return
     end
 
@@ -226,19 +226,19 @@ end, {
 }, 1)
 
 -- Staff command
-COMPONENTS.Chat:RegisterStaffCommand('check_player', function(source, args, rawCommand)
+Chat:RegisterStaffCommand('check_player', function(source, args, rawCommand)
     local targetId = tonumber(args[1])
     if not targetId then return end
 
     local player = Fetch:Source(targetId)
     if not player then
-        COMPONENTS.Chat.Send.System:Single(source, 'Player not found')
+        Chat.Send.System:Single(source, 'Player not found')
         return
     end
 
     local char = player:GetData('Character')
     local stateId = char:GetData('SID')
-    COMPONENTS.Chat.Send.System:Single(source, 'Player SID: ' .. stateId)
+    Chat.Send.System:Single(source, 'Player SID: ' .. stateId)
 end, {
     help = 'Check player info',
     params = {

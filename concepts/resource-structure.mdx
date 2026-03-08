@@ -252,7 +252,7 @@ end)
 
 -- Local events
 AddEventHandler('mythic-inventory:client:Open', function()
-    COMPONENTS.InventoryClient:Open()
+    InventoryClient:Open()
 end)
 ```
 
@@ -295,7 +295,7 @@ exports['mythic-base']:RequestDependencies('Inventory', {
         _name = 'inventory',
 
         Get = function(self, characterId, callback)
-            COMPONENTS.Database.Game:findOne({
+            Database.Game:findOne({
                 collection = 'inventory',
                 query = {
                     owner = characterId
@@ -634,7 +634,7 @@ exports['mythic-base']:RequestDependencies('Example', {
 
     exports['mythic-base']:RegisterComponent('Example', {
         DoSomething = function(self, player)
-            COMPONENTS.Logger:Info('Example', 'Doing something')
+            Logger:Info('Example', 'Doing something')
             return true
         end
     })
@@ -645,7 +645,7 @@ end)
 ```lua
 RegisterNetEvent('mythic-example:server:DoAction', function()
     local src = source
-    COMPONENTS.Example:DoSomething(src)
+    Example:DoSomething(src)
 end)
 ```
 

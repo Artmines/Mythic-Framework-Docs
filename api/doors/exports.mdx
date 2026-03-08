@@ -8,7 +8,7 @@ The Doors component manages door lock states, elevator floor access, lockpicking
 
 ## Overview
 
-Access via `COMPONENTS.Doors` (server-side only).
+Access via `Doors` (server-side only).
 
 <CardGroup cols={2}>
   <Card title="Lock Control" icon="lock">
@@ -38,7 +38,7 @@ Access via `COMPONENTS.Doors` (server-side only).
 Set the lock state of a door.
 
 ```lua
-COMPONENTS.Doors:SetLock(doorId, newState, doneDouble)
+Doors:SetLock(doorId, newState, doneDouble)
 ```
 
 <ParamField path="doorId" type="string|number" required>
@@ -66,17 +66,17 @@ COMPONENTS.Doors:SetLock(doorId, newState, doneDouble)
 
 ```lua
 -- Lock a door
-COMPONENTS.Doors:SetLock('mrpd_front', true)
+Doors:SetLock('mrpd_front', true)
 
 -- Unlock a door
-COMPONENTS.Doors:SetLock('mrpd_front', false)
+Doors:SetLock('mrpd_front', false)
 
 -- Toggle a door
-COMPONENTS.Doors:SetLock('mrpd_front', nil)
+Doors:SetLock('mrpd_front', nil)
 
 -- Lock door after a robbery
 AddEventHandler('mythic-robbery:server:Started', function(source, robberyId, doorId)
-    COMPONENTS.Doors:SetLock(doorId, true)
+    Doors:SetLock(doorId, true)
 end)
 ```
 
@@ -87,7 +87,7 @@ end)
 Check if a door is currently locked.
 
 ```lua
-COMPONENTS.Doors:IsLocked(doorId)
+Doors:IsLocked(doorId)
 ```
 
 <ParamField path="doorId" type="string|number" required>
@@ -101,7 +101,7 @@ COMPONENTS.Doors:IsLocked(doorId)
 **Example:**
 
 ```lua
-if COMPONENTS.Doors:IsLocked('mrpd_front') then
+if Doors:IsLocked('mrpd_front') then
     TriggerClientEvent('mythic-notifications:client:Send', source, {
         message = 'This door is locked',
         type = 'error'
@@ -116,7 +116,7 @@ end
 Force a door to open visually (e.g., after breaching).
 
 ```lua
-COMPONENTS.Doors:SetForcedOpen(doorId)
+Doors:SetForcedOpen(doorId)
 ```
 
 <ParamField path="doorId" type="string|number" required>
@@ -127,8 +127,8 @@ COMPONENTS.Doors:SetForcedOpen(doorId)
 
 ```lua
 -- Breach a door
-COMPONENTS.Doors:SetLock(doorId, false)
-COMPONENTS.Doors:SetForcedOpen(doorId)
+Doors:SetLock(doorId, false)
+Doors:SetForcedOpen(doorId)
 ```
 
 ---
@@ -138,7 +138,7 @@ COMPONENTS.Doors:SetForcedOpen(doorId)
 Set the lock state of an elevator floor.
 
 ```lua
-COMPONENTS.Doors:SetElevatorLock(elevatorId, floorId, newState)
+Doors:SetElevatorLock(elevatorId, floorId, newState)
 ```
 
 <ParamField path="elevatorId" type="string" required>
@@ -161,7 +161,7 @@ COMPONENTS.Doors:SetElevatorLock(elevatorId, floorId, newState)
 
 ```lua
 -- Lock the top floor of MRPD elevator
-COMPONENTS.Doors:SetElevatorLock('mrpd_elevator', 3, true)
+Doors:SetElevatorLock('mrpd_elevator', 3, true)
 ```
 
 ---
@@ -288,7 +288,7 @@ exports['mythic-doors']:RemoveDynamicElevator(elevatorIndex)
   <Accordion title="Check Lock State Before Actions" icon="shield-check">
     ```lua
     -- Check if a door is accessible before allowing entry
-    if COMPONENTS.Doors:IsLocked('vault_door') then
+    if Doors:IsLocked('vault_door') then
         TriggerClientEvent('mythic-notifications:client:Send', source, {
             message = 'The vault is locked',
             type = 'error'

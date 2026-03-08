@@ -71,7 +71,7 @@ exports['mythic-base']:RegisterComponent('Inventory', {
     -- Component methods
     Get = function(self, characterId, callback)
         -- Fetch inventory from database
-        COMPONENTS.Database.Game:findOne({
+        Database.Game:findOne({
             collection = 'inventory',
             query = {
                 owner = characterId
@@ -117,7 +117,7 @@ Components can be marked as `_protected = true` to prevent other resources from 
 
 ```lua
 -- This component cannot be overridden
-COMPONENTS.Inventory = {
+Inventory = {
     _protected = true,
     Get = function(self) ... end
 }
@@ -132,7 +132,7 @@ exports['mythic-base']:RegisterComponent('Inventory', {...})
 Components can specify `_required` to enforce that certain methods must exist:
 
 ```lua
-COMPONENTS.Payment = {
+Payment = {
     _required = { 'Charge', 'Refund' },
     Charge = function(self, amount) ... end,
     Refund = function(self, amount) ... end
@@ -216,7 +216,7 @@ exports['mythic-base']:ExtendComponent(component_name, extension_data)
 
 ```lua
 -- Original Inventory component
-COMPONENTS.Inventory = {
+Inventory = {
     Get = function(self, charId) ... end,
     AddItem = function(self, charId, item) ... end
 }
@@ -238,7 +238,7 @@ exports['mythic-base']:ExtendComponent('Inventory', {
 })
 
 -- Now you can use the new method
-local weight = COMPONENTS.Inventory:GetWeight(characterId)
+local weight = Inventory:GetWeight(characterId)
 ```
 
 **Use Cases:**
@@ -263,7 +263,7 @@ local weight = COMPONENTS.Inventory:GetWeight(characterId)
 3. **Monkey-patching:**
    ```lua
    -- Override a method while preserving original
-   local originalAddItem = COMPONENTS.Inventory.AddItem
+   local originalAddItem = Inventory.AddItem
    exports['mythic-base']:ExtendComponent('Inventory', {
        AddItem = function(self, charId, item, count)
            print('Adding item:', item)
@@ -308,9 +308,9 @@ exports['mythic-base']:RequestDependencies('Shops', {
     end
 
     -- All dependencies loaded, safe to initialize
-    local Inventory = COMPONENTS.Inventory
-    local Economy = COMPONENTS.Economy
-    local Logger = COMPONENTS.Logger
+    local Inventory = Inventory
+    local Economy = Economy
+    local Logger = Logger
 
     -- Register shop component
     exports['mythic-base']:RegisterComponent('Shops', {
@@ -341,13 +341,13 @@ end)
 -- Multiple resources depending on same component
 exports['mythic-base']:RequestDependencies('Banking', { 'Economy' }, function(errors)
     if #errors == 0 then
-        COMPONENTS.Economy:RegisterAccount('bank', 'Main Bank')
+        Economy:RegisterAccount('bank', 'Main Bank')
     end
 end)
 
 exports['mythic-base']:RequestDependencies('CryptoWallet', { 'Economy' }, function(errors)
     if #errors == 0 then
-        COMPONENTS.Economy:RegisterAccount('crypto', 'Crypto Wallet')
+        Economy:RegisterAccount('crypto', 'Crypto Wallet')
     end
 end)
 
@@ -403,9 +403,9 @@ exports['mythic-base']:RegisterComponent('Utils', {
 })
 
 -- Usage anywhere:
-local money = COMPONENTS.Utils:FormatMoney(1500.50)  -- "$1,500.50"
-local uuid = COMPONENTS.Utils:GenerateUUID()
-local distance = COMPONENTS.Utils:GetDistance(pos1, pos2)
+local money = Utils:FormatMoney(1500.50)  -- "$1,500.50"
+local uuid = Utils:GenerateUUID()
+local distance = Utils:GetDistance(pos1, pos2)
 ```
 
 ### Example 2: Complex Feature Component
@@ -426,7 +426,7 @@ exports['mythic-base']:RequestDependencies('Garage', {
 
         -- Get player's vehicles
         GetVehicles = function(self, characterId, callback)
-            COMPONENTS.Database.Game:find({
+            Database.Game:find({
                 collection = 'vehicles',
                 query = {
                     owner = characterId
@@ -440,7 +440,7 @@ exports['mythic-base']:RequestDependencies('Garage', {
 
         -- Spawn vehicle from garage
         SpawnVehicle = function(self, player, vehicleId, callback)
-            COMPONENTS.Database.Game:findOne({
+            Database.Game:findOne({
                 collection = 'vehicles',
                 query = {
                     _id = vehicleId
@@ -461,7 +461,7 @@ exports['mythic-base']:RequestDependencies('Garage', {
 
                 -- Spawn logic
                 local coords = GetEntityCoords(GetPlayerPed(player))
-                local veh = COMPONENTS.Vehicles:SpawnVehicle(vehicle.model, coords, vehicle.customization)
+                local veh = Vehicles:SpawnVehicle(vehicle.model, coords, vehicle.customization)
 
                 if callback then callback(true, veh) end
             end)
@@ -472,8 +472,8 @@ exports['mythic-base']:RequestDependencies('Garage', {
             local plate = GetVehicleNumberPlateText(vehicleEntity)
 
             -- Save customization
-            local mods = COMPONENTS.Vehicles:GetVehicleMods(vehicleEntity)
-            COMPONENTS.Database.Game:updateOne({
+            local mods = Vehicles:GetVehicleMods(vehicleEntity)
+            Database.Game:updateOne({
                 collection = 'vehicles',
                 query = {
                     plate = plate
@@ -508,7 +508,7 @@ exports['mythic-base']:RequestDependencies('InventoryWeight', {
     if #errors > 0 then return end
 
     -- Store original AddItem
-    local originalAddItem = COMPONENTS.Inventory.AddItem
+    local originalAddItem = Inventory.AddItem
 
     -- Extend with weight checking
     exports['mythic-base']:ExtendComponent('Inventory', {
@@ -526,7 +526,7 @@ exports['mythic-base']:RequestDependencies('InventoryWeight', {
         AddItem = function(self, charId, item, count, metadata)
             -- Check weight first
             local currentWeight = self:GetWeight(charId)
-            local itemWeight = COMPONENTS.Items:GetItemWeight(item) * count
+            local itemWeight = Items:GetItemWeight(item) * count
 
             if currentWeight + itemWeight > self.maxWeight then
                 return false, 'Inventory too heavy'
@@ -556,7 +556,7 @@ exports['mythic-base']:ExtendComponent('Inventory', {...})
 -- mythic-shops receives 'Inventory:Shared:DependencyUpdate' event
 AddEventHandler('Inventory:Shared:DependencyUpdate', function()
     -- Re-fetch updated component
-    local Inventory = COMPONENTS.Inventory
+    local Inventory = Inventory
     -- Inventory now has extended functionality
 end)
 ```
@@ -569,12 +569,12 @@ end)
 
     ```lua
     -- ❌ BAD
-    local Inventory = COMPONENTS.Inventory  -- May be nil!
+    local Inventory = Inventory  -- May be nil!
 
     -- ✅ GOOD
     exports['mythic-base']:RequestDependencies('MyResource', { 'Inventory' }, function(errors)
         if #errors == 0 then
-            local Inventory = COMPONENTS.Inventory  -- Guaranteed to exist
+            local Inventory = Inventory  -- Guaranteed to exist
         end
     end)
     ```
@@ -618,13 +618,13 @@ end)
 
     ```lua
     -- Good
-    COMPONENTS.Inventory
-    COMPONENTS.Characters
-    COMPONENTS.VehicleShop
+    Inventory
+    Characters
+    VehicleShop
 
     -- Bad
-    COMPONENTS.inventory
-    COMPONENTS.vehicle_shop
+    inventory
+    vehicle_shop
     ```
   </Accordion>
 
@@ -651,7 +651,7 @@ end)
 
 ```lua
 -- Ensure component is only registered once
-if not COMPONENTS.MyComponent then
+if not MyComponent then
     exports['mythic-base']:RegisterComponent('MyComponent', {...})
 end
 ```
@@ -669,7 +669,7 @@ exports['mythic-base']:RegisterComponent('VehicleFactory', {
     end
 })
 
-local car = COMPONENTS.VehicleFactory:Create('car')
+local car = VehicleFactory:Create('car')
 ```
 
 ## Next Steps

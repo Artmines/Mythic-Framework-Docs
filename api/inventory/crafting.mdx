@@ -8,7 +8,7 @@ The Crafting component provides a flexible system for creating crafting benches 
 
 ## Overview
 
-Access via `COMPONENTS.Crafting` (server-side only).
+Access via `Crafting` (server-side only).
 
 <CardGroup cols={2}>
   <Card title="Crafting Benches" icon="hammer">
@@ -39,7 +39,7 @@ Register a crafting bench with recipes and restrictions.
 
 **Syntax:**
 ```lua
-COMPONENTS.Crafting:RegisterBench(id, label, targeting, location, restrictions, recipes, canUseSchematics)
+Crafting:RegisterBench(id, label, targeting, location, restrictions, recipes, canUseSchematics)
 ```
 
 **Parameters:**
@@ -77,7 +77,7 @@ COMPONENTS.Crafting:RegisterBench(id, label, targeting, location, restrictions, 
 **Example:**
 ```lua
 -- Server side - Register mechanic workbench
-COMPONENTS.Crafting:RegisterBench(
+Crafting:RegisterBench(
     'mechanic_workbench',
     'Mechanic Workbench',
     true,
@@ -144,7 +144,7 @@ Add a recipe to an existing bench.
 
 **Syntax:**
 ```lua
-COMPONENTS.Crafting:AddRecipeToBench(benchId, recipeId, recipe)
+Crafting:AddRecipeToBench(benchId, recipeId, recipe)
 ```
 
 **Parameters:**
@@ -157,7 +157,7 @@ COMPONENTS.Crafting:AddRecipeToBench(benchId, recipeId, recipe)
 **Example:**
 ```lua
 -- Server side - Add new recipe to existing bench
-COMPONENTS.Crafting:AddRecipeToBench(
+Crafting:AddRecipeToBench(
     'mechanic_workbench',
     'turbo_kit',
     {
@@ -187,7 +187,7 @@ Start crafting an item (called internally by framework).
 
 **Syntax:**
 ```lua
-COMPONENTS.Crafting.Craft:Start(crafter, bench, result, qty)
+Crafting.Craft:Start(crafter, bench, result, qty)
 ```
 
 **Parameters:**
@@ -218,7 +218,7 @@ RegisterServerEvent('crafting:server:StartCraft', function(benchId, recipeId, qu
     local stateId = char:GetData('SID')
 
     -- Start crafting
-    local result = COMPONENTS.Crafting.Craft:Start(stateId, benchId, recipeId, quantity)
+    local result = Crafting.Craft:Start(stateId, benchId, recipeId, quantity)
 
     if result.error then
         TriggerClientEvent('mythic-notifications:client:Send', src, {
@@ -242,7 +242,7 @@ end)
 
 ```lua
 -- Server side - Illegal gun crafting bench
-COMPONENTS.Crafting:RegisterBench(
+Crafting:RegisterBench(
     'gun_bench',
     'Weapon Workbench',
     true,
@@ -303,7 +303,7 @@ COMPONENTS.Crafting:RegisterBench(
 
 ```lua
 -- Server side - Drug processing table
-COMPONENTS.Crafting:RegisterBench(
+Crafting:RegisterBench(
     'drug_processing',
     'Processing Table',
     true,
@@ -354,7 +354,7 @@ COMPONENTS.Crafting:RegisterBench(
 
 ```lua
 -- Server side - Electronics workbench with job requirement
-COMPONENTS.Crafting:RegisterBench(
+Crafting:RegisterBench(
     'electronics_bench',
     'Electronics Workbench',
     true,
@@ -413,7 +413,7 @@ COMPONENTS.Crafting:RegisterBench(
 
 ```lua
 -- Server side - Kitchen/cooking station
-COMPONENTS.Crafting:RegisterBench(
+Crafting:RegisterBench(
     'cooking_station',
     'Cooking Station',
     true,
@@ -469,7 +469,7 @@ COMPONENTS.Crafting:RegisterBench(
 
 ```lua
 -- Server side - Criminal tools bench
-COMPONENTS.Crafting:RegisterBench(
+Crafting:RegisterBench(
     'tools_bench',
     'Tool Making Bench',
     true,
@@ -544,7 +544,7 @@ AddEventHandler('crafting:client:OpenBench', function(data)
     local benchId = data.benchId
 
     -- Request bench data from server
-    COMPONENTS.Callbacks:ServerCallback('crafting:server:GetBench', benchId, function(benchData)
+    Callbacks:ServerCallback('crafting:server:GetBench', benchId, function(benchData)
         if benchData then
             -- Open crafting UI
             SendNUIMessage({
@@ -552,7 +552,7 @@ AddEventHandler('crafting:client:OpenBench', function(data)
                 data = benchData
             })
         else
-            COMPONENTS.Notification:Error('Cannot access this bench')
+            Notification:Error('Cannot access this bench')
         end
     end)
 end)
@@ -631,7 +631,7 @@ end, false)
 
 ```lua
 // ✅ GOOD - Restrict powerful items
-COMPONENTS.Crafting:RegisterBench(
+Crafting:RegisterBench(
     'weapons_bench',
     'Illegal Weapons',
     true,
@@ -645,7 +645,7 @@ COMPONENTS.Crafting:RegisterBench(
 )
 
 // ❌ BAD - No restrictions on powerful items
-COMPONENTS.Crafting:RegisterBench(
+Crafting:RegisterBench(
     'weapons_bench',
     'Free Weapons',
     true,

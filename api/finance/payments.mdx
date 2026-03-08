@@ -1,0 +1,377 @@
+---
+title: Finance - Payments
+description: Cash management (Wallet), bill creation, fines, and direct charges
+icon: 'money-bill-transfer'
+---
+
+The Wallet and Billing components handle player cash operations and billing. Wallet manages on-hand cash, while Billing handles pending bills, government fines, and direct account charges.
+
+## Overview
+
+- **Wallet** - Access via the `Wallet` component (server-side only)
+- **Billing** - Access via the `Billing` component (server-side only)
+
+<Warning>
+**Server-Side Only:** All payment operations must be performed on the server. Use `Wallet` methods instead of directly calling `char:SetData('Cash', ...)` — the Wallet component handles balance validation and player notifications automatically.
+</Warning>
+
+---
+
+## Wallet
+
+### Wallet:Get
+
+Get a player's current cash balance.
+
+```lua
+Wallet:Get(source)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ResponseField name="cash" type="number">
+  Current cash balance (defaults to `0` if no character found)
+</ResponseField>
+
+**Example:**
+
+```lua
+local cash = Wallet:Get(source)
+print('Player has $' .. cash .. ' cash')
+```
+
+---
+
+### Wallet:Has
+
+Check if a player has at least a specified amount of cash.
+
+```lua
+Wallet:Has(source, amount)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="amount" type="number" required>
+  Amount to check (must be > 0)
+</ParamField>
+
+<ResponseField name="hasCash" type="boolean">
+  `true` if player's cash >= amount
+</ResponseField>
+
+**Example:**
+
+```lua
+if Wallet:Has(source, 500) then
+    -- Player can afford it
+else
+    Notification:Error(source, 'Not enough cash')
+end
+```
+
+---
+
+### Wallet:Modify
+
+Add or remove cash from a player's balance. Handles notifications automatically.
+
+```lua
+Wallet:Modify(source, amount, skipNotify)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="amount" type="number" required>
+  Amount to add (positive) or remove (negative)
+</ParamField>
+
+<ParamField path="skipNotify" type="boolean" optional>
+  Skip sending the player a notification (default: `false`)
+</ParamField>
+
+<ResponseField name="newBalance" type="number|boolean">
+  New cash balance on success, `false` if insufficient funds or no character found
+</ResponseField>
+
+**Examples:**
+
+```lua
+-- Give player $500 cash (shows notification: "You Received $500 In Cash")
+Wallet:Modify(source, 500)
+
+-- Remove $200 cash (shows notification: "You Paid $200 In Cash")
+local result = Wallet:Modify(source, -200)
+if not result then
+    -- Player didn't have enough cash
+end
+
+-- Give cash silently (no notification)
+Wallet:Modify(source, 1000, true)
+```
+
+<Accordion title="Cash Transfer Between Players" icon="arrow-right-arrow-left">
+```lua
+-- Remove from sender (silent) then add to receiver (silent)
+if Wallet:Modify(source, -amount, true) then
+    Wallet:Modify(targetSource, amount, true)
+else
+    -- Sender doesn't have enough cash
+end
+```
+</Accordion>
+
+---
+
+## Billing
+
+### Billing:Create
+
+Creates a pending bill for a player. The bill appears on their phone and they can accept or dismiss it.
+
+```lua
+Billing:Create(source, name, amount, description, cb)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID to bill
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Bill title/sender name
+</ParamField>
+
+<ParamField path="amount" type="number" required>
+  Bill amount in dollars
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Bill description
+</ParamField>
+
+<ParamField path="cb" type="function" optional>
+  Callback when bill is paid or dismissed: `function(wasPaid, withAccount)`
+</ParamField>
+
+**Example:**
+
+```lua
+-- Hospital bill after treatment
+Billing:Create(source, 'Pillbox Medical', 2500, 'Emergency medical treatment', function(wasPaid, withAccount)
+    if wasPaid then
+        Logger:Info('Billing', 'Medical bill paid', {
+            console = true,
+            file = true
+        }, {
+            account = withAccount,
+            amount = 2500
+        })
+    end
+end)
+```
+
+---
+
+### Billing:Accept
+
+Player accepts and pays a pending bill from a specified account.
+
+```lua
+Billing:Accept(source, billId, withAccount)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="billId" type="number" required>
+  Bill identifier
+</ParamField>
+
+<ParamField path="withAccount" type="string" optional>
+  Account number to pay from (defaults to personal account). Requires WITHDRAW permission and sufficient balance.
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if payment was processed
+</ResponseField>
+
+---
+
+### Billing:Dismiss
+
+Player dismisses a pending bill without paying.
+
+```lua
+Billing:Dismiss(source, billId)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="billId" type="number" required>
+  Bill identifier
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if bill was dismissed
+</ResponseField>
+
+---
+
+### Billing:Fine
+
+Issues a government fine to a player. The fine amount is split between multiple parties.
+
+```lua
+Billing:Fine(finingSource, targetSource, amount)
+```
+
+<ParamField path="finingSource" type="number" required>
+  Server ID of the officer issuing the fine
+</ParamField>
+
+<ParamField path="targetSource" type="number" required>
+  Server ID of the player being fined
+</ParamField>
+
+<ParamField path="amount" type="number" required>
+  Fine amount in dollars
+</ParamField>
+
+<ResponseField name="result" type="table|boolean">
+  `{amount = number, cut = number}` on success, `false` on failure
+</ResponseField>
+
+**Fine Revenue Split:**
+
+| Recipient | Percentage |
+|-----------|-----------|
+| Fining officer | 15% |
+| Police department | 25% |
+| State (account 100000) | 60% |
+
+**Example:**
+
+```lua
+local result = Billing:Fine(source, targetSource, 500)
+
+if result then
+    Notification:Success(source, 'Fine issued: $' .. result.amount .. ' (Your cut: $' .. result.cut .. ')')
+else
+    Notification:Error(source, 'Failed to issue fine')
+end
+```
+
+---
+
+### Billing:Charge
+
+Direct charge against a player's personal bank account.
+
+```lua
+Billing:Charge(source, amount, title, description)
+```
+
+<ParamField path="source" type="number" required>
+  Player server ID
+</ParamField>
+
+<ParamField path="amount" type="number" required>
+  Amount to charge
+</ParamField>
+
+<ParamField path="title" type="string" required>
+  Charge title
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Charge description
+</ParamField>
+
+<ResponseField name="result" type="number|boolean">
+  Charged amount on success, `false` if insufficient funds
+</ResponseField>
+
+**Example:**
+
+```lua
+local result = Billing:Charge(source, 150, 'Mechanic Service', 'Vehicle repair')
+
+if result then
+    Notification:Info(source, 'Charged $' .. result)
+end
+```
+
+---
+
+### Billing:PlayerCreateOrganizationBill
+
+An organization creates a bill for a player. Requires BILL permission on the account.
+
+```lua
+Billing:PlayerCreateOrganizationBill(billingSource, stateId, account, amount, description)
+```
+
+<ParamField path="billingSource" type="number" required>
+  Server ID of the employee creating the bill
+</ParamField>
+
+<ParamField path="stateId" type="number" required>
+  Target character State ID
+</ParamField>
+
+<ParamField path="account" type="string" required>
+  Organization account number
+</ParamField>
+
+<ParamField path="amount" type="number" required>
+  Bill amount
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Bill description
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  `true` if bill was created
+</ResponseField>
+
+**Example:**
+
+```lua
+-- Mechanic shop billing a customer
+local success = Billing:PlayerCreateOrganizationBill(
+    source,
+    targetChar:GetData('SID'),
+    'mechanic_shop',
+    3500,
+    'Engine rebuild + paint job'
+)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Finance - Banking" icon="building-columns" href="/api/finance/banking">
+    Account management and balances
+  </Card>
+  <Card title="Finance - Loans" icon="hand-holding-dollar" href="/api/finance/loans">
+    Loan and credit system
+  </Card>
+  <Card title="Finance - Crypto" icon="bitcoin-sign" href="/api/finance/crypto">
+    Cryptocurrency system
+  </Card>
+  <Card title="Jobs API" icon="briefcase" href="/api/jobs/exports">
+    Job management for permissions
+  </Card>
+</CardGroup>

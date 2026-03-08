@@ -7,7 +7,7 @@ icon: 'magnifying-glass'
 The Fetch component is the **primary way to access player and character data** in Mythic Framework. It retrieves DataStore objects that provide methods to get and set data for players and characters.
 
 <Warning>
-**Critical:** Do NOT use `COMPONENTS.Characters:GetCharacter()` - this method does not exist. Always use `Fetch:Source()` or `Fetch:SID()` to access character data.
+**Critical:** Do NOT use `Characters:GetCharacter()` - this method does not exist. Always use `Fetch:Source()` or `Fetch:SID()` to access character data.
 </Warning>
 
 ## Understanding the DataStore Pattern
@@ -307,7 +307,7 @@ print('Offline character phone:', phone)
 
 -- Get multiple fields
 local cash = Fetch:GetOfflineData(123, 'Cash')
-local bank = Fetch:GetOfflineData(123, 'Bank')
+local jobs = Fetch:GetOfflineData(123, 'Jobs')
 ```
 
 <Warning>
@@ -361,7 +361,6 @@ Update data in the DataStore.
 ```lua
 -- Update character data
 character:SetData('Cash', 5000)
-character:SetData('Bank', 25000)
 character:SetData('Phone', '555-1234')
 
 -- Update nested data
@@ -403,7 +402,7 @@ AddEventHandler('myresource:server:DoSomething', function()
     -- Access character data
     local stateId = char:GetData('SID')
     local cash = char:GetData('Cash')
-    local job = char:GetData('Job')
+    local jobs = char:GetData('Jobs')  -- Returns array of job objects
 
     -- Modify character data
     char:SetData('Cash', cash - 100)
@@ -446,47 +445,41 @@ end)
 
 ---
 
-### Sending Money to Offline Player
+### Giving Cash to Online Player
 
 ```lua
 -- Server side
-AddEventHandler('banking:server:TransferToSID', function(targetSID, amount, memo)
+AddEventHandler('cash:server:TransferToSID', function(targetSID, amount)
     local src = source
     local sender = Fetch:Source(src):GetData('Character')
-    local senderSID = sender:GetData('SID')
+
+    -- Check sender has enough cash
+    local senderCash = sender:GetData('Cash')
+    if senderCash < amount then
+        Notification:Error(src, 'Not enough cash')
+        return
+    end
 
     -- Check if recipient is online
     local recipient = Fetch:SID(targetSID)
 
     if recipient then
-        -- Online - use DataStore
         local recipientChar = recipient:GetData('Character')
-        local currentBank = recipientChar:GetData('Bank')
-        recipientChar:SetData('Bank', currentBank + amount)
+        if not recipientChar then return end
 
-        -- Notify
-        TriggerClientEvent('mythic-notifications:client:Send', recipient:GetData('Source'), {
-            message = string.format('Received $%d: %s', amount, memo),
-            type = 'success'
-        })
+        -- Transfer cash
+        sender:SetData('Cash', senderCash - amount)
+        local recipientCash = recipientChar:GetData('Cash')
+        recipientChar:SetData('Cash', recipientCash + amount)
+
+        -- Notify recipient
+        Notification:Success(recipient:GetData('Source'),
+            string.format('Received $%s cash', amount))
     else
-        -- Offline - update database directly
-        Database.Game:updateOne({
-            collection = 'characters',
-            query = {SID = targetSID},
-            update = {
-                ['$inc'] = {Bank = amount}
-            }
-        }, function(success, updated)
-            if success then
-                print('Transferred to offline player')
-            end
-        end)
+        -- Player is offline - cannot transfer cash directly
+        -- Use Banking component for bank transfers to offline players
+        Notification:Error(src, 'Player is not online')
     end
-
-    -- Deduct from sender
-    local senderBank = sender:GetData('Bank')
-    sender:SetData('Bank', senderBank - amount)
 end)
 ```
 
@@ -585,7 +578,7 @@ end
 
   <Accordion title="Player vs Character" icon="user">
     **Player:** Account-level data (AccountID, Identifier, Name)
-    **Character:** In-game character (SID, First, Last, Cash, Bank)
+    **Character:** In-game character (SID, First, Last, Cash, Jobs, Phone, DOB)
 
     Players can have multiple characters. Always get Character from Player:
     ```lua

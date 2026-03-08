@@ -55,21 +55,21 @@ end)
 -- Give starter items
 AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
     -- Create inventory
-    COMPONENTS.Inventory:Create(character.SID)
+    Inventory:Create(character.SID)
 
     -- Give starter items
-    COMPONENTS.Inventory:AddItem(character.SID, 'phone', 1, {
+    Inventory:AddItem(character.SID, 'phone', 1, {
         number = character.Phone
     })
-    COMPONENTS.Inventory:AddItem(character.SID, 'water', 2)
-    COMPONENTS.Inventory:AddItem(character.SID, 'sandwich', 2)
-    COMPONENTS.Inventory:AddItem(character.SID, 'id_card', 1, {
+    Inventory:AddItem(character.SID, 'water', 2)
+    Inventory:AddItem(character.SID, 'sandwich', 2)
+    Inventory:AddItem(character.SID, 'id_card', 1, {
         name = character.First .. ' ' .. character.Last,
         dob = character.DOB,
         gender = character.Gender
     })
 
-    COMPONENTS.Logger:Info('Characters', 'New character created', {
+    Logger:Info('Characters', 'New character created', {
         console = true,
         file = true
     }, {
@@ -81,7 +81,7 @@ end)
 
 -- Set default job
 AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
-    COMPONENTS.Jobs:SetJob(character.SID, 'unemployed', 0)
+    Jobs:GiveJob(character.SID, 'unemployed')
 end)
 
 -- Send welcome notification
@@ -95,7 +95,7 @@ end)
 
 -- Create default bank account
 AddEventHandler('mythic-characters:server:CharacterCreated', function(source, character)
-    COMPONENTS.Database.Game:insertOne({
+    Database.Game:insertOne({
         collection = 'bank_accounts',
         document = {
             owner = character.SID,
@@ -135,12 +135,10 @@ end)
 ```lua
 -- Load character data for other systems
 AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
-    -- Load inventory
-    local inventory = COMPONENTS.Inventory:Get(character.SID)
-    TriggerClientEvent('mythic-inventory:client:SetInventory', source, inventory)
+    -- Inventory is loaded automatically by the Inventory component on character select
 
     -- Load vehicles
-    COMPONENTS.Database.Game:find({
+    Database.Game:find({
         collection = 'vehicles',
         query = { owner = character.SID }
     }, function(success, vehicles)
@@ -150,7 +148,7 @@ AddEventHandler('mythic-characters:server:CharacterSelected', function(source, c
     end)
 
     -- Load properties
-    COMPONENTS.Database.Game:find({
+    Database.Game:find({
         collection = 'properties',
         query = { owner = character.SID }
     }, function(success, properties)
@@ -159,17 +157,12 @@ AddEventHandler('mythic-characters:server:CharacterSelected', function(source, c
         end
     end)
 
-    -- Set job
-    TriggerClientEvent('mythic-jobs:client:SetJob', source, {
-        job = character.job,
-        grade = character.jobGrade,
-        onDuty = character.onDuty or false
-    })
+    -- Jobs are loaded automatically by the Jobs component on character select
 end)
 
 -- Log character selection
 AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
-    COMPONENTS.Logger:Info('Characters', 'Character selected', {
+    Logger:Info('Characters', 'Character selected', {
         console = true,
         file = true
     }, {
@@ -180,14 +173,14 @@ AddEventHandler('mythic-characters:server:CharacterSelected', function(source, c
     })
 
     -- Update last login
-    COMPONENTS.Characters:UpdateCharacter(character.SID, {
+    Characters:UpdateCharacter(character.SID, {
         ['metadata.lastLogin'] = os.time()
     })
 end)
 
 -- Check for pending notifications
 AddEventHandler('mythic-characters:server:CharacterSelected', function(source, character)
-    COMPONENTS.Database.Game:find({
+    Database.Game:find({
         collection = 'notifications',
         query = { target = character.SID, read = false }
     }, function(success, notifications)
@@ -226,22 +219,22 @@ end)
 -- Clean up character data
 AddEventHandler('mythic-characters:server:CharacterDeleted', function(source, characterId)
     -- Delete inventory
-    COMPONENTS.Inventory:Delete(characterId)
+    Inventory:Delete(characterId)
 
     -- Delete all vehicles
-    COMPONENTS.Database.Game:delete({
+    Database.Game:delete({
         collection = 'vehicles',
         query = { owner = characterId }
     })
 
     -- Delete properties
-    COMPONENTS.Database.Game:delete({
+    Database.Game:delete({
         collection = 'property_ownership',
         query = { owner = characterId }
     })
 
     -- Delete phone data
-    COMPONENTS.Database.Game:delete({
+    Database.Game:delete({
         collection = 'phone_messages',
         query = {
             ['$or'] = {
@@ -252,19 +245,19 @@ AddEventHandler('mythic-characters:server:CharacterDeleted', function(source, ch
     })
 
     -- Delete bank accounts
-    COMPONENTS.Database.Game:delete({
+    Database.Game:delete({
         collection = 'bank_accounts',
         query = { owner = characterId }
     })
 
-    COMPONENTS.Logger:Info('Characters', 'Character data cleaned up', {
+    Logger:Info('Characters', 'Character data cleaned up', {
         console = true, file = true
     }, { character = characterId })
 end)
 
 -- Log deletion for audit
 AddEventHandler('mythic-characters:server:CharacterDeleted', function(source, characterId)
-    COMPONENTS.Database.Game:insertOne({
+    Database.Game:insertOne({
         collection = 'audit_log',
         document = {
             type = 'character_deleted',
@@ -319,19 +312,19 @@ end)
 AddEventHandler('mythic-characters:server:JobChanged', function(characterId, newJob, newGrade, oldJob, oldGrade)
     if newJob == 'police' then
         -- Give police equipment
-        COMPONENTS.Inventory:AddItem(characterId, 'weapon_pistol', 1)
-        COMPONENTS.Inventory:AddItem(characterId, 'radio', 1)
-        COMPONENTS.Inventory:AddItem(characterId, 'handcuffs', 1)
+        Inventory:AddItem(characterId, 'weapon_pistol', 1)
+        Inventory:AddItem(characterId, 'radio', 1)
+        Inventory:AddItem(characterId, 'handcuffs', 1)
     elseif newJob == 'ems' then
         -- Give EMS equipment
-        COMPONENTS.Inventory:AddItem(characterId, 'medkit', 5)
-        COMPONENTS.Inventory:AddItem(characterId, 'bandage', 10)
+        Inventory:AddItem(characterId, 'medkit', 5)
+        Inventory:AddItem(characterId, 'bandage', 10)
     end
 
     -- Remove old job items
     if oldJob == 'police' then
-        COMPONENTS.Inventory:RemoveItem(characterId, 'weapon_pistol', 999)
-        COMPONENTS.Inventory:RemoveItem(characterId, 'handcuffs', 999)
+        Inventory.Items:Remove(characterId, 1, 'weapon_pistol', 999)
+        Inventory.Items:Remove(characterId, 1, 'handcuffs', 999)
     end
 end)
 
@@ -352,8 +345,8 @@ AddEventHandler('mythic-characters:server:JobChanged', function(characterId, new
 
     if player then
         local source = player:GetData('Source')
-        local jobLabel = COMPONENTS.Jobs:GetJobLabel(newJob)
-        local gradeLabel = COMPONENTS.Jobs:GetGradeLabel(newJob, newGrade)
+        local jobLabel = newJob
+        local gradeLabel = Jobs:GetGradeLabel(newJob, newGrade)
 
         TriggerClientEvent('mythic-notifications:client:Send', source, {
             message = 'Job changed to ' .. jobLabel .. ' - ' .. gradeLabel,
@@ -417,7 +410,7 @@ end)
 -- Log large transactions
 AddEventHandler('mythic-characters:server:MoneyChanged', function(characterId, account, amount, newBalance, reason)
     if math.abs(amount) >= 10000 then  -- Log transactions $10k+
-        COMPONENTS.Logger:Info('Economy', 'Large transaction', {
+        Logger:Info('Economy', 'Large transaction', {
             character = characterId,
             account = account,
             amount = amount,
@@ -431,13 +424,13 @@ end)
 AddEventHandler('mythic-characters:server:MoneyChanged', function(characterId, account, amount, newBalance, reason)
     if account == 'bank' and newBalance >= 1000000 then
         -- Unlock millionaire achievement
-        COMPONENTS.Achievements:Unlock(characterId, 'millionaire')
+        Achievements:Unlock(characterId, 'millionaire')
     end
 end)
 
 -- Transaction log
 AddEventHandler('mythic-characters:server:MoneyChanged', function(characterId, account, amount, newBalance, reason)
-    COMPONENTS.Database.Game:insertOne({
+    Database.Game:insertOne({
         collection = 'transactions',
         document = {
             character = characterId,
@@ -485,9 +478,8 @@ AddEventHandler('mythic-characters:client:Spawned', function(character, location
         type = 'INIT_CHARACTER',
         character = {
             name = character.First .. ' ' .. character.Last,
-            job = character.job,
-            cash = character.cash,
-            bank = character.bank
+            cash = character.Cash,
+            jobs = character.Jobs
         }
     })
 
@@ -558,11 +550,10 @@ AddEventHandler('mythic-characters:server:CharacterCreated', function(source, ch
     }
 
     for _, item in ipairs(welcomePackage) do
-        COMPONENTS.Inventory:AddItem(character.SID, item.item, item.count)
+        Inventory:AddItem(character.SID, item.item, item.count)
     end
 
-    -- Give starting money
-    COMPONENTS.Characters:AddMoney(character.SID, 'bank', 5000, 'Welcome bonus')
+    -- Starting cash is set automatically via character defaults
 end)
 ```
 
@@ -670,7 +661,7 @@ end)
         local player = Fetch:SID(characterId)
 
         if not player then
-            COMPONENTS.Logger:Warn('Characters', 'JobChanged for offline character', {
+            Logger:Warn('Characters', 'JobChanged for offline character', {
                 console = true,
                 file = true
             }, {

@@ -90,7 +90,7 @@ exports['mythic-base']:RegisterComponent('Inventory', {
 
     -- Required methods
     Get = function(self, characterId, cb)
-        COMPONENTS.Database.Game:findOne({
+        Database.Game:findOne({
             collection = 'inventory',
             query = { owner = characterId }
         }, cb)
@@ -98,7 +98,7 @@ exports['mythic-base']:RegisterComponent('Inventory', {
 
     AddItem = function(self, characterId, item, count, metadata)
         -- Add item logic
-        COMPONENTS.Logger:Info('Inventory', 'Item added', {
+        Logger:Info('Inventory', 'Item added', {
             console = true
         }, {
             character = characterId,
@@ -191,7 +191,7 @@ local Inventory = exports['mythic-base']:FetchComponent('Inventory')
 
 if Inventory then
     -- Use the component
-    local items = Inventory:Get(characterId)
+    local items = Inventory.Items:GetCounts(characterId, 1)
 else
     print('[ERROR] Inventory component not found!')
 end
@@ -205,7 +205,7 @@ end
 
 AddEventHandler('Core:Shared:Ready', function()
     -- Components are now available in COMPONENTS global
-    COMPONENTS.Logger:Info('MyResource', 'Starting up')
+    Logger:Info('MyResource', 'Starting up')
 
     local player = Fetch:Source(source)
     if player then
@@ -223,15 +223,15 @@ local Database = exports['mythic-base']:FetchComponent('Database')
 local Characters = exports['mythic-base']:FetchComponent('Characters')
 
 -- Or use COMPONENTS global
-local Logger = COMPONENTS.Logger
-local Database = COMPONENTS.Database
-local Characters = COMPONENTS.Characters
+local Logger = Logger
+local Database = Database
+local Characters = Characters
 ```
 
 ### Notes
 
 <Tip>
-**COMPONENTS Global:** After `Core:Shared:Ready` event, all components are available in the `COMPONENTS` global table. Use `COMPONENTS.ComponentName` instead of repeatedly calling `FetchComponent`.
+**COMPONENTS Global:** After `Core:Shared:Ready` event, all components are available in the `COMPONENTS` global table. Use `ComponentName` instead of repeatedly calling `FetchComponent`.
 </Tip>
 
 <Warning>
@@ -313,13 +313,13 @@ exports['mythic-base']:ExtendComponent('Inventory', {
 
 ```lua
 -- Save reference to original method
-local originalAddItem = COMPONENTS.Inventory.AddItem
+local originalAddItem = Inventory.AddItem
 
 -- Extend with wrapper that adds logging
 exports['mythic-base']:ExtendComponent('Inventory', {
     AddItem = function(self, characterId, item, count, metadata)
         -- Log before
-        COMPONENTS.Logger:Trace('Inventory', 'Adding item', {
+        Logger:Trace('Inventory', 'Adding item', {
             console = true
         }, {
             character = characterId,
@@ -436,9 +436,9 @@ exports['mythic-base']:RequestDependencies('Shops', {
     exports['mythic-base']:RegisterComponent('Shops', {
         Purchase = function(self, player, item, price)
             -- Can safely use dependencies here
-            if COMPONENTS.Finance:Charge(player, price) then
-                COMPONENTS.Inventory:AddItem(player, item, 1)
-                COMPONENTS.Logger:Info('Shops', 'Purchase complete')
+            if Finance:Charge(player, price) then
+                Inventory:AddItem(player, item, 1)
+                Logger:Info('Shops', 'Purchase complete')
                 return true
             end
             return false
@@ -495,7 +495,7 @@ exports['mythic-base']:RequestDependencies('MyFeature', {
         Notify = function(self, player, message)
             if hasPhone then
                 -- Use phone notifications
-                COMPONENTS.Phone:SendNotification(player, message)
+                Phone:SendNotification(player, message)
             else
                 -- Fallback to chat
                 TriggerClientEvent('chat:addMessage', player, {
@@ -573,15 +573,15 @@ end)
 
 AddEventHandler('Core:Shared:Ready', function()
     -- Components now available in COMPONENTS global
-    COMPONENTS.Logger:Info('Jobs', 'Loading jobs system')
+    Logger:Info('Jobs', 'Loading jobs system')
 
     -- Load jobs from database
-    COMPONENTS.Database.Game:find({
+    Database.Game:find({
         collection = 'jobs',
         query = {}
     }, function(success, jobs)
         if success then
-            COMPONENTS.Logger:Info('Jobs', 'Loaded ' .. #jobs .. ' jobs')
+            Logger:Info('Jobs', 'Loaded ' .. #jobs .. ' jobs')
         end
     end)
 
@@ -590,7 +590,7 @@ AddEventHandler('Core:Shared:Ready', function()
         local player = Fetch:Source(source)
         local char = player:GetData('Character')
         if char then
-            COMPONENTS.Jobs:ClockIn(char:GetData('SID'), jobId)
+            Jobs.Duty:On(source, jobId)
         end
     end)
 end)
@@ -610,8 +610,8 @@ local Logger = exports['mythic-base']:FetchComponent('Logger')
 local Database = exports['mythic-base']:FetchComponent('Database')
 
 -- Use this:
-COMPONENTS.Logger:Info('MyResource', 'Message')
-COMPONENTS.Database.Game:findOne({ collection = 'characters', query = {} }, callback)
+Logger:Info('MyResource', 'Message')
+Database.Game:findOne({ collection = 'characters', query = {} }, callback)
 ```
 
 ### Available After
@@ -624,37 +624,37 @@ COMPONENTS.Database.Game:findOne({ collection = 'characters', query = {} }, call
   <Tab title="Server">
     ```lua
     -- Core components (always available)
-    COMPONENTS.Logger
-    COMPONENTS.Database
-    COMPONENTS.Middleware
-    COMPONENTS.Callbacks
-    COMPONENTS.Punishment
+    Logger
+    Database
+    Middleware
+    Callbacks
+    Punishment
 
     -- Feature components (if resources loaded)
-    COMPONENTS.Characters
-    COMPONENTS.Inventory
-    COMPONENTS.Finance
-    COMPONENTS.Jobs
-    COMPONENTS.Vehicles
-    COMPONENTS.Police
-    COMPONENTS.Properties
+    Characters
+    Inventory
+    Finance
+    Jobs
+    Vehicles
+    Police
+    Properties
     ```
   </Tab>
 
   <Tab title="Client">
     ```lua
     -- Core client components
-    COMPONENTS.Logger
-    COMPONENTS.Callbacks
-    COMPONENTS.Keybinds
-    COMPONENTS.Notifications
+    Logger
+    Callbacks
+    Keybinds
+    Notifications
 
     -- Client feature components
-    COMPONENTS.CharacterClient
-    COMPONENTS.InventoryClient
-    COMPONENTS.VehicleClient
-    COMPONENTS.HUD
-    COMPONENTS.Menu
+    CharacterClient
+    InventoryClient
+    VehicleClient
+    HUD
+    Menu
     ```
   </Tab>
 </Tabs>
@@ -668,14 +668,14 @@ COMPONENTS.Database.Game:findOne({ collection = 'characters', query = {} }, call
     **❌ Bad:**
     ```lua
     -- Top-level component access (may be nil!)
-    local Logger = COMPONENTS.Logger
+    local Logger = Logger
     Logger:Info('MyResource', 'Starting')  -- Error: attempt to index nil
     ```
 
     **✅ Good:**
     ```lua
     AddEventHandler('Core:Shared:Ready', function()
-        COMPONENTS.Logger:Info('MyResource', 'Starting')
+        Logger:Info('MyResource', 'Starting')
     end)
     ```
   </Accordion>
@@ -686,7 +686,7 @@ COMPONENTS.Database.Game:findOne({ collection = 'characters', query = {} }, call
     -- Assume dependencies exist
     exports['mythic-base']:RegisterComponent('MyFeature', {
         DoThing = function(self)
-            COMPONENTS.Inventory:AddItem(...)  -- May be nil!
+            Inventory:AddItem(...)  -- May be nil!
         end
     })
     ```
@@ -699,7 +699,7 @@ COMPONENTS.Database.Game:findOne({ collection = 'characters', query = {} }, call
         if #errors == 0 then
             exports['mythic-base']:RegisterComponent('MyFeature', {
                 DoThing = function(self)
-                    COMPONENTS.Inventory:AddItem(...)  -- Guaranteed to exist
+                    Inventory:AddItem(...)  -- Guaranteed to exist
                 end
             })
         end

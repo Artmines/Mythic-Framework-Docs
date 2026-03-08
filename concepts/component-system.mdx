@@ -208,7 +208,7 @@ AddEventHandler('Core:Shared:Ready', function()
 end)
 ```
 
-After `RetrieveComponents()`, you use the local variables directly instead of `COMPONENTS.X` everywhere.
+After `RetrieveComponents()`, you use the local variables directly instead of `X` everywhere.
 
 ## Component Patterns
 
@@ -268,7 +268,7 @@ Use `ExtendComponent` to add functionality to an existing component without modi
 
 ```lua
 -- Store reference to original method
-local originalAddItem = COMPONENTS.Inventory.AddItem
+local originalAddItem = Inventory.AddItem
 
 -- Extend with additional behavior
 exports['mythic-base']:ExtendComponent('Inventory', {
@@ -330,14 +330,14 @@ end)
 
     ```lua
     -- Good: focused component
-    COMPONENTS.Garage = {
+    Garage = {
         SpawnVehicle = function(self, ...) end,
         StoreVehicle = function(self, ...) end,
         GetVehicles = function(self, ...) end,
     }
 
     -- Bad: does too many unrelated things
-    COMPONENTS.Everything = {
+    Everything = {
         SpawnVehicle = function(self, ...) end,
         GetInventory = function(self, ...) end,
         SendEmail = function(self, ...) end,
@@ -350,7 +350,7 @@ end)
 
     ```lua
     -- Bad: may be nil if component hasn't loaded yet
-    local Inventory = COMPONENTS.Inventory
+    local Inventory = Inventory
 
     -- Good: wait for dependencies
     exports['mythic-base']:RequestDependencies('MyResource', { 'Inventory' }, function(errors)

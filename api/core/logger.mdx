@@ -26,7 +26,7 @@ The Logger supports 6 log levels with increasing severity:
 <Warning>
 **Important:** All logger methods use this signature (not the commonly assumed signature):
 ```lua
-COMPONENTS.Logger:MethodName(component, log, flags, data)
+Logger:MethodName(component, log, flags, data)
 ```
 </Warning>
 
@@ -49,17 +49,17 @@ Log informational message.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Logger:Info('MyResource', 'Player joined server')
+Logger:Info('MyResource', 'Player joined server')
 
 -- With flags
-COMPONENTS.Logger:Info('MyResource', 'Important event occurred', {
+Logger:Info('MyResource', 'Important event occurred', {
     console = true,
     file = true,
     discord = true
 })
 
 -- With data
-COMPONENTS.Logger:Info('MyResource', 'Transaction completed', {
+Logger:Info('MyResource', 'Transaction completed', {
     console = true,
     database = true
 }, {
@@ -78,7 +78,7 @@ Log warning message.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Logger:Warn('AntiCheat', 'Suspicious activity detected', {
+Logger:Warn('AntiCheat', 'Suspicious activity detected', {
     console = true,
     discord = true
 })
@@ -93,7 +93,7 @@ Log error message.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Logger:Error('Database', 'Failed to save player data', {
+Logger:Error('Database', 'Failed to save player data', {
     console = true,
     file = true,
     discord = true
@@ -112,7 +112,7 @@ Log critical failure.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Logger:Critical('Core', 'System failure detected', {
+Logger:Critical('Core', 'System failure detected', {
     console = true,
     file = true,
     discord = {
@@ -135,7 +135,7 @@ Log detailed debugging information.
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Logger:Trace('Inventory', 'Item added to inventory', {
+Logger:Trace('Inventory', 'Item added to inventory', {
     console = true
 }, {
     item = 'water',
@@ -153,7 +153,7 @@ General logging (retained for backward compatibility).
 **Example:**
 ```lua
 -- Server side
-COMPONENTS.Logger:Log('MyResource', 'Generic log message')
+Logger:Log('MyResource', 'Generic log message')
 ```
 
 <Note>
@@ -182,7 +182,7 @@ flags = {
 ```
 
 **Log Level Filter:**
-- Controlled by `COMPONENTS.Convar.LOGGING.value`
+- Controlled by `Convar.LOGGING.value`
 - Only logs >= this level will print to console
 - Configured in server.cfg
 
@@ -224,7 +224,7 @@ Files are organized by component name and date. New file created daily.
 ### Discord Output
 
 <Note>
-Discord logging only fires when `GlobalState.IsProduction` is true AND the log level meets the minimum threshold (`COMPONENTS.Convar.LOGGING.value`). It will not send webhooks in development mode.
+Discord logging only fires when `GlobalState.IsProduction` is true AND the log level meets the minimum threshold (`Convar.LOGGING.value`). It will not send webhooks in development mode.
 </Note>
 
 ```lua
@@ -262,7 +262,7 @@ set discord_log_webhook "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_W
 
 **Example:**
 ```lua
-COMPONENTS.Logger:Info('AntiCheat', 'Player banned', {
+Logger:Info('AntiCheat', 'Player banned', {
     console = true,
     discord = {
         embed = true,
@@ -310,7 +310,7 @@ flags = {
 
 <Warning>
 Database logging only works when **all** of these conditions are met:
-1. `COMPONENTS.Proxy.DatabaseReady` is true (database connection established)
+1. `Proxy.DatabaseReady` is true (database connection established)
 2. `GlobalState.IsProduction` is true (environment set to `"prod"`)
 3. `flags.database = true` is set in the flags parameter
 </Warning>
@@ -323,16 +323,16 @@ Database logging only works when **all** of these conditions are met:
 
 ```lua
 -- Simple info log to console
-COMPONENTS.Logger:Info('MyResource', 'Server started')
+Logger:Info('MyResource', 'Server started')
 
 -- Warning with file logging
-COMPONENTS.Logger:Warn('Security', 'Failed login attempt', {
+Logger:Warn('Security', 'Failed login attempt', {
     console = true,
     file = true
 })
 
 -- Error with all outputs
-COMPONENTS.Logger:Error('Database', 'Connection lost', {
+Logger:Error('Database', 'Connection lost', {
     console = true,
     file = true,
     discord = true,
@@ -355,7 +355,7 @@ AddEventHandler('shop:server:Purchase', function(itemName, price)
     local player = Fetch:Source(src)
     local char = player:GetData('Character')
 
-    COMPONENTS.Logger:Info('Shop', string.format(
+    Logger:Info('Shop', string.format(
         '%s %s purchased %s for $%d',
         char:GetData('First'),
         char:GetData('Last'),
@@ -385,7 +385,7 @@ AddEventHandler('anticheat:detection', function(source, cheatType, details)
     local player = Fetch:Source(source)
     local char = player:GetData('Character')
 
-    COMPONENTS.Logger:Critical('AntiCheat', string.format(
+    Logger:Critical('AntiCheat', string.format(
         'CHEAT DETECTED: %s by %s %s (SID: %d)',
         cheatType,
         char:GetData('First'),
@@ -430,14 +430,14 @@ end)
 
     ```lua
     -- ✅ Good
-    COMPONENTS.Logger:Info('Shop', 'Purchase completed')
-    COMPONENTS.Logger:Warn('Security', 'Multiple failed login attempts')
-    COMPONENTS.Logger:Error('Database', 'Connection failed')
-    COMPONENTS.Logger:Critical('Core', 'System shutdown imminent')
+    Logger:Info('Shop', 'Purchase completed')
+    Logger:Warn('Security', 'Multiple failed login attempts')
+    Logger:Error('Database', 'Connection failed')
+    Logger:Critical('Core', 'System shutdown imminent')
 
     -- ❌ Bad
-    COMPONENTS.Logger:Error('Shop', 'Purchase completed')  -- Not an error
-    COMPONENTS.Logger:Info('Core', 'Database exploded')    -- Too severe for Info
+    Logger:Error('Shop', 'Purchase completed')  -- Not an error
+    Logger:Info('Core', 'Database exploded')    -- Too severe for Info
     ```
   </Accordion>
 
@@ -446,7 +446,7 @@ end)
 
     ```lua
     -- ✅ Good - includes context
-    COMPONENTS.Logger:Error('Inventory', 'Failed to add item', {
+    Logger:Error('Inventory', 'Failed to add item', {
         console = true,
         database = true
     }, {
@@ -457,7 +457,7 @@ end)
     })
 
     -- ❌ Bad - no context
-    COMPONENTS.Logger:Error('Inventory', 'Failed to add item')
+    Logger:Error('Inventory', 'Failed to add item')
     ```
   </Accordion>
 
@@ -466,13 +466,13 @@ end)
 
     ```lua
     -- ✅ Good - file only for frequent logs
-    COMPONENTS.Logger:Trace('Movement', 'Player moved', {
+    Logger:Trace('Movement', 'Player moved', {
         console = false,
         file = true
     })
 
     -- ❌ Bad - console spam
-    COMPONENTS.Logger:Info('Movement', 'Player moved', {
+    Logger:Info('Movement', 'Player moved', {
         console = true
     })
     ```
@@ -502,7 +502,7 @@ end)
 **Pro Tip:** Create helper functions for common logging patterns:
 ```lua
 function LogPlayerAction(component, action, char, data)
-    COMPONENTS.Logger:Info(component, string.format(
+    Logger:Info(component, string.format(
         '%s %s: %s',
         char:GetData('First'),
         char:GetData('Last'),
